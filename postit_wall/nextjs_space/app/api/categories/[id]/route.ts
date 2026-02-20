@@ -1,0 +1,202 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
+
+// Helper to check if user can manage a category
+async function canManageCategory(userId: string, userRole: string, categoryId: string): Promise<boolean> {
+  if (userRole === 'SUPER_ADMIN') return true
+  if (userRole !== 'WALL_MANAGER') return false
+
+  // Recursive function to check hierarchy
+  async function checkHierarchy(catId: string): Promise<boolean> {
+    const category = await prisma.category.findUnique({
+      where: { id: catId },
+      select: { wallManagerId: true, parentId: true }
+    })
+    if (!category) return false
+    if (category.wallManagerId === userId) return true
+    if (category.parentId) return checkHierarchy(category.parentId)
+    return false
+  }
+
+  return checkHierarchy(categoryId)
+}
+
+// GET single category with hierarchy info
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const category = await prisma.category.findUnique({
+      where: { id: params.id },
+      include: {
+        assignedGroup: true,
+        wallManager: {
+          select: { id: true, name: true, email: true }
+        },
+        parent: {
+          select: { id: true, name: true }
+        },
+        children: {
+          include: {
+            wallManager: { select: { id: true, name: true, email: true } },
+            _count: { select: { postits: true } }
+          }
+        },
+        postits: {
+          select: { id: true, content: true, isApproved: true }
+        },
+        _count: { select: { postits: true, children: true } }
+      }
+    })
+
+    if (!category) {
+      return NextResponse.json({ error: 'Kategori bulunamadı' }, { status: 404 })
+    }
+
+    return NextResponse.json({ category })
+  } catch (error) {
+    console.error('Error fetching category:', error)
+    return NextResponse.json({ error: 'Kategori alınırken hata oluştu' }, { status: 500 })
+  }
+}
+
+// UPDATE category
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    const userRole = (session?.user as any)?.role
+    const userId = (session?.user as any)?.id
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Oturum açmanız gerekiyor' }, { status: 401 })
+    }
+
+    const hasPermission = await canManageCategory(userId, userRole, params.id)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Bu işlemi yapmaya yetkiniz yok' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const {
+      name, description, wallManagerId, userGroupId, movePostsTo,
+      // Appearance fields
+      heroBackgroundImage, heroSubtitle,
+      heroTitleFont, heroTitleColor, heroTitleSize,
+      heroSubtitleFont, heroSubtitleColor, heroSubtitleSize,
+      heroGradientFrom, heroGradientVia, heroGradientTo,
+      categoryFont, categoryColor, categoryBgColor
+    } = body
+
+    // Only super admin can change wallManagerId or userGroupId
+    if ((wallManagerId !== undefined || userGroupId !== undefined) && userRole !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Yönetici veya grup atamak için Super Admin yetkisi gerekli' }, { status: 403 })
+    }
+
+    // If movePostsTo is specified, move posts to that category
+    if (movePostsTo) {
+      const targetHasPermission = await canManageCategory(userId, userRole, movePostsTo)
+      if (!targetHasPermission) {
+        return NextResponse.json({ error: 'Hedef kategoride yetkiniz yok' }, { status: 403 })
+      }
+
+      await prisma.postIt.updateMany({
+        where: { categoryId: params.id },
+        data: { categoryId: movePostsTo }
+      })
+    }
+
+    const updateData: any = {}
+    if (name) updateData.name = name
+    if (description !== undefined) updateData.description = description
+    if (userRole === 'SUPER_ADMIN') {
+      if (wallManagerId !== undefined) updateData.wallManagerId = wallManagerId || null
+      if (userGroupId !== undefined) updateData.userGroupId = userGroupId || null
+    }
+
+    // Appearance fields
+    if (heroBackgroundImage !== undefined) updateData.heroBackgroundImage = heroBackgroundImage || null
+    if (heroSubtitle !== undefined) updateData.heroSubtitle = heroSubtitle || null
+    if (heroTitleFont !== undefined) updateData.heroTitleFont = heroTitleFont
+    if (heroTitleColor !== undefined) updateData.heroTitleColor = heroTitleColor
+    if (heroTitleSize !== undefined) updateData.heroTitleSize = heroTitleSize
+    if (heroSubtitleFont !== undefined) updateData.heroSubtitleFont = heroSubtitleFont
+    if (heroSubtitleColor !== undefined) updateData.heroSubtitleColor = heroSubtitleColor
+    if (heroSubtitleSize !== undefined) updateData.heroSubtitleSize = heroSubtitleSize
+    if (heroGradientFrom !== undefined) updateData.heroGradientFrom = heroGradientFrom
+    if (heroGradientVia !== undefined) updateData.heroGradientVia = heroGradientVia
+    if (heroGradientTo !== undefined) updateData.heroGradientTo = heroGradientTo
+    if (categoryFont !== undefined) updateData.categoryFont = categoryFont
+    if (categoryColor !== undefined) updateData.categoryColor = categoryColor
+    if (categoryBgColor !== undefined) updateData.categoryBgColor = categoryBgColor
+
+    const category = await prisma.category.update({
+      where: { id: params.id },
+      data: updateData
+    })
+
+    return NextResponse.json({ category })
+  } catch (error) {
+    console.error('Error updating category:', error)
+    return NextResponse.json({ error: 'Kategori güncellenirken hata oluştu' }, { status: 500 })
+  }
+}
+
+// DELETE category
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    const userRole = (session?.user as any)?.role
+    const userId = (session?.user as any)?.id
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Oturum açmanız gerekiyor' }, { status: 401 })
+    }
+
+    const hasPermission = await canManageCategory(userId, userRole, params.id)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Bu işlemi yapmaya yetkiniz yok' }, { status: 403 })
+    }
+
+    // Check if category has posts or children
+    const category = await prisma.category.findUnique({
+      where: { id: params.id },
+      include: { _count: { select: { postits: true, children: true } } }
+    })
+
+    if (!category) {
+      return NextResponse.json({ error: 'Kategori bulunamadı' }, { status: 404 })
+    }
+
+    if (category._count.postits > 0) {
+      return NextResponse.json(
+        { error: 'Bu kategoride notlar var, önce notları silin veya taşıyın' },
+        { status: 400 }
+      )
+    }
+
+    if (category._count.children > 0) {
+      return NextResponse.json(
+        { error: 'Bu kategoride alt kategoriler var, önce onları silin' },
+        { status: 400 }
+      )
+    }
+
+    await prisma.category.delete({ where: { id: params.id } })
+
+    return NextResponse.json({ message: 'Kategori silindi' })
+  } catch (error) {
+    console.error('Error deleting category:', error)
+    return NextResponse.json({ error: 'Kategori silinirken hata oluştu' }, { status: 500 })
+  }
+}

@@ -1,0 +1,9 @@
+companyName,createdAt,email,emailVerified,id,image,name,password,phone,role,taxId,updatedAt
+,2026-02-16T09:13:43.461000,john@doe.com,,cmloyj21x0001sx0xetbevyy2,,Test Kullanıcı,$2a$10$FIscdRHxBT2.39x/xgGcU.1b.njvRMMIoQiCQNPreKd6VQy/P3Wva,,SUPER_ADMIN,,2026-02-16T09:13:43.461000
+,2026-02-16T09:13:43.456000,admin@panodasehir.com,,cmloyj21r0000sx0xyhzs1pji,,Süper Admin,$2a$10$vK7i/6C5RqDZ0L4YOxExc.ig10eKXuaC2mJF4u1f5SdRLslSVFgWy,,SUPER_ADMIN,,2026-02-16T11:46:49.362000
+,2026-02-16T09:13:43.530000,teknoloji@panodasehir.com,,cmloyj23t0002sx0xnemnge4m,,Teknoloji Yöneticisi,$2a$10$Yz0faawyT.dqHOnv2bQ1leh2AAzS3kXUXbMIqB5eK6HruqLNHrgyi,,WALL_MANAGER,,2026-02-16T11:46:49.366000
+,2026-02-16T09:13:43.598000,sanat@panodasehir.com,,cmloyj25q0003sx0xrwbljnxv,,Sanat Yöneticisi,$2a$10$d1nVVo6F7qvHHdD90.PZxeRHETNFOReqW/toEPXyePhKt4liSEZwm,,WALL_MANAGER,,2026-02-16T11:46:49.368000
+,2026-02-16T14:31:40.662000,orcun.cengiz@sepetink.com,,cmlp9vy460002o108nqfpsjma,,Orçun Cengiz,$2a$10$uF.MDwRFpFI7wU9RSPY8euhZ3ucTMBINhBQYfo4h4MiF.8Zvk3qha,,USER,,2026-02-16T14:31:40.662000
+,2026-02-16T22:02:18.227000,test@panodasehir.com,,cmlppzgfm0000v7hzywp0lfhp,,test,$2a$10$0u51UdM7icrohCF3DfreIOK9CORSmURPJmM.bzNn4lvqzlZujyhQW,,USER,,2026-02-16T22:02:18.227000
+,2026-02-16T22:07:51.695000,testuserh0t5k22c@example.com,,cmlpq6lqn0000v76q3bymkgew,,Süper Admin,$2a$10$cUq45vqWoxnRqoBWxvH7aOvFx/CkAB3RItaCBiUzXTi7rxAwQeLcu,,USER,,2026-02-16T22:07:51.695000
+,2026-02-16T22:15:31.080000,testuser20101zui@example.com,,cmlpqgg7c0000v7ulygx70laz,,Süper Admin,$2a$10$F.96GbSOfH0YdzcXzFe6/uYDXk4moQy2lF0oxbA4ebS/ALiJJIKzC,,USER,,2026-02-16T22:15:31.080000

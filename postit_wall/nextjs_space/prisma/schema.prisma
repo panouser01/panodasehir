@@ -1,0 +1,213 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String     @id @default(cuid())
+  email             String     @unique
+  emailVerified     DateTime?
+  password          String?
+  name              String?
+  image             String?
+  role              String     @default("USER")
+  companyName       String?
+  phone             String?
+  taxId             String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  userGroupId       String?
+  accounts          Account[]
+  ads               Ad[]
+  managedCategories Category[] @relation("WallManager")
+  postits           PostIt[]
+  sessions          Session[]
+  userGroup         UserGroup? @relation(fields: [userGroupId], references: [id])
+
+  @@index([userGroupId], map: "User_userGroupId_fkey")
+}
+
+model UserGroup {
+  id            String     @id @default(cuid())
+  name          String     @unique
+  description   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  assignedWalls Category[]
+  users         User[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId], map: "Account_userId_fkey")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "Session_userId_fkey")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Category {
+  id                  String     @id @default(cuid())
+  name                String
+  description         String?
+  wallManagerId       String?
+  parentId            String?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  heroBackgroundImage String?
+  heroSubtitle        String?
+  heroTitleFont       String?    @default("sans-serif")
+  heroTitleColor      String?    @default("#ffffff")
+  heroTitleSize       String?    @default("5xl")
+  heroSubtitleFont    String?    @default("sans-serif")
+  heroSubtitleColor   String?    @default("#ffffff")
+  heroSubtitleSize    String?    @default("xl")
+  heroGradientFrom    String?    @default("#facc15")
+  heroGradientVia     String?    @default("#f472b6")
+  heroGradientTo      String?    @default("#a855f7")
+  categoryFont        String?    @default("sans-serif")
+  categoryColor       String?    @default("#1f2937")
+  categoryBgColor     String?    @default("#ffffff")
+  postCount           Int        @default(0)
+  userGroupId         String?
+  ads                 Ad[]
+  parent              Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children            Category[] @relation("CategoryHierarchy")
+  assignedGroup       UserGroup? @relation(fields: [userGroupId], references: [id])
+  wallManager         User?      @relation("WallManager", fields: [wallManagerId], references: [id])
+  postits             PostIt[]
+
+  @@unique([name, parentId])
+  @@index([parentId], map: "Category_parentId_fkey")
+  @@index([userGroupId], map: "Category_userGroupId_fkey")
+  @@index([wallManagerId], map: "Category_wallManagerId_fkey")
+}
+
+model UserRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PostIt {
+  id          String        @id @default(cuid())
+  userId      String
+  categoryId  String
+  content     String
+  link        String?
+  color       PostItColor   @default(YELLOW)
+  font        PostItFont    @default(HANDWRITING)
+  pushpin     PushpinStyle  @default(RED)
+  rotation    Float         @default(0)
+  expiresAt   DateTime
+  isApproved  Boolean       @default(false)
+  isModerated Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  imageUrl    String?
+  category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  PostItImage PostItImage[]
+
+  @@index([categoryId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isApproved])
+}
+
+model Ad {
+  id         String     @id @default(cuid())
+  title      String
+  imageUrl   String
+  link       String
+  position   AdPosition
+  categoryId String?
+  createdBy  String
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  category   Category?  @relation(fields: [categoryId], references: [id])
+  creator    User       @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([position])
+  @@index([isActive])
+  @@index([categoryId], map: "Ad_categoryId_fkey")
+  @@index([createdBy], map: "Ad_createdBy_fkey")
+}
+
+model PostItImage {
+  id        String   @id
+  url       String
+  postItId  String
+  createdAt DateTime @default(now())
+  PostIt    PostIt   @relation(fields: [postItId], references: [id], onDelete: Cascade)
+
+  @@index([postItId])
+}
+
+enum PostItColor {
+  YELLOW
+  PINK
+  BLUE
+  GREEN
+  ORANGE
+  PURPLE
+}
+
+enum PostItFont {
+  HANDWRITING
+  SERIF
+  SANS
+  MONO
+  CURSIVE
+}
+
+enum PushpinStyle {
+  RED
+  BLUE
+  GOLD
+  GREEN
+  PINK
+  SILVER
+}
+
+enum AdPosition {
+  HEADER
+  SIDEBAR
+  FOOTER
+}
