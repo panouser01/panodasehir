@@ -11,14 +11,40 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, Settings, User, LogIn, StickyNote } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { LogOut, Settings, User, LogIn, StickyNote, Search } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { NavbarPostItButton } from './navbar-postit-button'
 
 export function Navbar() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '')
 
   const userRole = (session?.user as any)?.role
+
+  // Update query in URL when searching (debounced slightly to prevent excessive routing)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const params = new URLSearchParams(searchParams?.toString())
+      if (searchQuery) {
+        params.set('q', searchQuery)
+      } else {
+        params.delete('q')
+      }
+
+      const paramStr = params.toString()
+      const newUrl = paramStr ? `/?${paramStr}` : '/'
+
+      if (window.location.pathname === '/') {
+        router.push(newUrl, { scroll: false })
+      }
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery, router, searchParams])
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' })
@@ -29,11 +55,34 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="text-2xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+            <div className="text-2xl font-bold md:text-xl lg:text-2xl bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap">
               📌 Panoda Şehir
             </div>
           </Link>
+
+          {/* Search Box & Action */}
+          <div className="flex-1 max-w-2xl mx-4 hidden sm:flex items-center gap-4">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Şehirde ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 sm:text-sm"
+              />
+            </div>
+            {session && (
+              <NavbarPostItButton
+                userGroupId={(session?.user as any)?.userGroupId}
+                userRole={userRole}
+                defaultCategoryId={searchParams?.get('category') || undefined}
+              />
+            )}
+          </div>
 
           {/* Right side */}
           <div className="flex items-center gap-4">

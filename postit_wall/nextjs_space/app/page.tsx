@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { PostItWall } from '@/components/postit/postit-wall'
 import { CategoryFilter } from '@/components/layout/category-filter'
-import { PostItForm } from '@/components/forms/postit-form'
+import { ImageSlider } from '@/components/ui/image-slider'
 import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
@@ -142,6 +142,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     }
   })
 
+  // Fetch slider for this category (or home page if category is null)
+  const activeSlider = await prisma.slider.findFirst({
+    where: {
+      categoryId: categoryId || null,
+      isActive: true,
+    }
+  })
+  const sliderImages = (activeSlider?.images as string[]) || []
+  const sliderLinks = (activeSlider?.links as string[]) || []
+
   const userRole = (session?.user as any)?.role
   const canDelete = userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER'
 
@@ -154,46 +164,45 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50">
       {/* Hero Section */}
       <div
-        className="py-12"
-        style={{ background: heroBackground }}
+        className="relative w-full overflow-hidden"
+        style={sliderImages.length > 0
+          ? { backgroundColor: (activeSlider as any)?.backgroundColor || '#f8f9fa' }
+          : { background: heroBackground }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1
-            className="font-bold mb-4"
-            style={{
-              fontFamily: appearance.heroTitleFont,
-              color: appearance.heroTitleColor,
-              fontSize: titleSizeMap[appearance.heroTitleSize] || '3rem'
-            }}
-          >
-            📌 {heroTitle}
-          </h1>
-          <p
-            className="mb-6 opacity-90"
-            style={{
-              fontFamily: appearance.heroSubtitleFont,
-              color: appearance.heroSubtitleColor,
-              fontSize: subtitleSizeMap[appearance.heroSubtitleSize] || '1.25rem'
-            }}
-          >
-            {appearance.heroSubtitle}
-          </p>
-          {session ? (
-            <PostItForm
-              categories={categories}
-              userGroupId={(session?.user as any)?.userGroupId}
-              userRole={(session?.user as any)?.role}
-              defaultCategoryId={categoryId}
+        {sliderImages.length > 0 ? (
+          <div className="w-full flex justify-center py-4">
+            <ImageSlider
+              images={sliderImages}
+              links={sliderLinks}
+              className="relative w-full max-w-[1170px] mx-auto h-[130px] sm:h-[160px] md:h-[200px] lg:h-[300px] rounded-xl shadow-md"
             />
-          ) : (
-            <p
-              className="text-sm opacity-80"
-              style={{ color: appearance.heroSubtitleColor }}
-            >
-              Not eklemek için giriş yapın veya kayıt olun
-            </p>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="relative py-12 flex flex-col justify-center items-center h-full min-h-[160px]">
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <h1
+                className="font-bold mb-4"
+                style={{
+                  fontFamily: appearance.heroTitleFont,
+                  color: appearance.heroTitleColor,
+                  fontSize: titleSizeMap[appearance.heroTitleSize] || '3rem'
+                }}
+              >
+                📌 {heroTitle}
+              </h1>
+              <p
+                className="mb-6 opacity-90"
+                style={{
+                  fontFamily: appearance.heroSubtitleFont,
+                  color: appearance.heroSubtitleColor,
+                  fontSize: subtitleSizeMap[appearance.heroSubtitleSize] || '1.25rem'
+                }}
+              >
+                {selectedCategory?.description || appearance.heroSubtitle}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Content */}

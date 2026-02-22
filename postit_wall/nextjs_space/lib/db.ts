@@ -11,3 +11,4 @@ export const prisma = globalForPrisma.prismaVal ?? new PrismaClient()
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prismaVal = prisma
 // Force HMR Update
 
+// Force HMR Update 2

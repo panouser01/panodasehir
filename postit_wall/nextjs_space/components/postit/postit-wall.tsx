@@ -32,8 +32,46 @@ interface PostItWallProps {
   currentUserId?: string
 }
 
+import { useSearchParams } from 'next/navigation'
+
+// Levenshtein distance based string similarity (Returns 0.0 to 1.0)
+function stringSimilarity(s1: string, s2: string): number {
+  if (!s1 || !s2) return 0;
+
+  s1 = s1.toLowerCase();
+  s2 = s2.toLowerCase();
+
+  if (s1 === s2) return 1.0;
+
+  // If one contains the other, we can consider that a good match as well
+  if (s1.includes(s2) || s2.includes(s1)) return 1.0;
+
+  const costs: number[] = new Array();
+  for (let i = 0; i <= s1.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= s2.length; j++) {
+      if (i === 0) costs[j] = j;
+      else {
+        if (j > 0) {
+          let newValue = costs[j - 1];
+          if (s1.charAt(i - 1) !== s2.charAt(j - 1))
+            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+          costs[j - 1] = lastValue;
+          lastValue = newValue;
+        }
+      }
+    }
+    if (i > 0) costs[s2.length] = lastValue;
+  }
+  const distance = costs[s2.length];
+  const maxLen = Math.max(s1.length, s2.length);
+  return (maxLen - distance) / parseFloat(maxLen.toString());
+}
+
 export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItWallProps) {
-  const [postits, setPostits] = useState(initialPostits)
+  const [postits, setPostits] = useState<PostIt[]>(initialPostits)
+  const searchParams = useSearchParams()
+  const searchQuery = searchParams?.get('q') || ''
 
   // Update postits when initialPostits changes (e.g., category filter)
   useEffect(() => {
@@ -59,12 +97,38 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
     }
   }
 
-  if (postits?.length === 0) {
+  // Filter based on search query (exact substring match or >= 60% similarity)
+  const filteredPostits = postits.filter(postit => {
+    if (!searchQuery) return true;
+    const content = postit.content || '';
+    const name = postit.user?.name || '';
+
+    // Quick exact substring match check
+    const lowerQuery = searchQuery.toLowerCase();
+    const lowerContent = content.toLowerCase();
+    const lowerName = name.toLowerCase();
+
+    if (lowerContent.includes(lowerQuery) || lowerName.includes(lowerQuery)) {
+      return true;
+    }
+
+    // Checking word by word for 60% similarity inside the content
+    const words = lowerContent.split(/\s+/);
+    for (const word of words) {
+      if (stringSimilarity(word, lowerQuery) >= 0.60) {
+        return true;
+      }
+    }
+
+    return false;
+  })
+
+  if (filteredPostits?.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-center">
         <div>
           <p className="text-xl text-gray-500">Henüz hiç post-it yok</p>
-          <p className="text-sm text-gray-400 mt-2">İlk post-it'i siz oluşturun!</p>
+          <p className="text-sm text-gray-400 mt-2">{searchQuery ? 'Aramanızla eşleşen post-it bulunamadı' : 'İlk post-it\'i siz oluşturun!'}</p>
         </div>
       </div>
     )
@@ -72,7 +136,7 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 p-8">
-      {postits?.map?.((postit) => (
+      {filteredPostits?.map?.((postit) => (
         <PostItCard
           key={postit.id}
           id={postit.id}

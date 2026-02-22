@@ -51,10 +51,11 @@ import {
   Shield,
   Type,
   Users as UserGroupIcon, // Using Users as generic group icon, creating alias
+  Upload,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-type ActiveSection = 'dashboard' | 'users' | 'postits' | 'walls' | 'roles' | 'groups'
+type ActiveSection = 'dashboard' | 'users' | 'postits' | 'walls' | 'roles' | 'groups' | 'sliders'
 
 export default function AdminPage() {
   const { data: session, status } = useSession() || {}
@@ -64,6 +65,7 @@ export default function AdminPage() {
   const [postits, setPostits] = useState<any[]>([])
   const [walls, setWalls] = useState<any[]>([])
   const [roles, setRoles] = useState<any[]>([])
+  const [sliders, setSliders] = useState<any[]>([])
   const [userGroups, setUserGroups] = useState<any[]>([])
   const [stats, setStats] = useState({ users: 0, postits: 0, pendingPostits: 0, walls: 0 })
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard')
@@ -74,6 +76,8 @@ export default function AdminPage() {
   const [showPostitModal, setShowPostitModal] = useState(false)
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [showUserGroupModal, setShowUserGroupModal] = useState(false)
+  const [showSliderModal, setShowSliderModal] = useState(false)
+  const [uploadingSliderImage, setUploadingSliderImage] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
 
   // Form states
@@ -81,6 +85,7 @@ export default function AdminPage() {
   const [wallForm, setWallForm] = useState({ name: '', description: '', wallManagerId: '', userGroupId: '', parentId: '' })
   const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', link: '', isApproved: false })
   const [roleForm, setRoleForm] = useState({ name: '', description: '' })
+  const [sliderForm, setSliderForm] = useState({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', isActive: true })
   const [userGroupForm, setUserGroupForm] = useState({ name: '', description: '' })
 
   // Postit search and filter states
@@ -135,20 +140,23 @@ export default function AdminPage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [usersRes, postitsRes, wallsRes, rolesRes] = await Promise.all([
+      const [usersRes, postitsRes, wallsRes, rolesRes, slidersRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/postits?includeUnapproved=true'),
         fetch('/api/categories'),
         fetch('/api/roles'),
+        fetch('/api/sliders'),
       ])
 
       if (!usersRes.ok) console.error('Users fetch failed', usersRes.status)
       if (!rolesRes.ok) console.error('Roles fetch failed', rolesRes.status)
+      if (!slidersRes.ok) console.error('Sliders fetch failed', slidersRes.status)
 
       const usersData = await usersRes.json()
       const postitsData = await postitsRes.json()
       const wallsData = await wallsRes.json()
       const rolesData = await rolesRes.json()
+      const slidersData = await slidersRes.json()
 
       // Log roles data to debug
       console.log('Roles Data:', rolesData)
@@ -157,6 +165,7 @@ export default function AdminPage() {
       setPostits(postitsData?.postits ?? [])
       setWalls(wallsData?.categories ?? [])
       setRoles(rolesData?.roles ?? [])
+      setSliders(slidersData?.sliders ?? [])
 
       try {
         const groupsRes = await fetch('/api/user-groups')
@@ -437,6 +446,69 @@ export default function AdminPage() {
     }
   }
 
+  // Slider operations
+  const handleSaveSlider = async () => {
+    try {
+      // Clean up empty images and sync links
+      const cleanedImages = []
+      const cleanedLinks = []
+
+      for (let i = 0; i < 5; i++) {
+        const img = sliderForm.images[i]
+        if (img && img.trim() !== '') {
+          cleanedImages.push(img.trim())
+          cleanedLinks.push(sliderForm.links[i]?.trim() || '')
+        }
+      }
+
+      const payload = {
+        ...sliderForm,
+        categoryId: sliderForm.categoryId || null,
+        images: cleanedImages,
+        links: cleanedLinks
+      }
+
+      if (editingItem) {
+        const response = await fetch(`/api/sliders/${editingItem.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (!response.ok) throw new Error('Güncelleme başarısız')
+        toast.success('Slayder güncellendi')
+      } else {
+        const response = await fetch('/api/sliders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || 'Ekleme başarısız')
+        }
+        toast.success('Slayder eklendi')
+      }
+      setShowSliderModal(false)
+      setEditingItem(null)
+      setSliderForm({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', isActive: true })
+      loadData()
+    } catch (error: any) {
+      toast.error(error.message || 'Slayder kaydedilemedi')
+    }
+  }
+
+  const handleDeleteSlider = async (sliderId: string) => {
+    if (!confirm('Bu slayderi silmek istediğinizden emin misiniz?')) return
+    try {
+      const response = await fetch(`/api/sliders/${sliderId}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('Silme başarısız')
+      toast.success('Slayder silindi')
+      loadData()
+    } catch (error) {
+      toast.error('Slayder silinemedi')
+    }
+  }
+
   // Open edit modals
   const openEditRole = (role: any) => {
     setEditingItem(role)
@@ -520,6 +592,65 @@ export default function AdminPage() {
     setShowWallModal(true)
   }
 
+  const handleSliderImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Dosya boyutu 5MB\'dan küçük olmalıdır')
+      return
+    }
+
+    setUploadingSliderImage(true)
+    try {
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const response = await fetch('/api/upload/local', {
+        method: 'POST',
+        body: uploadFormData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Dosya yüklenemedi')
+      }
+
+      const { fileUrl } = await response.json()
+
+      const newImages = [...sliderForm.images]
+      newImages[index] = fileUrl
+      setSliderForm({ ...sliderForm, images: newImages })
+
+      toast.success('Resim yüklendi')
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Resim yüklenirken hata oluştu')
+    } finally {
+      setUploadingSliderImage(false)
+      e.target.value = ''
+    }
+  }
+
+  const openEditSlider = (slider: any) => {
+    setEditingItem(slider)
+    const imgs = slider.images || []
+    const lnks = slider.links || []
+    setSliderForm({
+      categoryId: slider.categoryId || '',
+      images: [...imgs, ...Array(5 - imgs.length).fill('')].slice(0, 5),
+      links: [...lnks, ...Array(5 - lnks.length).fill('')].slice(0, 5),
+      backgroundColor: slider.backgroundColor || '#f8f9fa',
+      isActive: slider.isActive
+    })
+    setShowSliderModal(true)
+  }
+
+  const openAddSlider = () => {
+    setEditingItem(null)
+    setSliderForm({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', isActive: true })
+    setShowSliderModal(true)
+  }
+
   // Appearance settings functions
   const openAppearanceSettings = (wall: any) => {
     setEditingAppearanceWall(wall)
@@ -573,6 +704,7 @@ export default function AdminPage() {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'walls', label: 'Duvarlar', icon: LayoutGrid },
+    { id: 'sliders', label: 'Slayder Ayarları', icon: ImageIcon },
     { id: 'users', label: 'Kullanıcılar', icon: Users },
     { id: 'roles', label: 'Yetki Türü Tanımla', icon: Shield },
     { id: 'groups', label: 'Kullanıcı Grupları', icon: UserGroupIcon },
@@ -860,9 +992,6 @@ export default function AdminPage() {
                             <Button variant="ghost" size="sm" onClick={() => openEditWall(wall)} title="Düzenle" className="h-7 w-7 p-0">
                               <Pencil className="w-3.5 h-3.5" />
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => openAppearanceSettings(wall)} title="Görünüm Ayarları" className="hover:bg-purple-100 hover:text-purple-600 h-7 w-7 p-0">
-                              <Palette className="w-3.5 h-3.5" />
-                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -905,6 +1034,79 @@ export default function AdminPage() {
 
                 return filteredRootWalls.map((wall) => renderWall(wall, 0))
               })()}
+            </div>
+          </div>
+        )}
+
+        {/* Sliders Section */}
+        {activeSection === 'sliders' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Slayder Yönetimi</h2>
+              <Button onClick={openAddSlider} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Yeni Slayder
+              </Button>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Kategori</TableHead>
+                    <TableHead>Resim Sayısı</TableHead>
+                    <TableHead>Durum</TableHead>
+                    <TableHead>İşlemler</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sliders.length > 0 ? (
+                    sliders.map((slider) => (
+                      <TableRow key={slider.id}>
+                        <TableCell className="font-medium">{slider.categoryId ? slider.category?.name : 'Ana Sayfa (Varsayılan)'}</TableCell>
+                        <TableCell>{slider.images?.length || 0} resim</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs ${slider.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            {slider.isActive ? 'Aktif' : 'Pasif'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => openEditSlider(slider)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            {slider.categoryId && slider.category && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openAppearanceSettings(slider.category)}
+                                title="Kategori Görünüm Ayarları"
+                                className="hover:bg-purple-100 hover:text-purple-600"
+                              >
+                                <Palette className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteSlider(slider.id)}
+                              className="hover:bg-red-100 hover:text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                        Henüz slayder eklenmemiş.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </div>
         )}
@@ -2257,6 +2459,128 @@ export default function AdminPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAppearanceModal(false)}>İptal</Button>
             <Button onClick={handleSaveAppearance}>Ayarları Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Slider Modal */}
+      <Dialog open={showSliderModal} onOpenChange={setShowSliderModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingItem ? 'Slayder Düzenle' : 'Yeni Slayder Ekle'}</DialogTitle>
+            <DialogDescription>
+              En fazla 5 adet resim URL'si ekleyebilirsiniz. Bir duvar (kategori) seçerek onun sayfasında görünmesini sağlayın.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Hangi Duvar (Kategori)?</Label>
+              <Select
+                value={sliderForm.categoryId}
+                onValueChange={(value) => setSliderForm({ ...sliderForm, categoryId: value === 'none' ? '' : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Ana Sayfa (Seçilmezse)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Ana Sayfa (Kategorisiz)</SelectItem>
+                  {walls.map((wall) => (
+                    <SelectItem key={wall.id} value={wall.id}>
+                      {wall.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="isActive"
+                checked={sliderForm.isActive}
+                onCheckedChange={(checked) => setSliderForm({ ...sliderForm, isActive: !!checked })}
+              />
+              <Label htmlFor="isActive" className="cursor-pointer">Aktif (Gösterilsin mi?)</Label>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="backgroundColor">Arka Plan Rengi</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  id="backgroundColor"
+                  type="color"
+                  value={sliderForm.backgroundColor}
+                  onChange={(e) => setSliderForm({ ...sliderForm, backgroundColor: e.target.value })}
+                  className="w-12 h-10 p-1 cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={sliderForm.backgroundColor}
+                  onChange={(e) => setSliderForm({ ...sliderForm, backgroundColor: e.target.value })}
+                  className="flex-1 font-mono text-sm"
+                  placeholder="#f8f9fa"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Resim Linkleri veya Yükleme (Maksimum 5)</Label>
+              {sliderForm.images.map((img, index) => (
+                <div key={index} className="flex gap-2 items-center">
+                  {img && (
+                    <div className="w-10 h-10 flex-shrink-0 rounded overflow-hidden border border-gray-200">
+                      <img src={img} alt={`Resim ${index + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="flex-1 flex flex-col gap-2">
+                    <Input
+                      placeholder={`Resim URL ${index + 1}`}
+                      value={img}
+                      onChange={(e) => {
+                        const newImages = [...sliderForm.images];
+                        newImages[index] = e.target.value;
+                        setSliderForm({ ...sliderForm, images: newImages });
+                      }}
+                    />
+                    {img && (
+                      <Input
+                        placeholder="Yönlendirme Linki (Tıklanınca Açılacak URL - Opsiyonel)"
+                        value={sliderForm.links[index]}
+                        onChange={(e) => {
+                          const newLinks = [...sliderForm.links];
+                          newLinks[index] = e.target.value;
+                          setSliderForm({ ...sliderForm, links: newLinks });
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="flex-shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadingSliderImage}
+                      onClick={() => document.getElementById(`slider-img-upload-${index}`)?.click()}
+                      className="truncate"
+                    >
+                      {uploadingSliderImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />} Dosya Seç
+                    </Button>
+                    <input
+                      id={`slider-img-upload-${index}`}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleSliderImageUpload(e, index)}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSliderModal(false)}>
+              İptal
+            </Button>
+            <Button onClick={handleSaveSlider}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
