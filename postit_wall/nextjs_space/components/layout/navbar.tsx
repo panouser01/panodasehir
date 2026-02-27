@@ -11,10 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, Settings, User, LogIn, StickyNote, Search } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { LogOut, Settings, User, LogIn, StickyNote, Search, Menu } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { NavbarPostItButton } from './navbar-postit-button'
+import { CategoryFilter } from './category-filter'
 
 export function Navbar() {
   const { data: session, status } = useSession()
@@ -22,6 +24,8 @@ export function Navbar() {
   const searchParams = useSearchParams()
 
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '')
+  const [categories, setCategories] = useState([])
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const userRole = (session?.user as any)?.role
 
@@ -46,6 +50,16 @@ export function Navbar() {
     return () => clearTimeout(timeoutId)
   }, [searchQuery, router, searchParams])
 
+  useEffect(() => {
+    // Fetch categories for the menu
+    fetch('/api/categories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.categories) setCategories(data.categories)
+      })
+      .catch(err => console.error("Error fetching categories:", err))
+  }, [])
+
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' })
   }
@@ -54,12 +68,28 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-            <div className="text-2xl font-bold md:text-xl lg:text-2xl bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap">
-              📌 Panoda Şehir
-            </div>
-          </Link>
+          {/* Logo & Category Menu */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="shrink-0 px-2 py-1">
+                  <Menu className="w-5 h-5 text-gray-700 hover:text-gray-900" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-72 max-h-[80vh] overflow-y-auto p-4 z-[100] bg-white text-gray-900 shadow-xl border">
+                {categories.length > 0 ? (
+                  <CategoryFilter categories={categories} onSelect={() => setIsMenuOpen(false)} />
+                ) : (
+                  <div className="flex justify-center p-4">Yükleniyor...</div>
+                )}
+              </PopoverContent>
+            </Popover>
+            <Link href="/" className="flex items-center gap-2">
+              <div className="text-2xl font-bold md:text-xl lg:text-2xl bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap">
+                📌 Panoda Şehir
+              </div>
+            </Link>
+          </div>
 
           {/* Search Box & Action */}
           <div className="flex-1 max-w-2xl mx-4 hidden sm:flex items-center gap-4">

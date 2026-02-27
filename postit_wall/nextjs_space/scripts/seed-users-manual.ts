@@ -1,5 +1,5 @@
 
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -9,7 +9,7 @@ const users = [
         id: 'cmloyj21x0001sx0xetbevyy2',
         name: 'Test Kullanıcı',
         password: '$2a$10$FIscdRHxBT2.39x/xgGcU.1b.njvRMMIoQICQNPreKd6VQy/P3Wva',
-        role: Role.SUPER_ADMIN,
+        role: 'SUPER_ADMIN',
         updatedAt: '2026-02-16T09:13:43.461Z', // Replacing comma with dot and adding Z for UTC or just assuming local
     },
     {
@@ -17,7 +17,7 @@ const users = [
         id: 'cmloyj21r0000sx0xyhzs1pji',
         name: 'Süper Admin',
         password: '$2a$10$vK7i/6C5RqDZ0L4YOxExc.ig10eKXuaC2mMJF4u1f5SdRLslSVFgWy',
-        role: Role.SUPER_ADMIN,
+        role: 'SUPER_ADMIN',
         updatedAt: '2026-02-16T11:46:49.362Z',
     },
     {
@@ -25,7 +25,7 @@ const users = [
         id: 'cmloyj23t0002sx0xnemncge4m',
         name: 'Teknoloji Yöneticisi',
         password: '$2a$10$Yz0faawyT.dqHOnv2bQlIeh2AAzS3kXUXbMlqB5eK6HruqLNHrgyi',
-        role: Role.WALL_MANAGER,
+        role: 'WALL_MANAGER',
         updatedAt: '2026-02-16T11:46:49.366Z',
     },
     {
@@ -33,7 +33,7 @@ const users = [
         id: 'cmloyj25q0003sx0xrwbljnxv',
         name: 'Sanat Yöneticisi',
         password: '$2a$10$d1nVVo6F7qvHHdD90.PZxeRHETNFOReqW/toEPXyePhKt4lISEZwm',
-        role: Role.WALL_MANAGER,
+        role: 'WALL_MANAGER',
         updatedAt: '2026-02-16T11:46:49.368Z',
     },
     {
@@ -41,7 +41,7 @@ const users = [
         id: 'cmlp9vy460002o108nqfpsjma',
         name: 'Orçun Cengiz',
         password: '$2a$10$uF.MDwRFpFl7wU9RSPY8euhZ3ucTMBINhBQYfo4h4MiF.8Zvk3qhs',
-        role: Role.USER,
+        role: 'USER',
         updatedAt: '2026-02-16T14:31:40.662Z',
     },
     {
@@ -49,7 +49,7 @@ const users = [
         id: 'cmlppzgfm0000v7hzywp0lfhp',
         name: 'test',
         password: '$2a$10$0u51UdM7icrohCF3DfreiOK9CORSmURPJmM.bzNn4IvqzIZujyhQW',
-        role: Role.USER,
+        role: 'USER',
         updatedAt: '2026-02-16T22:02:18.227Z',
     },
     {
@@ -57,7 +57,7 @@ const users = [
         id: 'cmlpq6lqn0000v76q3bymkgew',
         name: 'Süper Admin',
         password: '$2a$10$cUq45vqWoxnRqoBWxvhH7aOvFx/CKAB3RltaCBIUzXTi7rxAwQeLcu',
-        role: Role.USER,
+        role: 'USER',
         updatedAt: '2026-02-16T22:07:51.695Z',
     },
     {
@@ -65,7 +65,7 @@ const users = [
         id: 'cmlpqqg7c0000v7ulygx70laz',
         name: 'Süper Admin',
         password: '$2a$10$F.96GbSOFH0YdzcXzFe6/uYDXk4moQy2lF0oxbA4ebS/ALiJJIKzC',
-        role: Role.USER,
+        role: 'USER',
         updatedAt: '2026-02-16T22:15:31.080Z',
     },
 ];

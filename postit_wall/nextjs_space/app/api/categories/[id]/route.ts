@@ -44,9 +44,13 @@ export async function GET(
         children: {
           include: {
             wallManager: { select: { id: true, name: true, email: true } },
+            city: { select: { id: true, name: true } },
+            district: { select: { id: true, name: true } },
             _count: { select: { postits: true } }
           }
         },
+        city: { select: { id: true, name: true } },
+        district: { select: { id: true, name: true } },
         postits: {
           select: { id: true, content: true, isApproved: true }
         },
@@ -87,11 +91,13 @@ export async function PATCH(
     const body = await request.json()
     const {
       name, description, wallManagerId, userGroupId, movePostsTo,
+      cityId, districtId,
       // Appearance fields
       heroBackgroundImage, heroSubtitle,
       heroTitleFont, heroTitleColor, heroTitleSize,
       heroSubtitleFont, heroSubtitleColor, heroSubtitleSize,
       heroGradientFrom, heroGradientVia, heroGradientTo,
+      heroAlignment,
       categoryFont, categoryColor, categoryBgColor
     } = body
 
@@ -116,6 +122,8 @@ export async function PATCH(
     const updateData: any = {}
     if (name) updateData.name = name
     if (description !== undefined) updateData.description = description
+    if (cityId !== undefined) updateData.cityId = cityId || null
+    if (districtId !== undefined) updateData.districtId = districtId || null
     if (userRole === 'SUPER_ADMIN') {
       if (wallManagerId !== undefined) updateData.wallManagerId = wallManagerId || null
       if (userGroupId !== undefined) updateData.userGroupId = userGroupId || null
@@ -133,6 +141,7 @@ export async function PATCH(
     if (heroGradientFrom !== undefined) updateData.heroGradientFrom = heroGradientFrom
     if (heroGradientVia !== undefined) updateData.heroGradientVia = heroGradientVia
     if (heroGradientTo !== undefined) updateData.heroGradientTo = heroGradientTo
+    if (heroAlignment !== undefined) updateData.heroAlignment = heroAlignment
     if (categoryFont !== undefined) updateData.categoryFont = categoryFont
     if (categoryColor !== undefined) updateData.categoryColor = categoryColor
     if (categoryBgColor !== undefined) updateData.categoryBgColor = categoryBgColor

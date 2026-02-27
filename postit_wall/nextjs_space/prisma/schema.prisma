@@ -22,14 +22,20 @@ model User {
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
   userGroupId       String?
+  cityId            String?
+  districtId        String?
   accounts          Account[]
   ads               Ad[]
   managedCategories Category[] @relation("WallManager")
   postits           PostIt[]
   sessions          Session[]
   userGroup         UserGroup? @relation(fields: [userGroupId], references: [id])
+  city              City?       @relation(fields: [cityId], references: [id])
+  district          District?   @relation(fields: [districtId], references: [id])
 
   @@index([userGroupId], map: "User_userGroupId_fkey")
+  @@index([cityId])
+  @@index([districtId])
 }
 
 model UserGroup {
@@ -98,16 +104,21 @@ model Category {
   heroGradientFrom    String?    @default("#facc15")
   heroGradientVia     String?    @default("#f472b6")
   heroGradientTo      String?    @default("#a855f7")
+  heroAlignment       String?    @default("left")
   categoryFont        String?    @default("sans-serif")
   categoryColor       String?    @default("#1f2937")
   categoryBgColor     String?    @default("#ffffff")
   postCount           Int        @default(0)
   userGroupId         String?
+  cityId              String?
+  districtId          String?
   ads                 Ad[]
   parent              Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children            Category[] @relation("CategoryHierarchy")
   assignedGroup       UserGroup? @relation(fields: [userGroupId], references: [id])
   wallManager         User?      @relation("WallManager", fields: [wallManagerId], references: [id])
+  city                City?      @relation(fields: [cityId], references: [id])
+  district            District?  @relation(fields: [districtId], references: [id])
   postits             PostIt[]
   slider              Slider?
 
@@ -115,6 +126,8 @@ model Category {
   @@index([parentId], map: "Category_parentId_fkey")
   @@index([userGroupId], map: "Category_userGroupId_fkey")
   @@index([wallManagerId], map: "Category_wallManagerId_fkey")
+  @@index([cityId])
+  @@index([districtId])
 }
 
 model UserRole {
@@ -219,8 +232,69 @@ model Slider {
   images          Json      // Array of image URLs (min 1, max 5)
   links           Json?     // Array of link URLs (min 1, max 5)
   backgroundColor String?   @default("#f8f9fa")
+  backgroundImage String?
+  heroGradientFrom String?  @default("#facc15")
+  heroGradientVia  String?  @default("#f472b6")
+  heroGradientTo   String?  @default("#a855f7")
+  isGradient       Boolean  @default(false)
   isActive        Boolean   @default(true)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model City {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  districts District[]
+  categories Category[]
+  users     User[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model District {
+  id        String   @id @default(cuid())
+  name      String
+  cityId    String
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  categories Category[]
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, cityId])
+  @@index([cityId])
+}
+
+model SiteSettings {
+  id              String   @id @default("global") // We will only ever have one record with id="global"
+  backgroundColor String   @default("#cca378")
+  backgroundImage String   @default("https://www.transparenttextures.com/patterns/cork-board.png")
+  borderColor     String   @default("#6b4423")
+  borderTopColor  String   @default("#8a5a2e")
+  borderBottomColor String @default("#4a2f18")
+  noBorder        Boolean  @default(false)
+  isGradient      Boolean  @default(false)
+  gradientFrom    String?  @default("#facc15")
+  gradientVia     String?  @default("#f472b6")
+  gradientTo      String?  @default("#a855f7")
+  heroBackgroundImage String?
+  heroSubtitle        String?
+  heroTitleFont       String?    @default("sans-serif")
+  heroTitleColor      String?    @default("#ffffff")
+  heroTitleSize       String?    @default("5xl")
+  heroSubtitleFont    String?    @default("sans-serif")
+  heroSubtitleColor   String?    @default("#ffffff")
+  heroSubtitleSize    String?    @default("xl")
+  heroGradientFrom    String?    @default("#facc15")
+  heroGradientVia     String?    @default("#f472b6")
+  heroGradientTo      String?    @default("#a855f7")
+  heroAlignment       String?    @default("left")
+  siteIsGradient      Boolean    @default(true)
+  siteGradientFrom    String?    @default("#fffbeb")
+  siteGradientVia     String?    @default("#fefce8")
+  siteGradientTo      String?    @default("#fff7ed")
+  siteBackgroundColor String?    @default("#fffbeb")
+  updatedAt       DateTime @updatedAt
 }

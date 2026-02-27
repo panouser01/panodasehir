@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         }
 
         const data = await req.json()
-        const { categoryId, images, links, backgroundColor, isActive } = data
+        const { categoryId, images, links, backgroundColor, backgroundImage, isActive, isGradient, heroGradientFrom, heroGradientVia, heroGradientTo } = data
 
         // Check if slider already exists for this category
         const existing = await prisma.slider.findUnique({
@@ -54,6 +54,11 @@ export async function POST(req: Request) {
                 images: images || [],
                 links: links || [],
                 backgroundColor: backgroundColor || '#f8f9fa',
+                backgroundImage: backgroundImage || null,
+                isGradient: isGradient !== undefined ? isGradient : false,
+                heroGradientFrom: heroGradientFrom || '#facc15',
+                heroGradientVia: heroGradientVia || '#f472b6',
+                heroGradientTo: heroGradientTo || '#a855f7',
                 isActive: isActive !== undefined ? isActive : true
             }
         })

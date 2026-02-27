@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'react-hot-toast'
-import { Loader2, User, Building2, Phone, CreditCard, Mail, Lock, Save, Eye, EyeOff } from 'lucide-react'
+import { Loader2, User, Building2, Phone, CreditCard, Mail, Lock, Save, Eye, EyeOff, MapPin } from 'lucide-react'
 
 interface UserProfile {
   id: string
@@ -18,9 +19,22 @@ interface UserProfile {
   taxId: string | null
   role: string
   createdAt: string
+  cityId: string | null
+  districtId: string | null
   _count: {
     postits: number
   }
+}
+
+interface City {
+  id: string
+  name: string
+}
+
+interface District {
+  id: string
+  name: string
+  cityId: string
 }
 
 export default function ProfilePage() {
@@ -37,8 +51,14 @@ export default function ProfilePage() {
     companyName: '',
     phone: '',
     taxId: '',
-    email: ''
+    email: '',
+    cityId: '',
+    districtId: ''
   })
+
+  // Location data
+  const [cities, setCities] = useState<City[]>([])
+  const [districts, setDistricts] = useState<District[]>([])
 
   // Password form
   const [passwordForm, setPasswordForm] = useState({
@@ -64,16 +84,27 @@ export default function ProfilePage() {
 
   const loadProfile = async () => {
     try {
-      const res = await fetch('/api/profile')
-      const data = await res.json()
-      if (data.user) {
-        setProfile(data.user)
+      const [profileRes, locationsRes] = await Promise.all([
+        fetch('/api/profile'),
+        fetch('/api/locations')
+      ])
+
+      const profileData = await profileRes.json()
+      const locationsData = await locationsRes.json()
+
+      if (locationsData.cities) setCities(locationsData.cities)
+      if (locationsData.districts) setDistricts(locationsData.districts)
+
+      if (profileData.user) {
+        setProfile(profileData.user)
         setFormData({
-          name: data.user.name || '',
-          companyName: data.user.companyName || '',
-          phone: data.user.phone || '',
-          taxId: data.user.taxId || '',
-          email: data.user.email || ''
+          name: profileData.user.name || '',
+          companyName: profileData.user.companyName || '',
+          phone: profileData.user.phone || '',
+          taxId: profileData.user.taxId || '',
+          email: profileData.user.email || '',
+          cityId: profileData.user.cityId || '',
+          districtId: profileData.user.districtId || ''
         })
       }
     } catch (error) {
@@ -111,7 +142,7 @@ export default function ProfilePage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast.error('Şifreler eşleşmiyor')
       return
@@ -279,6 +310,58 @@ export default function ProfilePage() {
                   className="mt-1"
                 />
               </div>
+
+              <div>
+                <Label className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  İl
+                </Label>
+                <Select
+                  value={formData.cityId || 'none'}
+                  onValueChange={(value) => {
+                    setFormData({
+                      ...formData,
+                      cityId: value === 'none' ? '' : value,
+                      districtId: '' // Reset district when city changes
+                    })
+                  }}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="İl seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">İl Yok</SelectItem>
+                    {cities.map(city => (
+                      <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  İlçe
+                </Label>
+                <Select
+                  value={formData.districtId || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, districtId: value === 'none' ? '' : value })}
+                  disabled={!formData.cityId}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="İlçe seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">İlçe Yok</SelectItem>
+                    {formData.cityId && districts
+                      .filter(d => d.cityId === formData.cityId)
+                      .map(district => (
+                        <SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex justify-end pt-4">
@@ -362,8 +445,8 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex justify-end pt-4">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={savingPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
                 variant="outline"
                 className="gap-2"

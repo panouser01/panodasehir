@@ -17,9 +17,10 @@ interface Category {
 
 interface CategoryFilterProps {
   categories: Category[]
+  onSelect?: () => void
 }
 
-export function CategoryFilter({ categories }: CategoryFilterProps) {
+export function CategoryFilter({ categories, onSelect }: CategoryFilterProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedCategory = searchParams?.get?.('category') ?? null
@@ -30,6 +31,9 @@ export function CategoryFilter({ categories }: CategoryFilterProps) {
       router.push(`/?category=${categoryId}`)
     } else {
       router.push('/')
+    }
+    if (onSelect) {
+      onSelect()
     }
   }
 

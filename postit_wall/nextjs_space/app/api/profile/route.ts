@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
         taxId: true,
         role: true,
         createdAt: true,
+        cityId: true,
+        districtId: true,
         _count: {
           select: { postits: true }
         }
@@ -68,7 +70,7 @@ export async function PATCH(request: NextRequest) {
 
     const userId = (session.user as any).id
     const body = await request.json()
-    const { name, companyName, phone, taxId, email } = body
+    const { name, companyName, phone, taxId, email, cityId, districtId } = body
 
     // Check if email is being changed and if it's already in use
     if (email) {
@@ -93,6 +95,8 @@ export async function PATCH(request: NextRequest) {
     if (phone !== undefined) updateData.phone = phone
     if (taxId !== undefined) updateData.taxId = taxId
     if (email !== undefined) updateData.email = email
+    if (cityId !== undefined) updateData.cityId = cityId || null
+    if (districtId !== undefined) updateData.districtId = districtId || null
 
     const user = await prisma.user.update({
       where: { id: userId },
@@ -104,7 +108,9 @@ export async function PATCH(request: NextRequest) {
         companyName: true,
         phone: true,
         taxId: true,
-        role: true
+        role: true,
+        cityId: true,
+        districtId: true
       }
     })
 

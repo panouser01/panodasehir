@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -38,9 +38,9 @@ async function main() {
             const clean = (val: string) => (val && val.trim() !== '' ? val : null);
 
             // Convert Role string to Enum
-            let userRole: Role = Role.USER;
-            if (role === 'SUPER_ADMIN') userRole = Role.SUPER_ADMIN;
-            else if (role === 'WALL_MANAGER') userRole = Role.WALL_MANAGER;
+            let userRole = 'USER';
+            if (role === 'SUPER_ADMIN') userRole = 'SUPER_ADMIN';
+            else if (role === 'WALL_MANAGER') userRole = 'WALL_MANAGER';
 
             await prisma.user.upsert({
                 where: { id: id },

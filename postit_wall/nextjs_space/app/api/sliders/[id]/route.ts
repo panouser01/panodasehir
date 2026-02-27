@@ -11,7 +11,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         }
 
         const data = await req.json()
-        const { categoryId, images, links, backgroundColor, isActive } = data
+        const { categoryId, images, links, backgroundColor, backgroundImage, isActive, isGradient, heroGradientFrom, heroGradientVia, heroGradientTo } = data
 
         const slider = await prisma.slider.update({
             where: { id: params.id },
@@ -20,6 +20,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
                 images: images,
                 links: links,
                 backgroundColor: backgroundColor,
+                backgroundImage: backgroundImage,
+                isGradient: isGradient,
+                heroGradientFrom: heroGradientFrom,
+                heroGradientVia: heroGradientVia,
+                heroGradientTo: heroGradientTo,
                 isActive: isActive
             }
         })

@@ -46,6 +46,8 @@ export async function GET() {
             name: true
           }
         },
+        city: { select: { id: true, name: true } },
+        district: { select: { id: true, name: true } },
         children: {
           include: {
             assignedGroup: true,
@@ -61,6 +63,8 @@ export async function GET() {
                 postits: true
               }
             },
+            city: { select: { id: true, name: true } },
+            district: { select: { id: true, name: true } },
             children: {
               include: {
                 assignedGroup: true,
@@ -138,6 +142,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       name, description, wallManagerId, userGroupId, parentId, movePostsToNew,
+      cityId, districtId,
       // Appearance fields
       heroBackgroundImage, heroSubtitle,
       heroTitleFont, heroTitleColor, heroTitleSize,
@@ -194,6 +199,8 @@ export async function POST(request: NextRequest) {
         wallManagerId: wallManagerId || null,
         userGroupId: userGroupId || null,
         parentId: parentId || null,
+        cityId: cityId || null,
+        districtId: districtId || null,
         // Appearance fields
         heroBackgroundImage: heroBackgroundImage || null,
         heroSubtitle: heroSubtitle || null,
