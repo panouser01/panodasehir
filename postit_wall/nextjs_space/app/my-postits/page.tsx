@@ -22,6 +22,7 @@ interface PostIt {
   imageUrl: string | null
   link: string | null
   isApproved: boolean
+  isPublished: boolean
   expiresAt: string
   createdAt: string
   category: {
@@ -48,11 +49,11 @@ const colorOptions = [
 ]
 
 const fontOptions = [
-  { value: 'HANDWRITING', label: 'El Yazısı' },
-  { value: 'SERIF', label: 'Serif' },
-  { value: 'SANS', label: 'Sans' },
-  { value: 'MONO', label: 'Mono' },
-  { value: 'CURSIVE', label: 'Süslü' },
+  { value: 'HANDWRITING', label: 'El Yazısı', class: 'font-handwriting' },
+  { value: 'SERIF', label: 'Serif', class: 'font-serif' },
+  { value: 'SANS', label: 'Sans', class: 'font-sans' },
+  { value: 'MONO', label: 'Mono', class: 'font-mono' },
+  { value: 'CURSIVE', label: 'Süslü', class: 'font-cursive' },
 ]
 
 const pushpinOptions = [
@@ -151,20 +152,23 @@ export default function MyPostItsPage() {
   }
 
   const togglePublish = async (postId: string, currentStatus: boolean) => {
+    // Optimistic update
+    setPostits(prev => prev.map(p => p.id === postId ? { ...p, isPublished: !currentStatus } : p))
     try {
       const res = await fetch(`/api/my-postits/${postId}/toggle-publish`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isApproved: !currentStatus })
+        body: JSON.stringify({ isPublished: !currentStatus })
       })
 
       if (!res.ok) {
+        // Revert on failure
+        setPostits(prev => prev.map(p => p.id === postId ? { ...p, isPublished: currentStatus } : p))
         const data = await res.json()
         throw new Error(data.error || 'Hata oluştu')
       }
 
       toast.success(currentStatus ? 'Post yayından kaldırıldı' : 'Post yayına alındı')
-      loadPostits()
     } catch (error: any) {
       toast.error(error.message || 'Bir hata oluştu')
     }
@@ -290,8 +294,8 @@ export default function MyPostItsPage() {
     const matchesSearch = post.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
       post.category.name.toLowerCase().includes(searchTerm.toLowerCase())
 
-    if (filterStatus === 'published') return matchesSearch && post.isApproved
-    if (filterStatus === 'unpublished') return matchesSearch && !post.isApproved
+    if (filterStatus === 'published') return matchesSearch && post.isPublished
+    if (filterStatus === 'unpublished') return matchesSearch && !post.isPublished
     return matchesSearch
   })
 
@@ -405,10 +409,13 @@ export default function MyPostItsPage() {
                 <div className="absolute top-2 right-2">
                   {isExpired(post.expiresAt) ? (
                     <span className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">Süresi Doldu</span>
-                  ) : post.isApproved ? (
+                  ) : post.isPublished ? (
                     <span className="text-xs bg-green-500 text-white px-2 py-1 rounded-full">Yayında</span>
                   ) : (
-                    <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">Beklemede</span>
+                    <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">Kaldırıldı</span>
+                  )}
+                  {!post.isApproved && post.isPublished && (
+                    <span className="text-xs bg-yellow-500 text-white px-2 py-1 rounded-full ml-1" title="Yönetici Onayı Bekliyor">Onay Bek.</span>
                   )}
                 </div>
 
@@ -460,13 +467,13 @@ export default function MyPostItsPage() {
                     Düzenle
                   </Button>
                   <Button
-                    variant={post.isApproved ? "outline" : "default"}
+                    variant={post.isPublished ? "outline" : "default"}
                     size="sm"
                     className="flex-1 text-xs"
-                    onClick={() => togglePublish(post.id, post.isApproved)}
+                    onClick={() => togglePublish(post.id, post.isPublished)}
                     disabled={isExpired(post.expiresAt)}
                   >
-                    {post.isApproved ? (
+                    {post.isPublished ? (
                       <><EyeOff className="w-3 h-3 mr-1" /> Kaldır</>
                     ) : (
                       <><Eye className="w-3 h-3 mr-1" /> Yayınla</>
@@ -605,21 +612,23 @@ export default function MyPostItsPage() {
 
             <div>
               <Label>Yazı Tipi</Label>
-              <Select
-                value={editForm.font}
-                onValueChange={(v) => setEditForm({ ...editForm, font: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {fontOptions.map((font) => (
-                    <SelectItem key={font.value} value={font.value}>
-                      {font.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-5 gap-2 mt-2">
+                {fontOptions.map((font) => (
+                  <button
+                    key={font.value}
+                    type="button"
+                    onClick={() =>
+                      setEditForm({ ...editForm, font: font.value })
+                    }
+                    className={`h-12 rounded border-2 bg-white flex items-center justify-center ${editForm.font === font.value
+                      ? 'border-gray-800 ring-2 ring-gray-800'
+                      : 'border-gray-300'
+                      } hover:border-gray-600 transition ${font.class} text-sm`}
+                  >
+                    {font.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>

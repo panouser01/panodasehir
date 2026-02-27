@@ -43,14 +43,51 @@ export async function PATCH(
     }
 
     const userRole = (session.user as any).role
+    const userId = (session.user as any).id
 
-    // Only super admin can edit posts
-    if (userRole !== 'SUPER_ADMIN') {
+    const existingPostit = await prisma.postIt.findUnique({
+      where: { id: params.id },
+      select: { isApproved: true, isPublished: true, categoryId: true, expiresAt: true }
+    })
+
+    if (!existingPostit) {
+      return NextResponse.json({ error: 'Post-it bulunamadı' }, { status: 404 })
+    }
+
+    // Only super admin or wall manager can edit posts
+    if (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER') {
       return NextResponse.json({ error: 'Bu işlemi yapmaya yetkiniz yok' }, { status: 403 })
     }
 
+    if (userRole === 'WALL_MANAGER') {
+      // Find all categories they manage including children
+      const allCategories = await prisma.category.findMany()
+      const managedIds = new Set<string>()
+
+      allCategories.forEach(cat => {
+        if (cat.wallManagerId === userId) {
+          managedIds.add(cat.id)
+        }
+      })
+
+      let added = true
+      while (added) {
+        added = false
+        allCategories.forEach(cat => {
+          if (cat.parentId && managedIds.has(cat.parentId) && !managedIds.has(cat.id)) {
+            managedIds.add(cat.id)
+            added = true
+          }
+        })
+      }
+
+      if (!managedIds.has(existingPostit.categoryId)) {
+        return NextResponse.json({ error: 'Bu duvar üzerinde işlem yapma yetkiniz yok' }, { status: 403 })
+      }
+    }
+
     const body = await request.json()
-    const { content, categoryId, color, font, pushpin, link, isApproved } = body
+    const { content, categoryId, color, font, pushpin, link, isApproved, isPublished, expiresInDays, expiresAtDate } = body
 
     const updateData: any = {}
     if (content !== undefined) updateData.content = content
@@ -60,14 +97,26 @@ export async function PATCH(
     if (pushpin !== undefined) updateData.pushpin = pushpin
     if (link !== undefined) updateData.link = link
     if (isApproved !== undefined) updateData.isApproved = isApproved
+    if (isPublished !== undefined) updateData.isPublished = isPublished
 
-    const existingPostit = await prisma.postIt.findUnique({
-      where: { id: params.id },
-      select: { isApproved: true, categoryId: true, expiresAt: true }
-    })
-
-    if (!existingPostit) {
-      return NextResponse.json({ error: 'Post-it bulunamadı' }, { status: 404 })
+    if (expiresInDays !== undefined) {
+      let expiresAt = new Date()
+      if (expiresInDays === 'custom' && expiresAtDate) {
+        expiresAt = new Date(expiresAtDate)
+        if (expiresAt < new Date()) {
+          expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+        }
+      } else {
+        const daysMap: { [key: string]: number } = {
+          '1': 1,
+          '3': 3,
+          '7': 7,
+          '30': 30
+        }
+        const days = daysMap[expiresInDays] || 1
+        expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+      }
+      updateData.expiresAt = expiresAt
     }
 
     const postit = await prisma.postIt.update({
@@ -79,32 +128,30 @@ export async function PATCH(
       }
     })
 
-    // Update category post count if approval status changed
-    if (isApproved !== undefined && isApproved !== existingPostit.isApproved) {
-      // Only valid if not expired
+    // Update category post count if approval or published status changed
+    const statusChanged =
+      (isApproved !== undefined && isApproved !== existingPostit.isApproved) ||
+      (isPublished !== undefined && isPublished !== existingPostit.isPublished)
+
+    if (statusChanged) {
+      // Logic for postCount increment: if it becomes both approved AND published, AND not expired.
+      // Wait, let's keep it simple: the sync background job usually handles postcounts accurately in large scale apps,
+      // but let's do a basic sync here too.
+      const currentlyValid = existingPostit.isApproved && existingPostit.isPublished
+      const newApproved = isApproved !== undefined ? isApproved : existingPostit.isApproved
+      const newPublished = isPublished !== undefined ? isPublished : existingPostit.isPublished
+      const newlyValid = newApproved && newPublished
+
       const isNotExpired = new Date(existingPostit.expiresAt) > new Date()
 
-      if (isNotExpired) {
-        if (isApproved) {
-          // Approved: Increment
-          try {
-            await prisma.category.update({
-              where: { id: existingPostit.categoryId },
-              data: { postCount: { increment: 1 } } as any
-            })
-          } catch (e) {
-            console.error('Failed to increment post count:', e)
-          }
-        } else {
-          // Unapproved: Decrement
-          try {
-            await prisma.category.update({
-              where: { id: existingPostit.categoryId },
-              data: { postCount: { decrement: 1 } } as any
-            })
-          } catch (e) {
-            console.error('Failed to decrement post count:', e)
-          }
+      if (isNotExpired && currentlyValid !== newlyValid) {
+        try {
+          await prisma.category.update({
+            where: { id: existingPostit.categoryId },
+            data: { postCount: { [newlyValid ? 'increment' : 'decrement']: 1 } } as any
+          })
+        } catch (e) {
+          console.error('Failed to update post count:', e)
         }
       }
     }
@@ -173,7 +220,7 @@ export async function DELETE(
     // So if we delete such a post-it, we decrement.
     // If we delete an unapproved or expired one, we shouldn't decrement.
 
-    if (postit.isApproved && new Date(postit.expiresAt) > new Date()) {
+    if (postit.isApproved && postit.isPublished && new Date(postit.expiresAt) > new Date()) {
       try {
         await prisma.category.update({
           where: { id: postit.categoryId },

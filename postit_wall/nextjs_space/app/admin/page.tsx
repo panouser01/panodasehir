@@ -54,10 +54,13 @@ import {
   Upload,
   MapPin,
   Settings,
+  Calendar,
+  X,
 } from 'lucide-react'
+import Image from 'next/image'
 import { toast } from 'react-hot-toast'
 
-type ActiveSection = 'dashboard' | 'users' | 'postits' | 'walls' | 'roles' | 'groups' | 'sliders' | 'locations' | 'settings'
+type ActiveSection = 'dashboard' | 'users' | 'postits' | 'walls' | 'roles' | 'groups' | 'sliders' | 'locations' | 'settings' | 'calendar'
 
 export default function AdminPage() {
   const { data: session, status } = useSession() || {}
@@ -73,6 +76,10 @@ export default function AdminPage() {
   const [districts, setDistricts] = useState<any[]>([])
   const [stats, setStats] = useState({ users: 0, postits: 0, pendingPostits: 0, walls: 0 })
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard')
+  const [calendarCategories, setCalendarCategories] = useState<any[]>([])
+  const [showCalendarCategoryModal, setShowCalendarCategoryModal] = useState(false)
+  const [calendarCategoryForm, setCalendarCategoryForm] = useState({ name: '', order: 0, globalEntries: [] as any[] })
+  const [selectedGlobalCalendarDate, setSelectedGlobalCalendarDate] = useState<string>(new Date().toISOString().split('T')[0])
 
   // Modal states
   const [showUserModal, setShowUserModal] = useState(false)
@@ -88,14 +95,25 @@ export default function AdminPage() {
   // Form states
   const [locationForm, setLocationForm] = useState({ type: 'CITY', name: '', cityId: '' })
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'USER', userGroupId: '' })
-  const [wallForm, setWallForm] = useState({ name: '', description: '', wallManagerId: '', userGroupId: '', parentId: '', cityId: '', districtId: '' })
-  const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', link: '', isApproved: false })
+  const [wallForm, setWallForm] = useState({
+    name: '',
+    description: '',
+    wallManagerId: '',
+    userGroupId: '',
+    parentId: '',
+    cityId: '',
+    districtId: '',
+    calendarEntries: [] as any[]
+  })
+  const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
+  const [uploadingPostitImage, setUploadingPostitImage] = useState(false)
   const [roleForm, setRoleForm] = useState({ name: '', description: '' })
   const [sliderForm, setSliderForm] = useState({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isActive: true })
   const [userGroupForm, setUserGroupForm] = useState({ name: '', description: '' })
 
   // Postit search and filter states
   const [postitSearch, setPostitSearch] = useState('')
+  const [postitStatusFilter, setPostitStatusFilter] = useState<'all' | 'published' | 'unpublished' | 'pending'>('pending')
   const [userSearch, setUserSearch] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
@@ -126,6 +144,7 @@ export default function AdminPage() {
     categoryBgColor: '#ffffff'
   })
   const [editingAppearanceWall, setEditingAppearanceWall] = useState<any>(null)
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(new Date().toISOString().split('T')[0])
 
   // Site Settings
   const [siteSettings, setSiteSettings] = useState({
@@ -155,7 +174,11 @@ export default function AdminPage() {
     siteGradientFrom: '#fffbeb',
     siteGradientVia: '#fefce8',
     siteGradientTo: '#fff7ed',
-    siteBackgroundColor: '#fffbeb'
+    siteBackgroundColor: '#fffbeb',
+    calendarShow: true,
+    calendarSize: 'medium',
+    calendarPosition: 'right',
+    calendarColor: '#dc2626'
   })
   const [savingSettings, setSavingSettings] = useState(false)
   const [uploadingSiteImage, setUploadingSiteImage] = useState(false)
@@ -168,7 +191,8 @@ export default function AdminPage() {
       return
     }
 
-    if (status === 'authenticated' && (session?.user as any)?.role !== 'SUPER_ADMIN') {
+    const role = (session?.user as any)?.role
+    if (status === 'authenticated' && role !== 'SUPER_ADMIN' && role !== 'WALL_MANAGER') {
       toast.error('Bu sayfaya erişim yetkiniz yok')
       router.push('/')
       return
@@ -189,7 +213,8 @@ export default function AdminPage() {
         fetch('/api/roles'),
         fetch('/api/sliders'),
         fetch('/api/locations'),
-        fetch('/api/settings')
+        fetch('/api/settings'),
+        fetch('/api/calendar-categories')
       ])
 
       if (!usersRes.ok) console.error('Users fetch failed', usersRes.status)
@@ -205,6 +230,7 @@ export default function AdminPage() {
       const slidersData = await slidersRes.json()
       const locationsData = await locationsRes.json()
       const settingsData = await settingsRes.json()
+      const calendarCategoriesData = await (await fetch('/api/calendar-categories')).json()
 
       // Log roles data to debug
       console.log('Roles Data:', rolesData)
@@ -215,11 +241,38 @@ export default function AdminPage() {
 
       setUsers(usersData?.users ?? [])
       setPostits(postitsData?.postits ?? [])
-      setWalls(wallsData?.categories ?? [])
+      const allWalls = wallsData?.categories ?? []
+      let visibleWalls = allWalls
+      const userRole = (session?.user as any)?.role
+      const currentUserId = (session?.user as any)?.id
+
+      if (userRole === 'WALL_MANAGER') {
+        const managedIds = new Set<string>()
+        allWalls.forEach((cat: any) => {
+          if (cat.wallManagerId === currentUserId) {
+            managedIds.add(cat.id)
+          }
+        })
+
+        let added = true
+        while (added) {
+          added = false
+          allWalls.forEach((cat: any) => {
+            if (cat.parentId && managedIds.has(cat.parentId) && !managedIds.has(cat.id)) {
+              managedIds.add(cat.id)
+              added = true
+            }
+          })
+        }
+        visibleWalls = allWalls.filter((cat: any) => managedIds.has(cat.id))
+      }
+
+      setWalls(visibleWalls)
       setRoles(rolesData?.roles ?? [])
       setSliders(slidersData?.sliders ?? [])
       setCities(locationsData?.cities ?? [])
       setDistricts(locationsData?.districts ?? [])
+      setCalendarCategories(calendarCategoriesData ?? [])
 
       try {
         const groupsRes = await fetch('/api/user-groups')
@@ -237,7 +290,7 @@ export default function AdminPage() {
         users: usersData?.users?.length ?? 0,
         postits: allPostits.filter((p: any) => p.isApproved).length,
         pendingPostits: allPostits.filter((p: any) => !p.isApproved).length,
-        walls: wallsData?.categories?.length ?? 0,
+        walls: visibleWalls.length,
       })
     } catch (error) {
       console.error('Error loading data:', error)
@@ -302,6 +355,7 @@ export default function AdminPage() {
         parentId: wallForm.parentId || null,
         cityId: wallForm.cityId || null,
         districtId: wallForm.districtId || null,
+        calendarEntries: wallForm.calendarEntries || []
       }
 
       // Add selected posts to move if creating new subcategory
@@ -309,39 +363,51 @@ export default function AdminPage() {
         payload.movePostsToNew = selectedPostsToMove
       }
 
-      if (editingItem) {
-        const response = await fetch(`/api/categories/${editingItem.id}`, {
-          method: 'PATCH',
+      const isEditing = !!editingItem
+      const response = await fetch(
+        isEditing ? `/api/categories/${editingItem.id}` : '/api/categories',
+        {
+          method: isEditing ? 'PATCH' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-        })
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.error || 'Güncelleme başarısız')
         }
-        toast.success('Duvar güncellendi')
-      } else {
-        const response = await fetch('/api/categories', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.error || 'Ekleme başarısız')
-        }
-        toast.success(wallForm.parentId ? 'Alt kategori oluşturuldu' : 'Duvar oluşturuldu')
+      )
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'İşlem başarısız')
       }
-      setShowWallModal(false)
-      setShowMovePostsModal(false)
-      setEditingItem(null)
-      setParentWallForSubcategory(null)
-      setSelectedPostsToMove([])
-      setWallForm({ name: '', description: '', wallManagerId: '', userGroupId: '', parentId: '', cityId: '', districtId: '' })
+
+      const data = await response.json()
+      setEditingItem(data.category) // Keep modal editing the saved/newly created item
+      toast.success(isEditing ? 'Duvar güncellendi' : (wallForm.parentId ? 'Alt kategori oluşturuldu' : 'Duvar oluşturuldu'))
+
       loadData()
     } catch (error: any) {
       toast.error(error.message || 'Duvar kaydedilemedi')
     }
+  }
+
+  const handleAddCalendarEntry = () => {
+    setWallForm({
+      ...wallForm,
+      calendarEntries: [
+        ...wallForm.calendarEntries,
+        { calendarCategoryId: '', date: selectedCalendarDate, content: '' }
+      ]
+    })
+  }
+
+  const handleRemoveCalendarEntry = (index: number) => {
+    const newEntries = [...wallForm.calendarEntries]
+    newEntries.splice(index, 1)
+    setWallForm({ ...wallForm, calendarEntries: newEntries })
+  }
+
+  const handleCalendarEntryChange = (index: number, field: string, value: any) => {
+    const newEntries = [...wallForm.calendarEntries]
+    newEntries[index] = { ...newEntries[index], [field]: value }
+    setWallForm({ ...wallForm, calendarEntries: newEntries })
   }
 
   const handleDeleteWall = async (wallId: string) => {
@@ -371,23 +437,78 @@ export default function AdminPage() {
       toast.success('Not güncellendi')
       setShowPostitModal(false)
       setEditingItem(null)
-      setPostitForm({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', link: '', isApproved: false })
+      setPostitForm({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
       loadData()
     } catch (error) {
       toast.error('Not kaydedilemedi')
     }
   }
 
-  const handleTogglePublish = async (postitId: string, isApproved: boolean) => {
+  const handlePostitImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (postitForm.imageUrls.length >= 5) {
+      toast.error('En fazla 5 resim ekleyebilirsiniz')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Dosya boyutu 5MB\'dan küçük olmalıdır')
+      return
+    }
+
+    setUploadingPostitImage(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/upload/local', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) throw new Error('Dosya yüklenemedi')
+
+      const { fileUrl } = await response.json()
+      setPostitForm(prev => ({
+        ...prev,
+        imageUrls: [...prev.imageUrls, fileUrl],
+        imageUrl: fileUrl
+      }))
+      toast.success('Resim yüklendi')
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Resim yüklenirken hata oluştu')
+    } finally {
+      setUploadingPostitImage(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleRemovePostitImage = (indexToRemove: number) => {
+    setPostitForm(prev => ({
+      ...prev,
+      imageUrls: prev.imageUrls.filter((_, index) => index !== indexToRemove)
+    }))
+  }
+
+  const handleToggleStatus = async (postitId: string, field: 'isApproved' | 'isPublished', value: boolean) => {
+    // Optimistic update
+    setPostits(prev => prev.map(p => p.id === postitId ? { ...p, [field]: value } : p))
     try {
       const response = await fetch(`/api/postits/${postitId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isApproved }),
+        body: JSON.stringify({ [field]: value }),
       })
-      if (!response.ok) throw new Error('Güncelleme başarısız')
-      toast.success(isApproved ? 'Not yayına alındı' : 'Not yayından kaldırıldı')
-      loadData()
+      if (!response.ok) {
+        // Revert on failure
+        setPostits(prev => prev.map(p => p.id === postitId ? { ...p, [field]: !value } : p))
+        throw new Error('Güncelleme başarısız')
+      }
+      const messageAction = value ? (field === 'isApproved' ? 'onaylandı' : 'yayına alındı') : (field === 'isApproved' ? 'onayı kaldırıldı' : 'yayından kaldırıldı')
+      toast.success(`Not ${messageAction}`)
     } catch (error) {
       toast.error('Not güncellenemedi')
     }
@@ -609,6 +730,7 @@ export default function AdminPage() {
       parentId: wall.parentId || '',
       cityId: wall.cityId || '',
       districtId: wall.districtId || '',
+      calendarEntries: wall.calendarEntries || []
     })
     setShowWallModal(true)
   }
@@ -616,7 +738,16 @@ export default function AdminPage() {
   const openAddSubcategory = (parentWall: any) => {
     setEditingItem(null)
     setParentWallForSubcategory(parentWall)
-    setWallForm({ name: '', description: '', wallManagerId: '', userGroupId: '', parentId: parentWall.id, cityId: '', districtId: '' })
+    setWallForm({
+      name: '',
+      description: '',
+      wallManagerId: '',
+      userGroupId: '',
+      parentId: parentWall.id,
+      cityId: '',
+      districtId: '',
+      calendarEntries: []
+    })
     setSelectedPostsToMove([])
     // If parent has posts, show option to move them
     if (parentWall._count?.postits > 0) {
@@ -628,13 +759,27 @@ export default function AdminPage() {
 
   const openEditPostit = (postit: any) => {
     setEditingItem(postit)
+
+    let initialImages: string[] = []
+    if (postit.PostItImage && postit.PostItImage.length > 0) {
+      initialImages = postit.PostItImage.map((img: any) => img.url)
+    } else if (postit.imageUrl) {
+      initialImages = [postit.imageUrl]
+    }
+
     setPostitForm({
       content: postit.content || '',
       categoryId: postit.categoryId || '',
       color: postit.color || 'YELLOW',
       font: postit.font || 'HANDWRITING',
+      pushpin: postit.pushpin || 'RED',
       link: postit.link || '',
       isApproved: postit.isApproved || false,
+      isPublished: postit.isPublished !== false, // Defaults to true if missing
+      imageUrl: postit.imageUrl || '',
+      imageUrls: initialImages,
+      expiresInDays: 'custom',
+      expiresAtDate: postit.expiresAt ? new Date(postit.expiresAt).toISOString().split('T')[0] : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     })
     setShowPostitModal(true)
   }
@@ -648,7 +793,16 @@ export default function AdminPage() {
   const openAddWall = () => {
     setEditingItem(null)
     setParentWallForSubcategory(null)
-    setWallForm({ name: '', description: '', wallManagerId: '', userGroupId: '', parentId: '', cityId: '', districtId: '' })
+    setWallForm({
+      name: '',
+      description: '',
+      wallManagerId: '',
+      userGroupId: '',
+      parentId: '',
+      cityId: '',
+      districtId: '',
+      calendarEntries: []
+    })
     setSelectedPostsToMove([])
     setShowWallModal(true)
   }
@@ -971,6 +1125,95 @@ export default function AdminPage() {
     }
   }
 
+  const handleSaveCalendarCategory = async () => {
+    try {
+      setSavingSettings(true)
+      const isEditing = !!editingItem
+      const res = await fetch('/api/calendar-categories', {
+        method: isEditing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isEditing ? { ...calendarCategoryForm, id: editingItem.id } : calendarCategoryForm)
+      })
+
+      if (res.ok) {
+        toast.success(isEditing ? 'Başlık güncellendi' : 'Başlık eklendi')
+        setShowCalendarCategoryModal(false)
+        setEditingItem(null)
+        setCalendarCategoryForm({ name: '', order: 0, globalEntries: [] })
+        loadData()
+      } else {
+        toast.error('İşlem başarısız oldu')
+      }
+    } catch (error) {
+      console.error('Error saving calendar category:', error)
+      toast.error('Bir hata oluştu')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const handleDeleteCalendarCategory = async (id: string | undefined) => {
+    if (!id || !confirm('Bu başlığı silmek istediğinize emin misiniz?')) return
+
+    try {
+      const res = await fetch(`/api/calendar-categories?id=${id}`, {
+        method: 'DELETE'
+      })
+
+      if (res.ok) {
+        toast.success('Başlık silindi')
+        loadData()
+      } else {
+        toast.error('Silme işlemi başarısız oldu')
+      }
+    } catch (error) {
+      console.error('Error deleting calendar category:', error)
+      toast.error('Bir hata oluştu')
+    }
+  }
+
+  const openAddCalendarCategory = () => {
+    setEditingItem(null)
+    setCalendarCategoryForm({ name: '', order: 0, globalEntries: [] })
+    setShowCalendarCategoryModal(true)
+  }
+
+  const openEditCalendarCategory = (cat: any) => {
+    setEditingItem(cat)
+    let parsedEntries = []
+    if (cat.globalEntries) {
+      if (typeof cat.globalEntries === 'string') {
+        try { parsedEntries = JSON.parse(cat.globalEntries) } catch (e) { }
+      } else if (Array.isArray(cat.globalEntries)) {
+        parsedEntries = cat.globalEntries
+      }
+    }
+    setCalendarCategoryForm({ name: cat.name, order: cat.order, globalEntries: parsedEntries })
+    setShowCalendarCategoryModal(true)
+  }
+
+  const handleAddGlobalCalendarEntry = () => {
+    setCalendarCategoryForm({
+      ...calendarCategoryForm,
+      globalEntries: [
+        ...calendarCategoryForm.globalEntries,
+        { date: selectedGlobalCalendarDate, content: '' }
+      ]
+    })
+  }
+
+  const handleRemoveGlobalCalendarEntry = (index: number) => {
+    const newEntries = [...calendarCategoryForm.globalEntries]
+    newEntries.splice(index, 1)
+    setCalendarCategoryForm({ ...calendarCategoryForm, globalEntries: newEntries })
+  }
+
+  const handleGlobalCalendarEntryChange = (index: number, field: string, value: any) => {
+    const newEntries = [...calendarCategoryForm.globalEntries]
+    newEntries[index] = { ...newEntries[index], [field]: value }
+    setCalendarCategoryForm({ ...calendarCategoryForm, globalEntries: newEntries })
+  }
+
   if (loading || status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -979,9 +1222,12 @@ export default function AdminPage() {
     )
   }
 
+  const role = (session?.user as any)?.role
+  const userId = (session?.user as any)?.id
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'settings', label: 'Site Görünümü', icon: Settings },
+    { id: 'calendar', label: 'Takvim Ayarları', icon: Calendar },
     { id: 'walls', label: 'Duvarlar', icon: LayoutGrid },
     { id: 'locations', label: 'İl İlçe Tanımlama', icon: MapPin },
     { id: 'sliders', label: 'Slayder Ayarları', icon: ImageIcon },
@@ -989,7 +1235,13 @@ export default function AdminPage() {
     { id: 'roles', label: 'Yetki Türü Tanımla', icon: Shield },
     { id: 'groups', label: 'Kullanıcı Grupları', icon: UserGroupIcon },
     { id: 'postits', label: 'Notlar', icon: StickyNote },
-  ]
+  ].filter(item => {
+    if (role === 'SUPER_ADMIN') return true
+    if (role === 'WALL_MANAGER') {
+      return ['dashboard', 'walls', 'postits'].includes(item.id)
+    }
+    return false
+  })
 
   const wallManagers = users.filter(u => u.role === 'WALL_MANAGER' || u.role === 'SUPER_ADMIN')
   const colors = [
@@ -1007,6 +1259,15 @@ export default function AdminPage() {
     { value: 'SANS', label: 'Sans', class: 'font-sans' },
     { value: 'MONO', label: 'Mono', class: 'font-mono' },
     { value: 'CURSIVE', label: 'Cursive', class: 'font-cursive' },
+  ]
+
+  const pushpinOptions = [
+    { value: 'RED', label: 'Kırmızı', image: '/pushpins/red.png' },
+    { value: 'BLUE', label: 'Mavi', image: '/pushpins/blue.png' },
+    { value: 'GOLD', label: 'Altın', image: '/pushpins/gold.png' },
+    { value: 'GREEN', label: 'Yeşil', image: '/pushpins/green.png' },
+    { value: 'PINK', label: 'Pembe', image: '/pushpins/pink.png' },
+    { value: 'SILVER', label: 'Gümüş', image: '/pushpins/silver.png' },
   ]
 
   return (
@@ -1254,460 +1515,746 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="space-y-6 bg-white p-6 rounded-lg shadow border mt-6">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Ana Sayfa Kapak (Hero) Görünümü</h3>
-                    <div className="space-y-4">
+              </div>
 
-                      {/* Hero Settings */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Zemin Resmi (opsiyonel)</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              value={siteSettings.heroBackgroundImage || ''}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroBackgroundImage: e.target.value })}
-                              placeholder="URL veya dosya yükleyin"
-                            />
-                            <div className="flex-shrink-0">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                disabled={uploadingSiteHeroImage}
-                                onClick={() => document.getElementById('site-hero-upload')?.click()}
-                              >
-                                {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                              </Button>
-                              <input
-                                id="site-hero-upload"
-                                type="file"
-                                accept="image/*"
-                                onChange={handleSiteHeroImageUpload}
-                                className="hidden"
-                              />
-                            </div>
-                          </div>
-                          <p className="text-xs text-gray-500">Resim varsa gradyan kullanılmaz</p>
-                        </div>
+              <div className="space-y-6 bg-white p-6 rounded-lg shadow border mt-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Ana Sayfa Kapak (Hero) Görünümü</h3>
+                  <div className="space-y-4">
 
-                        <div className="space-y-2">
-                          <Label>Alt Başlık Metni</Label>
+                    {/* Hero Settings */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Zemin Resmi (opsiyonel)</Label>
+                        <div className="flex gap-2">
                           <Input
-                            value={siteSettings.heroSubtitle || ''}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })}
-                            placeholder="Fikirlerinizi paylaşın..."
+                            value={siteSettings.heroBackgroundImage || ''}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, heroBackgroundImage: e.target.value })}
+                            placeholder="URL veya dosya yükleyin"
+                          />
+                          <div className="flex-shrink-0">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={uploadingSiteHeroImage}
+                              onClick={() => document.getElementById('site-hero-upload')?.click()}
+                            >
+                              {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            </Button>
+                            <input
+                              id="site-hero-upload"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleSiteHeroImageUpload}
+                              className="hidden"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500">Resim varsa gradyan kullanılmaz</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Alt Başlık Metni</Label>
+                        <Input
+                          value={siteSettings.heroSubtitle || ''}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })}
+                          placeholder="Fikirlerinizi paylaşın..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Gradient Colors */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>Gradyan Başlangıç</Label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={siteSettings.heroGradientFrom || '#facc15'}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
+                            className="w-10 h-10 rounded cursor-pointer"
+                          />
+                          <Input
+                            value={siteSettings.heroGradientFrom || '#facc15'}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
+                            className="flex-1"
                           />
                         </div>
                       </div>
+                      <div className="space-y-2">
+                        <Label>Gradyan Orta</Label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={siteSettings.heroGradientVia || '#f472b6'}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
+                            className="w-10 h-10 rounded cursor-pointer"
+                          />
+                          <Input
+                            value={siteSettings.heroGradientVia || '#f472b6'}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Gradyan Bitiş</Label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={siteSettings.heroGradientTo || '#a855f7'}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
+                            className="w-10 h-10 rounded cursor-pointer"
+                          />
+                          <Input
+                            value={siteSettings.heroGradientTo || '#a855f7'}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
 
-                      {/* Gradient Colors */}
+                    {/* Title Settings */}
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Type className="w-4 h-4" /> Başlık Ayarları
+                      </h4>
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label>Hizalama</Label>
+                          <Select
+                            value={siteSettings.heroAlignment || 'left'}
+                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroAlignment: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="left">Sol</SelectItem>
+                              <SelectItem value="center">Orta</SelectItem>
+                              <SelectItem value="right">Sağ</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Font</Label>
+                          <Select
+                            value={siteSettings.heroTitleFont || 'sans-serif'}
+                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleFont: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                              <SelectItem value="serif">Serif</SelectItem>
+                              <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                              <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                              <SelectItem value="monospace">Monospace</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Renk</Label>
+                          <div className="flex gap-2">
+                            <input
+                              type="color"
+                              value={siteSettings.heroTitleColor || '#ffffff'}
+                              onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
+                              className="w-10 h-10 rounded cursor-pointer"
+                            />
+                            <Input
+                              value={siteSettings.heroTitleColor || '#ffffff'}
+                              onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Boyut</Label>
+                          <Select
+                            value={siteSettings.heroTitleSize || '5xl'}
+                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleSize: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="4xl">Küçük (4xl)</SelectItem>
+                              <SelectItem value="5xl">Orta (5xl)</SelectItem>
+                              <SelectItem value="6xl">Büyük (6xl)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subtitle Settings */}
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-medium mb-3">Alt Başlık Ayarları</h4>
                       <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label>Gradyan Başlangıç</Label>
+                          <Label>Font</Label>
+                          <Select
+                            value={siteSettings.heroSubtitleFont || 'sans-serif'}
+                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleFont: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                              <SelectItem value="serif">Serif</SelectItem>
+                              <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                              <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                              <SelectItem value="monospace">Monospace</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Renk</Label>
                           <div className="flex gap-2">
                             <input
                               type="color"
-                              value={siteSettings.heroGradientFrom || '#facc15'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
+                              value={siteSettings.heroSubtitleColor || '#ffffff'}
+                              onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
                               className="w-10 h-10 rounded cursor-pointer"
                             />
                             <Input
-                              value={siteSettings.heroGradientFrom || '#facc15'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
+                              value={siteSettings.heroSubtitleColor || '#ffffff'}
+                              onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
                               className="flex-1"
                             />
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label>Gradyan Orta</Label>
-                          <div className="flex gap-2">
-                            <input
-                              type="color"
-                              value={siteSettings.heroGradientVia || '#f472b6'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
-                              className="w-10 h-10 rounded cursor-pointer"
-                            />
-                            <Input
-                              value={siteSettings.heroGradientVia || '#f472b6'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
-                              className="flex-1"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Gradyan Bitiş</Label>
-                          <div className="flex gap-2">
-                            <input
-                              type="color"
-                              value={siteSettings.heroGradientTo || '#a855f7'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
-                              className="w-10 h-10 rounded cursor-pointer"
-                            />
-                            <Input
-                              value={siteSettings.heroGradientTo || '#a855f7'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
-                              className="flex-1"
-                            />
-                          </div>
+                          <Label>Boyut</Label>
+                          <Select
+                            value={siteSettings.heroSubtitleSize || 'xl'}
+                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleSize: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="lg">Küçük (lg)</SelectItem>
+                              <SelectItem value="xl">Orta (xl)</SelectItem>
+                              <SelectItem value="2xl">Büyük (2xl)</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
-
-                      {/* Title Settings */}
-                      <div className="border-t pt-4 mt-4">
-                        <h4 className="font-medium mb-3 flex items-center gap-2">
-                          <Type className="w-4 h-4" /> Başlık Ayarları
-                        </h4>
-                        <div className="grid grid-cols-4 gap-4">
-                          <div className="space-y-2">
-                            <Label>Hizalama</Label>
-                            <Select
-                              value={siteSettings.heroAlignment || 'left'}
-                              onValueChange={(value) => setSiteSettings({ ...siteSettings, heroAlignment: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="left">Sol</SelectItem>
-                                <SelectItem value="center">Orta</SelectItem>
-                                <SelectItem value="right">Sağ</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Font</Label>
-                            <Select
-                              value={siteSettings.heroTitleFont || 'sans-serif'}
-                              onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleFont: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                                <SelectItem value="serif">Serif</SelectItem>
-                                <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                                <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                                <SelectItem value="monospace">Monospace</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Renk</Label>
-                            <div className="flex gap-2">
-                              <input
-                                type="color"
-                                value={siteSettings.heroTitleColor || '#ffffff'}
-                                onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
-                                className="w-10 h-10 rounded cursor-pointer"
-                              />
-                              <Input
-                                value={siteSettings.heroTitleColor || '#ffffff'}
-                                onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
-                                className="flex-1"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Boyut</Label>
-                            <Select
-                              value={siteSettings.heroTitleSize || '5xl'}
-                              onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleSize: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="4xl">Küçük (4xl)</SelectItem>
-                                <SelectItem value="5xl">Orta (5xl)</SelectItem>
-                                <SelectItem value="6xl">Büyük (6xl)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Subtitle Settings */}
-                      <div className="border-t pt-4 mt-4">
-                        <h4 className="font-medium mb-3">Alt Başlık Ayarları</h4>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label>Font</Label>
-                            <Select
-                              value={siteSettings.heroSubtitleFont || 'sans-serif'}
-                              onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleFont: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                                <SelectItem value="serif">Serif</SelectItem>
-                                <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                                <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                                <SelectItem value="monospace">Monospace</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Renk</Label>
-                            <div className="flex gap-2">
-                              <input
-                                type="color"
-                                value={siteSettings.heroSubtitleColor || '#ffffff'}
-                                onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
-                                className="w-10 h-10 rounded cursor-pointer"
-                              />
-                              <Input
-                                value={siteSettings.heroSubtitleColor || '#ffffff'}
-                                onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
-                                className="flex-1"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Boyut</Label>
-                            <Select
-                              value={siteSettings.heroSubtitleSize || 'xl'}
-                              onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleSize: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="lg">Küçük (lg)</SelectItem>
-                                <SelectItem value="xl">Orta (xl)</SelectItem>
-                                <SelectItem value="2xl">Büyük (2xl)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
-
                     </div>
+
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div>
-                <Label className="block mb-2 text-sm text-gray-700">Canlı Önizleme</Label>
-                <div className="w-full flex-1 rounded-sm relative p-4 md:p-8 flex"
-                  style={{
-                    backgroundColor: siteSettings.backgroundColor,
-                    backgroundImage: `url("${siteSettings.backgroundImage}")`,
-                    border: siteSettings.noBorder ? '0px' : `18px solid ${siteSettings.borderColor}`,
-                    borderBottomColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
-                    borderRightColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
-                    borderTopColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
-                    borderLeftColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
-                    boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 15px 25px rgba(0,0,0,0.15)',
-                    minHeight: '400px'
-                  }}
-                >
-                  <p className="m-auto text-xl opacity-50 bg-white/40 px-4 py-2 rounded shadow">Pano Detay Alanı</p>
-                </div>
+            <div>
+              <Label className="block mb-2 text-sm text-gray-700">Canlı Önizleme</Label>
+              <div className="w-full flex-1 rounded-sm relative p-4 md:p-8 flex"
+                style={{
+                  backgroundColor: siteSettings.backgroundColor,
+                  backgroundImage: `url("${siteSettings.backgroundImage}")`,
+                  border: siteSettings.noBorder ? '0px' : `18px solid ${siteSettings.borderColor}`,
+                  borderBottomColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
+                  borderRightColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
+                  borderTopColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
+                  borderLeftColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
+                  boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 15px 25px rgba(0,0,0,0.15)',
+                  minHeight: '400px'
+                }}
+              >
+                <p className="m-auto text-xl opacity-50 bg-white/40 px-4 py-2 rounded shadow">Pano Detay Alanı</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Walls Section */}
-        {
-          activeSection === 'walls' && (
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Duvar Yönetimi</h2>
-                <Button onClick={openAddWall} className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Yeni Ana Duvar
+        {/* Calendar Settings */}
+        {activeSection === 'calendar' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Takvim Ayarları</h2>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={loadData} disabled={savingSettings}>
+                  İptal
+                </Button>
+                <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
+                  {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Kaydet
                 </Button>
               </div>
+            </div>
 
-              {/* Search Input */}
-              <div className="mb-4">
-                <div className="relative max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Duvar ara..."
-                    value={wallSearch}
-                    onChange={(e) => setWallSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6 bg-white p-6 rounded-lg shadow border">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Görünüm ve Konum</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 pt-2 pb-2">
+                      <Checkbox
+                        id="calendarShow"
+                        checked={siteSettings.calendarShow}
+                        onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, calendarShow: !!checked }))}
+                      />
+                      <Label htmlFor="calendarShow" className="cursor-pointer font-semibold">Takvimi Göster</Label>
+                    </div>
 
-              {/* Hierarchical Walls Display */}
-              <div className="space-y-4">
-                {(() => {
-                  // Get root categories (no parent)
-                  const rootWalls = walls.filter(w => !w.parentId)
-
-                  // Filter by search (recursive)
-                  const matchesSearch = (wall: any, searchTerm: string): boolean => {
-                    if (!searchTerm.trim()) return true
-                    const searchLower = searchTerm.toLowerCase()
-                    if (
-                      wall.name?.toLowerCase().includes(searchLower) ||
-                      wall.description?.toLowerCase().includes(searchLower) ||
-                      wall.wallManager?.name?.toLowerCase().includes(searchLower)
-                    ) {
-                      return true
-                    }
-                    if (wall.children?.some((c: any) => matchesSearch(c, searchTerm))) {
-                      return true
-                    }
-                    return false
-                  }
-
-                  const filterWalls = (wallList: any[], searchTerm: string): any[] => {
-                    if (!searchTerm.trim()) return wallList
-                    return wallList.filter(w => matchesSearch(w, searchTerm))
-                  }
-
-                  const filteredRootWalls = filterWalls(rootWalls, wallSearch)
-
-                  const toggleWall = (wallId: string) => {
-                    setExpandedWalls((prev) => {
-                      const newSet = new Set(prev)
-                      if (newSet.has(wallId)) {
-                        newSet.delete(wallId)
-                      } else {
-                        newSet.add(wallId)
-                      }
-                      return newSet
-                    })
-                  }
-
-                  // Recursive function to get total posts including all children
-                  const getTotalPosts = (wall: any): number => {
-                    let total = wall._count?.postits ?? 0
-                    if (wall.children) {
-                      wall.children.forEach((child: any) => {
-                        total += getTotalPosts(child)
-                      })
-                    }
-                    return total
-                  }
-
-                  // Recursive function to count all subcategories
-                  const countAllChildren = (wall: any): number => {
-                    let count = wall.children?.length ?? 0
-                    if (wall.children) {
-                      wall.children.forEach((child: any) => {
-                        count += countAllChildren(child)
-                      })
-                    }
-                    return count
-                  }
-
-                  // Recursive render function for walls
-                  const renderWall = (wall: any, level: number = 0) => {
-                    const isExpanded = expandedWalls.has(wall.id)
-                    const hasChildren = wall.children && wall.children.length > 0
-                    const totalPosts = getTotalPosts(wall)
-                    const totalSubcategories = countAllChildren(wall)
-                    const isRoot = level === 0
-                    const indent = level * 24
-
-                    return (
-                      <div key={wall.id} className={isRoot ? 'bg-white rounded-lg shadow-md overflow-hidden' : ''}>
-                        {/* Wall Row */}
-                        <div
-                          className={`flex items-center justify-between p-3 hover:bg-gray-50 ${!isRoot ? 'border-l-2 border-gray-200' : ''}`}
-                          style={{ paddingLeft: isRoot ? 16 : indent + 16 }}
-                        >
-                          <button
-                            onClick={() => toggleWall(wall.id)}
-                            className="flex items-center gap-2 flex-1 text-left"
-                          >
-                            {hasChildren ? (
-                              isExpanded ? (
-                                <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                              )
-                            ) : (
-                              <div className="w-4 h-4 flex-shrink-0" />
-                            )}
-                            <div className="min-w-0">
-                              <span className={`font-medium ${isRoot ? 'text-lg' : 'text-base'}`}>
-                                {!isRoot && '↳ '}{wall.name}
-                              </span>
-                              {wall.description && (
-                                <p className="text-xs text-gray-500 truncate">{wall.description}</p>
-                              )}
-                              {(wall.city || wall.district) && (
-                                <p className="text-xs text-blue-500 mt-0.5 mt-0.5 opacity-80 flex items-center gap-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {wall.city?.name} {wall.district ? `/ ${wall.district.name}` : ''}
-                                </p>
-                              )}
-                            </div>
-                          </button>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {wall.wallManager && (
-                              <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 hidden md:inline">
-                                {wall.wallManager.name}
-                              </span>
-                            )}
-                            <span className="text-xs text-gray-500">{totalPosts} not</span>
-                            {hasChildren && (
-                              <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">
-                                {totalSubcategories} alt
-                              </span>
-                            )}
-                            <div className="flex gap-0.5">
-                              <Button variant="ghost" size="sm" onClick={() => openAddSubcategory(wall)} title="Alt Kategori Ekle" className="h-7 w-7 p-0">
-                                <Plus className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => openEditWall(wall)} title="Düzenle" className="h-7 w-7 p-0">
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteWall(wall.id)}
-                                className="hover:bg-red-100 hover:text-red-600 h-7 w-7 p-0"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
+                    {siteSettings.calendarShow && (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Sayfadaki Konumu</Label>
+                            <Select
+                              value={siteSettings.calendarPosition || 'right'}
+                              onValueChange={(value) => setSiteSettings({ ...siteSettings, calendarPosition: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="left">Mantar Pano Solu</SelectItem>
+                                <SelectItem value="right">Mantar Pano Sağı</SelectItem>
+                                <SelectItem value="top-left">Sayfa Sol Üst (Sabit)</SelectItem>
+                                <SelectItem value="top-right">Sayfa Sağ Üst (Sabit)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Boyut</Label>
+                            <Select
+                              value={siteSettings.calendarSize || 'medium'}
+                              onValueChange={(value) => setSiteSettings({ ...siteSettings, calendarSize: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="small">Küçük</SelectItem>
+                                <SelectItem value="medium">Orta</SelectItem>
+                                <SelectItem value="large">Büyük</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
 
-                        {/* Children (Recursive) */}
-                        {isExpanded && hasChildren && (
-                          <div className={isRoot ? 'border-t bg-gray-50' : 'bg-gray-50/50'}>
-                            {wall.children.map((child: any) => renderWall(child, level + 1))}
+                        <div className="space-y-2">
+                          <Label>Takvim Başlık Rengi</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="color"
+                              className="w-12 p-1 h-10 cursor-pointer"
+                              value={siteSettings.calendarColor || '#dc2626'}
+                              onChange={e => setSiteSettings(s => ({ ...s, calendarColor: e.target.value }))}
+                            />
+                            <Input
+                              value={siteSettings.calendarColor || '#dc2626'}
+                              onChange={e => setSiteSettings(s => ({ ...s, calendarColor: e.target.value }))}
+                            />
                           </div>
-                        )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-                        {/* Show message if expanded but no children */}
-                        {isExpanded && !hasChildren && (
-                          <div
-                            className="py-2 text-center text-gray-500 text-xs bg-gray-50"
-                            style={{ paddingLeft: indent + 40 }}
-                          >
-                            Alt kategori yok. <button onClick={() => openAddSubcategory(wall)} className="text-blue-600 hover:underline">Ekle</button>
-                          </div>
-                        )}
+              <div>
+                <Label className="block mb-2 text-sm text-gray-700">Canlı Önizleme (Temsili)</Label>
+                <div className="w-full bg-gray-200 rounded-lg p-4 relative border-2 border-gray-300 overflow-hidden" style={{ minHeight: '350px' }}>
+                  {/* Pano Alanı */}
+                  <div className={`mt-16 bg-white h-48 rounded shadow border-dashed border-2 border-gray-300 flex items-center justify-center text-gray-400 transition-all ${siteSettings.calendarPosition === 'left' ? 'ml-auto w-3/4' :
+                    siteSettings.calendarPosition === 'right' ? 'mr-auto w-3/4' : 'w-full'
+                    }`}>
+                    Pano Alanı
+                  </div>
+
+                  {/* Calendar Render */}
+                  {siteSettings.calendarShow && (
+                    <div className={`transition-all duration-500 z-10 ${siteSettings.calendarPosition === 'top-left' ? 'absolute top-4 left-4' :
+                      siteSettings.calendarPosition === 'top-right' ? 'absolute top-4 right-4' :
+                        siteSettings.calendarPosition === 'left' ? 'absolute top-20 left-4' :
+                          'absolute top-20 right-4'
+                      }`}>
+                      <div className={`border-2 border-red-500 rounded p-2 bg-white shadow-lg transition-transform ${siteSettings.calendarSize === 'large' ? 'scale-110' : siteSettings.calendarSize === 'small' ? 'scale-75' : 'scale-100'}`}>
+                        <div className="bg-red-600 h-2 w-full mb-1"></div>
+                        <div className="text-center font-bold text-lg">27</div>
+                        <div className="text-[10px] text-center">Cuma</div>
                       </div>
-                    )
-                  }
-
-                  if (filteredRootWalls.length === 0) {
-                    return (
-                      <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
-                        {wallSearch ? 'Arama sonucu bulunamadı' : 'Henüz duvar yok'}
-                      </div>
-                    )
-                  }
-
-                  return filteredRootWalls.map((wall) => renderWall(wall, 0))
-                })()}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          )
+
+            <div className="mt-8 bg-white p-6 rounded-lg shadow border">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold">Takvim Başlıkları</h3>
+                  <p className="text-sm text-gray-500">Takvimde görünecek kategori başlıklarını buradan yönetebilirsiniz.</p>
+                </div>
+                <Button onClick={openAddCalendarCategory} size="sm" className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Yeni Başlık Ekle
+                </Button>
+              </div>
+
+              <div className="border rounded-md overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-20">Sıra</TableHead>
+                      <TableHead>Başlık Adı</TableHead>
+                      <TableHead className="w-32">Durum</TableHead>
+                      <TableHead className="w-24 text-right">İşlemler</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {calendarCategories.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                          Henüz hiçbir başlık eklenmemiş.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      calendarCategories.map((cat) => (
+                        <TableRow key={cat.id}>
+                          <TableCell>{cat.order}</TableCell>
+                          <TableCell className="font-medium">{cat.name}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                              {cat.isActive ? 'Aktif' : 'Pasif'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => openEditCalendarCategory(cat)} className="h-8 w-8 p-0">
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDeleteCalendarCategory(cat.id)} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Calendar Category Modal */}
+        <Dialog open={showCalendarCategoryModal} onOpenChange={setShowCalendarCategoryModal}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingItem ? 'Başlığı Düzenle' : 'Yeni Başlık Ekle'}</DialogTitle>
+              <DialogDescription>
+                Takvimde kullanılacak kategori başlığını buraya girin.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="catName">Başlık Adı</Label>
+                <Input
+                  id="catName"
+                  placeholder="Örn: Tatil, Toplantı, Doğum Günü"
+                  value={calendarCategoryForm.name}
+                  onChange={(e) => setCalendarCategoryForm({ ...calendarCategoryForm, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="catOrder">Görüntüleme Sırası</Label>
+                <Input
+                  id="catOrder"
+                  type="number"
+                  value={calendarCategoryForm.order}
+                  onChange={(e) => setCalendarCategoryForm({ ...calendarCategoryForm, order: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+
+              {/* Global Calendar Entries Section */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-base font-semibold">Takvim Metinleri (Global)</Label>
+                    <Input
+                      type="date"
+                      className="w-auto h-8 text-sm"
+                      value={selectedGlobalCalendarDate}
+                      onChange={(e) => setSelectedGlobalCalendarDate(e.target.value)}
+                    />
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddGlobalCalendarEntry} className="gap-1">
+                    <Plus className="w-3 h-3" /> Ekle
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {calendarCategoryForm.globalEntries && calendarCategoryForm.globalEntries.map((entry: any, index: number) => {
+                    const entryDateStr = entry.date ? (typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]) : '';
+                    if (entryDateStr !== selectedGlobalCalendarDate) return null;
+
+                    return (
+                      <div key={index} className="p-3 border rounded-md bg-gray-50 relative group">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveGlobalCalendarEntry(index)}
+                          className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs">Metin</Label>
+                          <Textarea
+                            className="text-xs min-h-[60px]"
+                            placeholder="Bu başlık için seçili tarihte gösterilecek metin..."
+                            value={entry.content || ''}
+                            onChange={(e) => handleGlobalCalendarEntryChange(index, 'content', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {(!calendarCategoryForm.globalEntries || calendarCategoryForm.globalEntries.filter((e: any) => {
+                    const eDateStr = e.date ? (typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0]) : '';
+                    return eDateStr === selectedGlobalCalendarDate;
+                  }).length === 0) && (
+                      <p className="text-xs text-gray-500 text-center py-2">Bu tarih için henüz metin eklenmedi.</p>
+                    )}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCalendarCategoryModal(false)}>
+                Vazgeç
+              </Button>
+              <Button onClick={handleSaveCalendarCategory} disabled={savingSettings}>
+                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {editingItem ? 'Güncelle' : 'Ekle'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Walls Section */}
+        {activeSection === 'walls' && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Duvar Yönetimi</h2>
+              <Button onClick={openAddWall} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Yeni Ana Duvar
+              </Button>
+            </div>
+
+            {/* Search Input */}
+            <div className="mb-4">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  placeholder="Duvar ara..."
+                  value={wallSearch}
+                  onChange={(e) => setWallSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Hierarchical Walls Display */}
+            <div className="space-y-4">
+              {(() => {
+                // Get root categories
+                let rootWalls = walls.filter(w => !w.parentId)
+                const currentUserId = userId || (session?.user as any)?.id
+                const managedCats = new Set<string>()
+                walls.forEach(w => {
+                  if (w.wallManagerId === currentUserId) {
+                    managedCats.add(w.id)
+                  }
+                })
+                // If they manage a child but not the parent, the child acts as a root
+                if (role === 'WALL_MANAGER') {
+                  rootWalls = walls.filter(w =>
+                    (w.wallManagerId === currentUserId) &&
+                    (!w.parentId || !managedCats.has(w.parentId))
+                  )
+                }
+
+                // Filter by search (recursive)
+                const matchesSearch = (wall: any, searchTerm: string): boolean => {
+                  if (!searchTerm.trim()) return true
+                  const searchLower = searchTerm.toLowerCase()
+                  if (
+                    wall.name?.toLowerCase().includes(searchLower) ||
+                    wall.description?.toLowerCase().includes(searchLower) ||
+                    wall.wallManager?.name?.toLowerCase().includes(searchLower)
+                  ) {
+                    return true
+                  }
+                  if (wall.children?.some((c: any) => matchesSearch(c, searchTerm))) {
+                    return true
+                  }
+                  return false
+                }
+
+                const filterWalls = (wallList: any[], searchTerm: string): any[] => {
+                  if (!searchTerm.trim()) return wallList
+                  return wallList.filter(w => matchesSearch(w, searchTerm))
+                }
+
+                const filteredRootWalls = filterWalls(rootWalls, wallSearch)
+
+                const toggleWall = (wallId: string) => {
+                  setExpandedWalls((prev) => {
+                    const newSet = new Set(prev)
+                    if (newSet.has(wallId)) {
+                      newSet.delete(wallId)
+                    } else {
+                      newSet.add(wallId)
+                    }
+                    return newSet
+                  })
+                }
+
+                // Recursive function to get total posts including all children
+                const getTotalPosts = (wall: any): number => {
+                  let total = wall._count?.postits ?? 0
+                  if (wall.children) {
+                    wall.children.forEach((child: any) => {
+                      total += getTotalPosts(child)
+                    })
+                  }
+                  return total
+                }
+
+                // Recursive function to count all subcategories
+                const countAllChildren = (wall: any): number => {
+                  let count = wall.children?.length ?? 0
+                  if (wall.children) {
+                    wall.children.forEach((child: any) => {
+                      count += countAllChildren(child)
+                    })
+                  }
+                  return count
+                }
+
+                // Recursive render function for walls
+                const renderWall = (wall: any, level: number = 0) => {
+                  const isExpanded = expandedWalls.has(wall.id)
+                  const hasChildren = wall.children && wall.children.length > 0
+                  const totalPosts = getTotalPosts(wall)
+                  const totalSubcategories = countAllChildren(wall)
+                  const isRoot = level === 0
+                  const indent = level * 24
+
+                  return (
+                    <div key={wall.id} className={isRoot ? 'bg-white rounded-lg shadow-md overflow-hidden' : ''}>
+                      {/* Wall Row */}
+                      <div
+                        className={`flex items-center justify-between p-3 hover:bg-gray-50 ${!isRoot ? 'border-l-2 border-gray-200' : ''}`}
+                        style={{ paddingLeft: isRoot ? 16 : indent + 16 }}
+                      >
+                        <button
+                          onClick={() => toggleWall(wall.id)}
+                          className="flex items-center gap-2 flex-1 text-left"
+                        >
+                          {hasChildren ? (
+                            isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                            )
+                          ) : (
+                            <div className="w-4 h-4 flex-shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <span className={`font-medium ${isRoot ? 'text-lg' : 'text-base'}`}>
+                              {!isRoot && '↳ '}{wall.name}
+                            </span>
+                            {wall.description && (
+                              <p className="text-xs text-gray-500 truncate">{wall.description}</p>
+                            )}
+                            {(wall.city || wall.district) && (
+                              <p className="text-xs text-blue-500 mt-0.5 mt-0.5 opacity-80 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {wall.city?.name} {wall.district ? `/ ${wall.district.name}` : ''}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {wall.wallManager && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 hidden md:inline">
+                              {wall.wallManager.name}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500">{totalPosts} not</span>
+                          {hasChildren && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">
+                              {totalSubcategories} alt
+                            </span>
+                          )}
+                          <div className="flex gap-0.5">
+                            <Button variant="ghost" size="sm" onClick={() => openAddSubcategory(wall)} title="Alt Kategori Ekle" className="h-7 w-7 p-0">
+                              <Plus className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => openEditWall(wall)} title="Düzenle" className="h-7 w-7 p-0">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteWall(wall.id)}
+                              className="hover:bg-red-100 hover:text-red-600 h-7 w-7 p-0"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Children (Recursive) */}
+                      {isExpanded && hasChildren && (
+                        <div className={isRoot ? 'border-t bg-gray-50' : 'bg-gray-50/50'}>
+                          {wall.children.map((child: any) => renderWall(child, level + 1))}
+                        </div>
+                      )}
+
+                      {/* Show message if expanded but no children */}
+                      {isExpanded && !hasChildren && (
+                        <div
+                          className="py-2 text-center text-gray-500 text-xs bg-gray-50"
+                          style={{ paddingLeft: indent + 40 }}
+                        >
+                          Alt kategori yok. <button onClick={() => openAddSubcategory(wall)} className="text-blue-600 hover:underline">Ekle</button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+
+                if (filteredRootWalls.length === 0) {
+                  return (
+                    <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
+                      {wallSearch ? 'Arama sonucu bulunamadı' : 'Henüz duvar yok'}
+                    </div>
+                  )
+                }
+
+                return filteredRootWalls.map((wall) => renderWall(wall, 0))
+              })()}
+            </div>
+          </div>
+        )
         }
 
         {/* Locations Section */}
@@ -2131,9 +2678,9 @@ export default function AdminPage() {
                 <h2 className="text-2xl font-bold">Not Yönetimi</h2>
               </div>
 
-              {/* Search Input */}
-              <div className="mb-4">
-                <div className="relative max-w-md">
+              {/* Search and Filter */}
+              <div className="mb-4 flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     placeholder="Not ara (içerik, kullanıcı veya kategori)..."
@@ -2142,13 +2689,69 @@ export default function AdminPage() {
                     className="pl-10"
                   />
                 </div>
+
+                <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-md border shadow-sm">
+                  <Label className="font-semibold text-gray-700 mr-2">Durum:</Label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="postitStatusFilter"
+                      value="pending"
+                      checked={postitStatusFilter === 'pending'}
+                      onChange={(e) => setPostitStatusFilter(e.target.value as any)}
+                      className="accent-yellow-500"
+                    />
+                    <span className="text-sm">Beklemede</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="postitStatusFilter"
+                      value="all"
+                      checked={postitStatusFilter === 'all'}
+                      onChange={(e) => setPostitStatusFilter(e.target.value as any)}
+                      className="accent-gray-900"
+                    />
+                    <span className="text-sm">Tümü</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="postitStatusFilter"
+                      value="published"
+                      checked={postitStatusFilter === 'published'}
+                      onChange={(e) => setPostitStatusFilter(e.target.value as any)}
+                      className="accent-green-600"
+                    />
+                    <span className="text-sm">Yayında</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="postitStatusFilter"
+                      value="unpublished"
+                      checked={postitStatusFilter === 'unpublished'}
+                      onChange={(e) => setPostitStatusFilter(e.target.value as any)}
+                      className="accent-red-600"
+                    />
+                    <span className="text-sm">Yayında Değil</span>
+                  </label>
+                </div>
               </div>
 
               {/* Grouped by Category */}
               <div className="space-y-4">
                 {(() => {
-                  // Filter postits by search
+                  // Filter postits by search and status
                   const filteredPostits = postits.filter((postit) => {
+                    const statusMatch =
+                      postitStatusFilter === 'all' ? true :
+                        postitStatusFilter === 'published' ? postit.isPublished :
+                          postitStatusFilter === 'unpublished' ? !postit.isPublished :
+                            postitStatusFilter === 'pending' ? !postit.isApproved : true;
+
+                    if (!statusMatch) return false;
+
                     if (!postitSearch.trim()) return true
                     const searchLower = postitSearch.toLowerCase()
                     return (
@@ -2159,11 +2762,25 @@ export default function AdminPage() {
                   })
 
                   // Group by category
+                  // Build category hierarchy paths
+                  const categoryPathMap: Record<string, string> = {}
+                  const buildPathMap = (cats: any[], parentPath = '') => {
+                    cats.forEach(c => {
+                      const path = parentPath ? `${parentPath} > ${c.name}` : c.name
+                      categoryPathMap[c.id] = path
+                      if (c.children?.length) {
+                        buildPathMap(c.children, path)
+                      }
+                    })
+                  }
+                  buildPathMap(walls)
+
+                  // Group by hierarchical category
                   const groupedPostits: Record<string, { categoryName: string; categoryId: string; postits: any[] }> = {}
 
                   filteredPostits.forEach((postit) => {
                     const catId = postit.categoryId || 'uncategorized'
-                    const catName = postit.category?.name || 'Kategorisiz'
+                    const catName = categoryPathMap[catId] || postit.category?.name || 'Kategorisiz'
                     if (!groupedPostits[catId]) {
                       groupedPostits[catId] = { categoryName: catName, categoryId: catId, postits: [] }
                     }
@@ -2231,15 +2848,17 @@ export default function AdminPage() {
 
                         {/* Postits Table */}
                         {isExpanded && (
-                          <Table>
+                          <Table className="table-fixed w-full">
                             <TableHeader>
                               <TableRow>
-                                <TableHead>İçerik</TableHead>
-                                <TableHead>Kullanıcı</TableHead>
-                                <TableHead>Renk</TableHead>
-                                <TableHead className="text-center">Yayında</TableHead>
-                                <TableHead>Tarih</TableHead>
-                                <TableHead>İşlemler</TableHead>
+                                <TableHead className="w-[30%]">İçerik</TableHead>
+                                <TableHead className="w-[15%]">Kullanıcı</TableHead>
+                                <TableHead className="w-[10%]">Renk</TableHead>
+                                <TableHead className="w-[10%] text-center">Onaylı</TableHead>
+                                <TableHead className="w-[10%] text-center">Yayında</TableHead>
+                                <TableHead className="w-[12%]">Kayıt Tarihi</TableHead>
+                                <TableHead className="w-[13%]">Son Görüntülenme</TableHead>
+                                <TableHead className="w-[10%]">İşlemler</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -2274,11 +2893,20 @@ export default function AdminPage() {
                                   <TableCell className="text-center">
                                     <Checkbox
                                       checked={postit.isApproved}
-                                      onCheckedChange={(checked) => handleTogglePublish(postit.id, checked as boolean)}
+                                      onCheckedChange={(checked) => handleToggleStatus(postit.id, 'isApproved', checked as boolean)}
+                                      className="mx-auto"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Checkbox
+                                      checked={postit.isPublished}
+                                      onCheckedChange={(checked) => handleToggleStatus(postit.id, 'isPublished', checked as boolean)}
+                                      disabled={new Date(postit.expiresAt) < new Date()}
                                       className="mx-auto"
                                     />
                                   </TableCell>
                                   <TableCell>{new Date(postit.createdAt).toLocaleDateString('tr-TR')}</TableCell>
+                                  <TableCell>{new Date(postit.expiresAt).toLocaleDateString('tr-TR')}</TableCell>
                                   <TableCell>
                                     <div className="flex gap-2">
                                       <Button variant="ghost" size="sm" onClick={() => openEditPostit(postit)}>
@@ -2307,10 +2935,10 @@ export default function AdminPage() {
             </div>
           )
         }
-      </main >
+      </main>
 
       {/* Appearance Settings Modal */}
-      <Dialog open={showAppearanceModal} onOpenChange={setShowAppearanceModal} >
+      <Dialog open={showAppearanceModal} onOpenChange={setShowAppearanceModal}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -2668,6 +3296,7 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+
           </div>
 
           <DialogFooter>
@@ -2893,7 +3522,7 @@ export default function AdminPage() {
       </Dialog>
 
       <Dialog open={showWallModal} onOpenChange={setShowWallModal}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingItem ? 'Duvar Düzenle' : wallForm.parentId ? 'Alt Kategori Ekle' : 'Yeni Ana Duvar'}
@@ -3007,6 +3636,79 @@ export default function AdminPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Calendar Areas Section */}
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Label className="text-base font-semibold">Takvim Alanları</Label>
+                  <Input
+                    type="date"
+                    className="w-auto h-8 text-sm"
+                    value={selectedCalendarDate}
+                    onChange={(e) => setSelectedCalendarDate(e.target.value)}
+                  />
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={handleAddCalendarEntry} className="gap-1">
+                  <Plus className="w-3 h-3" /> Ekle
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {wallForm.calendarEntries && wallForm.calendarEntries.map((entry: any, index: number) => {
+                  const entryDateStr = entry.date ? (typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]) : '';
+                  if (entryDateStr !== selectedCalendarDate) return null;
+
+                  return (
+                    <div key={index} className="p-3 border rounded-md bg-gray-50 relative group">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveCalendarEntry(index)}
+                        className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+
+                      <div className="grid grid-cols-1 gap-3 mb-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Başlık</Label>
+                          <Select
+                            value={entry.calendarCategoryId}
+                            onValueChange={(val) => handleCalendarEntryChange(index, 'calendarCategoryId', val)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Başlık Seçin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {calendarCategories.filter(c => c.isActive).map(cat => (
+                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Metin</Label>
+                        <Textarea
+                          className="text-xs min-h-[60px]"
+                          placeholder="İçerik giriniz..."
+                          value={entry.content}
+                          onChange={(e) => handleCalendarEntryChange(index, 'content', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+                {(!wallForm.calendarEntries || wallForm.calendarEntries.filter((e: any) => {
+                  const eDateStr = e.date ? (typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0]) : '';
+                  return eDateStr === selectedCalendarDate;
+                }).length === 0) && (
+                    <p className="text-xs text-gray-500 text-center py-2">Bu tarih için henüz takvim alanı eklenmedi.</p>
+                  )}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowWallModal(false)}>
@@ -3047,62 +3749,74 @@ export default function AdminPage() {
       </Dialog>
 
       <Dialog open={showPostitModal} onOpenChange={setShowPostitModal}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Not Düzenle</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
+            <div>
               <Label>İçerik</Label>
               <Textarea
                 value={postitForm.content}
                 onChange={(e) => setPostitForm({ ...postitForm, content: e.target.value })}
+                maxLength={500}
+                rows={4}
               />
+              <p className="text-xs text-gray-500 text-right mt-1">
+                {postitForm.content.length}/500
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Renk</Label>
-                <Select
-                  value={postitForm.color}
-                  onValueChange={(value) => setPostitForm({ ...postitForm, color: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {colors.map(c => (
-                      <SelectItem key={c.value} value={c.value}>
-                        <div className="flex items-center gap-2">
-                          <span className={`w-3 h-3 rounded-full ${c.bg}`}></span>
-                          {c.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label>Resimler (Maks. 5)</Label>
+              {postitForm.imageUrls.length > 0 && (
+                <div className="grid grid-cols-5 gap-2 mt-2 mb-2">
+                  {postitForm.imageUrls.map((url, index) => (
+                    <div key={index} className="relative group aspect-square rounded overflow-hidden border border-gray-200">
+                      <img src={url} alt={`Resim ${index + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePostitImage(index)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-              <div className="space-y-2">
-                <Label>Yazı Tipi</Label>
-                <Select
-                  value={postitForm.font}
-                  onValueChange={(value) => setPostitForm({ ...postitForm, font: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {fonts.map(f => (
-                      <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {postitForm.imageUrls.length < 5 && (
+                <div className="flex items-center gap-2 mt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-20 border-dashed border-2 flex flex-col gap-1 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+                    onClick={() => document.getElementById('admin-edit-image-upload')?.click()}
+                    disabled={uploadingPostitImage}
+                  >
+                    {uploadingPostitImage ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      <ImageIcon className="w-6 h-6" />
+                    )}
+                    <span>Resim Ekle ({postitForm.imageUrls.length}/5)</span>
+                  </Button>
+                  <Input
+                    id="admin-edit-image-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePostitImageUpload}
+                    disabled={uploadingPostitImage}
+                    className="hidden"
+                  />
+                </div>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <Label>İlgili Duvar/Kategori</Label>
+            <div>
+              <Label>Kategori</Label>
               <Select
                 value={postitForm.categoryId}
                 onValueChange={(value) => setPostitForm({ ...postitForm, categoryId: value })}
@@ -3122,15 +3836,6 @@ export default function AdminPage() {
                         return acc
                       }, [])
                     }
-                    // Filter root categories first if needed, but here we likely have all mixed or need to restructure 'walls' state to be hierarchical always?
-                    // Actually 'walls' state from API might be flat or nested depending on API.
-                    // Assuming API /api/categories returns flat list?
-                    // Wait, previous code treated 'walls' as hierarchical in render? 
-                    // Let's assume walls is hierarchical based on earlier usage or flatten if needed.
-                    // The API /api/categories usually returns flat list or nested.
-                    // Based on usage `walls.filter(w => !w.parentId)`, it seems to be a flat list containing all.
-
-                    // Let's create a hierarchy from flat list for the select
                     const buildHierarchy = (items: any[]) => {
                       const rootItems = items.filter(i => !i.parentId)
                       const findChildren = (parent: any) => {
@@ -3141,15 +3846,14 @@ export default function AdminPage() {
                       rootItems.forEach(findChildren)
                       return rootItems
                     }
-
-                    // We might have already Hierarchical structure in state or flat. 
-                    // Let's try to handle flat list 'walls'.
-                    const hierarchy = buildHierarchy(JSON.parse(JSON.stringify(walls))) // deep clone to not mutate state
+                    const hierarchy = buildHierarchy(JSON.parse(JSON.stringify(walls)))
                     const flatOptions = flatten(hierarchy)
 
                     return flatOptions.map((w: any) => (
                       <SelectItem key={w.id} value={w.id}>
-                        {'-'.repeat(w.depth)} {w.name}
+                        <span style={{ paddingLeft: `${w.depth * 12}px` }}>
+                          {w.depth > 0 && '↳ '}{w.name}
+                        </span>
                       </SelectItem>
                     ))
                   })()}
@@ -3157,22 +3861,139 @@ export default function AdminPage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div>
+              <Label>Renk</Label>
+              <div className="grid grid-cols-6 gap-2 mt-2">
+                {colors.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    className={`w-full aspect-square rounded-lg ${color.bg} border-2 transition-all ${postitForm.color === color.value
+                      ? 'border-gray-800 scale-110'
+                      : 'border-transparent hover:scale-105'
+                      }`}
+                    onClick={() => setPostitForm({ ...postitForm, color: color.value })}
+                    title={color.label}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label>Yazı Tipi</Label>
+              <div className="grid grid-cols-5 gap-2 mt-2">
+                {fonts.map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() =>
+                      setPostitForm({ ...postitForm, font: f.value })
+                    }
+                    className={`h-12 rounded border-2 bg-white flex items-center justify-center ${postitForm.font === f.value
+                      ? 'border-gray-800 ring-2 ring-gray-800'
+                      : 'border-gray-300'
+                      } hover:border-gray-600 transition ${f.class} text-sm`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label>İğne</Label>
+              <div className="grid grid-cols-6 gap-2 mt-2">
+                {pushpinOptions.map((pin) => (
+                  <button
+                    key={pin.value}
+                    type="button"
+                    className={`w-full aspect-square rounded-lg border-2 p-1 transition-all bg-gray-100 ${postitForm.pushpin === pin.value
+                      ? 'border-gray-800 scale-110'
+                      : 'border-transparent hover:scale-105'
+                      }`}
+                    onClick={() => setPostitForm({ ...postitForm, pushpin: pin.value })}
+                    title={pin.label}
+                  >
+                    <Image src={pin.image} alt={pin.label} width={32} height={32} className="w-full h-full object-contain" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="expires">Süre</Label>
+                <Select
+                  value={postitForm.expiresInDays}
+                  onValueChange={(value) => {
+                    const daysMap: { [key: string]: number } = {
+                      '1': 1,
+                      '3': 3,
+                      '7': 7,
+                      '30': 30
+                    }
+                    const newForm = { ...postitForm, expiresInDays: value }
+                    if (value !== 'custom') {
+                      const days = daysMap[value] || 1
+                      newForm.expiresAtDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                    }
+                    setPostitForm(newForm)
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Süre seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 Gün</SelectItem>
+                    <SelectItem value="3">3 Gün</SelectItem>
+                    <SelectItem value="7">1 Hafta</SelectItem>
+                    <SelectItem value="30">1 Ay</SelectItem>
+                    <SelectItem value="custom">Tarihine kadar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Son Görüntüleme Tarihi</Label>
+                <Input
+                  type="date"
+                  min={new Date().toISOString().split('T')[0]}
+                  value={postitForm.expiresAtDate}
+                  onChange={(e) => setPostitForm({ ...postitForm, expiresAtDate: e.target.value })}
+                  required
+                  readOnly={postitForm.expiresInDays !== 'custom'}
+                  className={postitForm.expiresInDays !== 'custom' ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}
+                />
+              </div>
+            </div>
+
+            <div>
               <Label>Link (Opsiyonel)</Label>
               <Input
+                type="url"
                 value={postitForm.link}
                 onChange={(e) => setPostitForm({ ...postitForm, link: e.target.value })}
                 placeholder="https://..."
               />
             </div>
 
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="isApproved"
-                checked={postitForm.isApproved}
-                onCheckedChange={(checked) => setPostitForm({ ...postitForm, isApproved: checked === true })}
-              />
-              <Label htmlFor="isApproved">Onaylı / Yayında</Label>
+            <div className="flex gap-6 mt-4">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="isApproved"
+                  checked={postitForm.isApproved}
+                  onCheckedChange={(checked) => setPostitForm({ ...postitForm, isApproved: checked === true })}
+                />
+                <Label htmlFor="isApproved">Onaylı</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="isPublished"
+                  checked={postitForm.isPublished}
+                  onCheckedChange={(checked) => setPostitForm({ ...postitForm, isPublished: checked === true })}
+                />
+                <Label htmlFor="isPublished">Yayında</Label>
+              </div>
             </div>
           </div>
           <DialogFooter>

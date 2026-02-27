@@ -121,6 +121,7 @@ model Category {
   district            District?  @relation(fields: [districtId], references: [id])
   postits             PostIt[]
   slider              Slider?
+  calendarEntries     WallCalendarEntry[]
 
   @@unique([name, parentId])
   @@index([parentId], map: "Category_parentId_fkey")
@@ -150,6 +151,7 @@ model PostIt {
   rotation    Float         @default(0)
   expiresAt   DateTime
   isApproved  Boolean       @default(false)
+  isPublished Boolean       @default(true)
   isModerated Boolean       @default(false)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -162,6 +164,7 @@ model PostIt {
   @@index([userId])
   @@index([expiresAt])
   @@index([isApproved])
+  @@index([isPublished])
 }
 
 model Ad {
@@ -296,5 +299,35 @@ model SiteSettings {
   siteGradientVia     String?    @default("#fefce8")
   siteGradientTo      String?    @default("#fff7ed")
   siteBackgroundColor String?    @default("#fffbeb")
+  calendarShow        Boolean?   @default(true)
+  calendarSize        String?    @default("medium")
+  calendarPosition    String?    @default("right")
+  calendarColor       String?    @default("#dc2626")
   updatedAt       DateTime @updatedAt
+}
+
+model CalendarCategory {
+  id        String   @id @default(cuid())
+  name      String
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  globalEntries Json? // Array of {date: string, content: string}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  wallEntries WallCalendarEntry[]
+}
+
+model WallCalendarEntry {
+  id                 String           @id @default(cuid())
+  categoryId         String
+  calendarCategoryId String
+  date               DateTime         @default(now())
+  content            String           @db.Text
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  category           Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  calendarCategory   CalendarCategory @relation(fields: [calendarCategoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@index([calendarCategoryId])
 }

@@ -108,6 +108,9 @@ export async function GET() {
           select: {
             postits: true
           }
+        },
+        calendarEntries: {
+          include: { calendarCategory: true }
         }
       },
       orderBy: {
@@ -148,7 +151,8 @@ export async function POST(request: NextRequest) {
       heroTitleFont, heroTitleColor, heroTitleSize,
       heroSubtitleFont, heroSubtitleColor, heroSubtitleSize,
       heroGradientFrom, heroGradientVia, heroGradientTo,
-      categoryFont, categoryColor, categoryBgColor
+      categoryFont, categoryColor, categoryBgColor,
+      calendarEntries // Array of { calendarCategoryId, date, content }
     } = body
 
     if (!name) {
@@ -228,6 +232,17 @@ export async function POST(request: NextRequest) {
         data: {
           categoryId: category.id
         }
+      })
+    }
+
+    if (calendarEntries !== undefined && Array.isArray(calendarEntries) && calendarEntries.length > 0) {
+      await prisma.wallCalendarEntry.createMany({
+        data: calendarEntries.map((e: any) => ({
+          categoryId: category.id,
+          calendarCategoryId: e.calendarCategoryId,
+          date: new Date(e.date || new Date()),
+          content: e.content || ''
+        }))
       })
     }
 

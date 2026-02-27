@@ -71,6 +71,10 @@ export async function PATCH(request: NextRequest) {
         if (data.siteGradientVia !== undefined) updateData.siteGradientVia = data.siteGradientVia
         if (data.siteGradientTo !== undefined) updateData.siteGradientTo = data.siteGradientTo
         if (data.siteBackgroundColor !== undefined) updateData.siteBackgroundColor = data.siteBackgroundColor
+        if (data.calendarShow !== undefined) updateData.calendarShow = data.calendarShow
+        if (data.calendarSize !== undefined) updateData.calendarSize = data.calendarSize
+        if (data.calendarPosition !== undefined) updateData.calendarPosition = data.calendarPosition
+        if (data.calendarColor !== undefined) updateData.calendarColor = data.calendarColor
 
         const settings = await prisma.siteSettings.upsert({
             where: { id: 'global' },

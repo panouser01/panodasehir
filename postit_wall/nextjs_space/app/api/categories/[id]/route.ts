@@ -51,6 +51,9 @@ export async function GET(
         },
         city: { select: { id: true, name: true } },
         district: { select: { id: true, name: true } },
+        calendarEntries: {
+          include: { calendarCategory: true }
+        },
         postits: {
           select: { id: true, content: true, isApproved: true }
         },
@@ -98,7 +101,8 @@ export async function PATCH(
       heroSubtitleFont, heroSubtitleColor, heroSubtitleSize,
       heroGradientFrom, heroGradientVia, heroGradientTo,
       heroAlignment,
-      categoryFont, categoryColor, categoryBgColor
+      categoryFont, categoryColor, categoryBgColor,
+      calendarEntries // Array of { calendarCategoryId, date, content }
     } = body
 
     // Only super admin can change wallManagerId or userGroupId
@@ -150,6 +154,23 @@ export async function PATCH(
       where: { id: params.id },
       data: updateData
     })
+
+    if (calendarEntries !== undefined && Array.isArray(calendarEntries)) {
+      await prisma.wallCalendarEntry.deleteMany({
+        where: { categoryId: params.id }
+      })
+
+      if (calendarEntries.length > 0) {
+        await prisma.wallCalendarEntry.createMany({
+          data: calendarEntries.map((e: any) => ({
+            categoryId: params.id,
+            calendarCategoryId: e.calendarCategoryId,
+            date: new Date(e.date || new Date()),
+            content: e.content || ''
+          }))
+        })
+      }
+    }
 
     return NextResponse.json({ category })
   } catch (error) {

@@ -191,6 +191,73 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const userRole = (session?.user as any)?.role
   const canDelete = userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER'
 
+  // Calendar JSX
+  const calendarLeaf = (
+    <div className="select-none transform rotate-3 hover:rotate-0 transition-all duration-500 group cursor-pointer">
+      <div
+        className={`rounded-lg shadow-xl border-2 border-gray-100 flex flex-col items-center relative transition-all duration-500 group-hover:-translate-y-1 ${siteSettings.calendarSize === 'large' ? 'min-w-[140px]' :
+            siteSettings.calendarSize === 'small' ? 'min-w-[80px]' :
+              'min-w-[110px]'
+          }`}
+        style={{
+          backgroundColor: '#f4ecd8', // Samanlı kağıt rengi (Straw paper color)
+          backgroundImage: `
+            radial-gradient(circle at 2px 2px, rgba(0,0,0,0.02) 1px, transparent 0),
+            linear-gradient(to bottom, transparent, rgba(0,0,0,0.02))
+          `,
+          backgroundSize: '4px 4px, 100% 100%'
+        }}
+      >
+        {/* The curl triangle */}
+        <div className="absolute bottom-0 right-0 w-0 h-0 border-solid border-b-transparent border-l-transparent transition-all duration-300 group-hover:border-b-[25px] group-hover:border-l-[25px] group-hover:border-b-[#f4ecd8] group-hover:border-l-gray-300 z-30 drop-shadow-[-2px_-2px_3px_rgba(0,0,0,0.2)]"></div>
+
+        {/* The cut-out effect triangle */}
+        <div className="absolute bottom-0 right-0 w-0 h-0 border-solid border-t-transparent border-r-transparent transition-all duration-300 group-hover:border-t-[25px] group-hover:border-r-[25px] group-hover:border-t-black/5 group-hover:border-r-black/5 z-10"></div>
+
+        <div
+          className="w-full py-1.5 px-3 text-center overflow-hidden rounded-t-md"
+          style={{ backgroundColor: siteSettings.calendarColor || '#dc2626' }}
+        >
+          <span className={`text-white font-bold uppercase tracking-wider ${siteSettings.calendarSize === 'large' ? 'text-xs' :
+              siteSettings.calendarSize === 'small' ? 'text-[8px]' :
+                'text-[10px]'
+            }`}>
+            {new Intl.DateTimeFormat('tr-TR', { month: 'long' }).format(new Date())}
+          </span>
+        </div>
+        <div className={`flex flex-col items-center pb-2 ${siteSettings.calendarSize === 'large' ? 'py-4 px-6' :
+            siteSettings.calendarSize === 'small' ? 'py-1.5 px-3' :
+              'py-3 px-4'
+          }`}>
+          <span className={`font-black text-amber-900/80 leading-none ${siteSettings.calendarSize === 'large' ? 'text-6xl' :
+              siteSettings.calendarSize === 'small' ? 'text-3xl' :
+                'text-5xl'
+            }`}>
+            {new Date().getDate()}
+          </span>
+          <span className={`font-bold text-amber-800/60 uppercase ${siteSettings.calendarSize === 'large' ? 'text-sm mt-3' :
+              siteSettings.calendarSize === 'small' ? 'text-[9px] mt-1' :
+                'text-[11px] mt-2'
+            }`}>
+            {new Intl.DateTimeFormat('tr-TR', { weekday: 'long' }).format(new Date())}
+          </span>
+        </div>
+        {/* Spiral elements */}
+        <div className="absolute -top-1 left-0 right-0 flex justify-around px-2">
+          {[...Array(siteSettings.calendarSize === 'large' ? 5 : siteSettings.calendarSize === 'small' ? 3 : 4)].map((_, i) => (
+            <div
+              key={i}
+              className={`${siteSettings.calendarSize === 'large' ? 'w-3 h-5' :
+                  siteSettings.calendarSize === 'small' ? 'w-1.5 h-3' :
+                    'w-2.5 h-4'
+                } bg-gray-400/50 rounded-full border border-gray-500/30 -mt-2 shadow-sm`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   // Compute hero background style
   const heroBackground = appearance.heroBackgroundImage
     ? `url('${appearance.heroBackgroundImage}') center/cover`
@@ -205,6 +272,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           : (siteSettings.siteBackgroundColor || '#fffbeb')
       }}
     >
+      {/* Top Fixed Calendar Section */}
+      {siteSettings.calendarShow !== false && siteSettings.calendarPosition?.startsWith('top-') && (
+        <div className={`fixed top-4 z-[100] transition-all duration-500 ${siteSettings.calendarPosition === 'top-left' ? 'left-4' : 'right-4'}`}>
+          {calendarLeaf}
+        </div>
+      )}
+
       {/* Hero / Slider Section */}
       <div
         className="relative w-full overflow-hidden shadow-md"
@@ -262,7 +336,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className={`flex flex-col gap-8 ${siteSettings.calendarPosition === 'left' ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
           {/* Post-it Wall with Corkboard Styling */}
           <main
             className="flex-1 w-full rounded-sm relative p-4 md:p-8 shadow-2xl"
@@ -285,7 +359,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               canDelete={canDelete}
               currentUserId={(session?.user as any)?.id}
             />
+
           </main>
+
+          {/* Side Calendar Section */}
+          {siteSettings.calendarShow !== false && (siteSettings.calendarPosition === 'left' || siteSettings.calendarPosition === 'right' || !siteSettings.calendarPosition) && (
+            <aside className={`${siteSettings.calendarSize === 'large' ? 'lg:w-40' : siteSettings.calendarSize === 'small' ? 'lg:w-24' : 'lg:w-32'} flex flex-col items-center ${siteSettings.calendarPosition === 'left' ? 'lg:items-end' : 'lg:items-start'}`}>
+              <div className="sticky top-8">
+                {calendarLeaf}
+              </div>
+            </aside>
+          )}
         </div>
       </div>
     </div>

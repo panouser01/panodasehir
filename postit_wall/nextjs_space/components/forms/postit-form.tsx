@@ -73,9 +73,12 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
       }
 
       // Ensure the form data is correct before opening
-      if (defaultCategoryId && formData.categoryId !== defaultCategoryId) {
-        setFormData(prev => ({ ...prev, categoryId: defaultCategoryId }))
-      }
+      setFormData(prev => ({
+        ...prev,
+        categoryId: defaultCategoryId || prev.categoryId,
+        expiresInDays: '1',
+        expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      }))
     }
     setOpen(isOpen)
   }
@@ -90,6 +93,7 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
     pushpin: string
     categoryId: string
     expiresInDays: string
+    expiresAtDate: string
   }>({
     content: '',
     imageUrls: [],
@@ -98,7 +102,8 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
     font: 'HANDWRITING',
     pushpin: 'RED',
     categoryId: defaultCategoryId ?? categories?.[0]?.id ?? '',
-    expiresInDays: '7',
+    expiresInDays: '1',
+    expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   })
 
   const colors = [
@@ -215,7 +220,8 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
         font: 'HANDWRITING',
         pushpin: 'RED',
         categoryId: categories?.[0]?.id ?? '',
-        expiresInDays: '7',
+        expiresInDays: '1',
+        expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       })
       router.refresh()
     } catch (error: any) {
@@ -358,24 +364,51 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="expires">Süre *</Label>
-            <Select
-              value={formData.expiresInDays}
-              onValueChange={(value) =>
-                setFormData({ ...formData, expiresInDays: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Süre seçin" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 Gün</SelectItem>
-                <SelectItem value="3">3 Gün</SelectItem>
-                <SelectItem value="7">1 Hafta</SelectItem>
-                <SelectItem value="30">1 Ay</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="expires">Süre *</Label>
+              <Select
+                value={formData.expiresInDays}
+                onValueChange={(value) => {
+                  const daysMap: { [key: string]: number } = {
+                    '1': 1,
+                    '3': 3,
+                    '7': 7,
+                    '30': 30
+                  }
+                  const newFormData = { ...formData, expiresInDays: value }
+                  if (value !== 'custom') {
+                    const days = daysMap[value] || 1
+                    newFormData.expiresAtDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                  }
+                  setFormData(newFormData)
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Süre seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 Gün</SelectItem>
+                  <SelectItem value="3">3 Gün</SelectItem>
+                  <SelectItem value="7">1 Hafta</SelectItem>
+                  <SelectItem value="30">1 Ay</SelectItem>
+                  <SelectItem value="custom">Tarihine kadar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Son Görüntüleme Tarihi</Label>
+              <Input
+                type="date"
+                min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                value={formData.expiresAtDate}
+                onChange={(e) => setFormData({ ...formData, expiresAtDate: e.target.value })}
+                required
+                readOnly={formData.expiresInDays !== 'custom'}
+                className={formData.expiresInDays !== 'custom' ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}
+              />
+            </div>
           </div>
 
           <div>

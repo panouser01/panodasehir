@@ -134,16 +134,10 @@ export function Navbar() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {userRole === 'SUPER_ADMIN' && (
+                  {(userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER') && (
                     <DropdownMenuItem onClick={() => router.push('/admin')}>
                       <Settings className="mr-2 h-4 w-4" />
-                      <span>Admin Panel</span>
-                    </DropdownMenuItem>
-                  )}
-                  {userRole === 'WALL_MANAGER' && (
-                    <DropdownMenuItem onClick={() => router.push('/wall-manager')}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Yönetici Panel</span>
+                      <span>{userRole === 'SUPER_ADMIN' ? 'Admin Panel' : 'Yönetici Panel'}</span>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={() => router.push('/profile')}>

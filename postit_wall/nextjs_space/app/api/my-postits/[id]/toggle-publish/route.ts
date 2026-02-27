@@ -50,11 +50,11 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { isApproved } = body
+    const { isPublished } = body
 
     const postit = await prisma.postIt.update({
       where: { id: params.id },
-      data: { isApproved },
+      data: { isPublished },
       include: {
         user: { select: { id: true, name: true, email: true } },
         category: { select: { id: true, name: true } }

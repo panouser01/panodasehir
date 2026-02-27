@@ -15,21 +15,66 @@ export async function GET(request: NextRequest) {
     const includeUnapproved = searchParams.get('includeUnapproved') === 'true'
 
     const session = await getServerSession(authOptions)
+
+    // Housekeeping: Auto-unpublish expired post-its
+    await prisma.postIt.updateMany({
+      where: {
+        expiresAt: { lt: new Date() },
+        isPublished: true
+      },
+      data: { isPublished: false }
+    })
+
     const isAdmin = (session?.user as any)?.role === 'SUPER_ADMIN'
+    const isWallManager = (session?.user as any)?.role === 'WALL_MANAGER'
+    const userId = (session?.user as any)?.id
+    const where: any = {}
 
-    const where: any = {
-      expiresAt: {
-        gt: new Date()
-      }
-    }
-
-    // Only show approved post-its to non-admins
-    if (!includeUnapproved || !isAdmin) {
+    // Only show unexpired, approved and published post-its to public/regular users
+    if (!includeUnapproved || (!isAdmin && !isWallManager)) {
+      where.expiresAt = { gt: new Date() }
       where.isApproved = true
-    }
+      where.isPublished = true
+      if (categoryId) {
+        where.categoryId = categoryId
+      }
+    } else {
+      // Logic for SUPER_ADMIN or WALL_MANAGER looking at admin dashboard
+      if (isWallManager) {
+        // Find all categories they manage including children
+        const allCategories = await prisma.category.findMany()
+        const managedIds = new Set<string>()
 
-    if (categoryId) {
-      where.categoryId = categoryId
+        allCategories.forEach(cat => {
+          if (cat.wallManagerId === userId) {
+            managedIds.add(cat.id)
+          }
+        })
+
+        let added = true
+        while (added) {
+          added = false
+          allCategories.forEach(cat => {
+            if (cat.parentId && managedIds.has(cat.parentId) && !managedIds.has(cat.id)) {
+              managedIds.add(cat.id)
+              added = true
+            }
+          })
+        }
+
+        if (categoryId) {
+          if (managedIds.has(categoryId)) {
+            where.categoryId = categoryId
+          } else {
+            where.categoryId = 'none-match'
+          }
+        } else {
+          where.categoryId = { in: Array.from(managedIds) }
+        }
+      } else if (categoryId) {
+        // SUPER_ADMIN wants a specific category
+        where.categoryId = categoryId
+      }
     }
 
     const postits = await prisma.postIt.findMany({
@@ -78,7 +123,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { content, imageUrl, imageUrls, link, color, font, pushpin, categoryId, expiresInDays } = body
+    const { content, imageUrl, imageUrls, link, color, font, pushpin, categoryId, expiresInDays, expiresAtDate } = body
+    const userRole = (session.user as any).role
 
     if (!content || !categoryId) {
       return NextResponse.json(
@@ -132,14 +178,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate expiry date
-    const daysMap: { [key: string]: number } = {
-      '1': 1,
-      '3': 3,
-      '7': 7,
-      '30': 30
+    let expiresAt = new Date()
+    if (expiresInDays === 'custom' && expiresAtDate) {
+      expiresAt = new Date(expiresAtDate)
+      // If it's earlier than today, just add 1 day to current date as fallback
+      if (expiresAt < new Date()) {
+        expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      }
+    } else {
+      const daysMap: { [key: string]: number } = {
+        '1': 1,
+        '3': 3,
+        '7': 7,
+        '30': 30
+      }
+      const days = daysMap[expiresInDays] || 1
+      expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
     }
-    const days = daysMap[expiresInDays] || 7
-    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
 
     // Generate random rotation (-8 to 8 degrees)
     const rotation = Math.random() * 16 - 8
@@ -166,7 +221,8 @@ export async function POST(request: NextRequest) {
         pushpin: pushpin || 'RED',
         rotation,
         expiresAt,
-        isApproved: true, // Auto-approve if moderation passes
+        isApproved: userRole !== 'USER', // Require approval for USER role
+        isPublished: true, // Auto-publish by default
         isModerated: true,
         userId: (session.user as any).id,
         categoryId,
