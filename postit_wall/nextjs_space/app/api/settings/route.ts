@@ -75,6 +75,21 @@ export async function PATCH(request: NextRequest) {
         if (data.calendarSize !== undefined) updateData.calendarSize = data.calendarSize
         if (data.calendarPosition !== undefined) updateData.calendarPosition = data.calendarPosition
         if (data.calendarColor !== undefined) updateData.calendarColor = data.calendarColor
+        if (data.aboutContent !== undefined) updateData.aboutContent = data.aboutContent
+        if (data.contactContent !== undefined) updateData.contactContent = data.contactContent
+        if (data.termsContent !== undefined) updateData.termsContent = data.termsContent
+        if (data.privacyContent !== undefined) updateData.privacyContent = data.privacyContent
+        if (data.cookiesContent !== undefined) updateData.cookiesContent = data.cookiesContent
+        if (data.helpContent !== undefined) updateData.helpContent = data.helpContent
+        if (data.kvkkContent !== undefined) updateData.kvkkContent = data.kvkkContent
+        if (data.popularLinks !== undefined) updateData.popularLinks = data.popularLinks
+        if (data.discoverLinks !== undefined) updateData.discoverLinks = data.discoverLinks
+        if (data.socialLinks !== undefined) updateData.socialLinks = data.socialLinks
+        if (data.navMenuBgColor !== undefined) updateData.navMenuBgColor = data.navMenuBgColor
+        if (data.navMenuFont !== undefined) updateData.navMenuFont = data.navMenuFont
+        if (data.navMenuMainBold !== undefined) updateData.navMenuMainBold = data.navMenuMainBold
+        if (data.navMenuTextColor !== undefined) updateData.navMenuTextColor = data.navMenuTextColor
+        if (data.navMenuFontSize !== undefined) updateData.navMenuFontSize = data.navMenuFontSize
 
         const settings = await prisma.siteSettings.upsert({
             where: { id: 'global' },

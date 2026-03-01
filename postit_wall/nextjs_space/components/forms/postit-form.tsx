@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -41,8 +41,21 @@ interface PostItFormProps {
 
 export function PostItForm({ categories, userGroupId, userRole, defaultCategoryId }: PostItFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // Open modal if action=create is in URL
+  useEffect(() => {
+    if (searchParams?.get('action') === 'create') {
+      setOpen(true)
+      // Clean up the URL
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('action')
+      const newPath = window.location.pathname + (params.toString() ? `?${params.toString()}` : '')
+      window.history.replaceState(null, '', newPath)
+    }
+  }, [searchParams])
 
   // Sync categoryId with defaultCategoryId when it changes (navigation)
   useEffect(() => {

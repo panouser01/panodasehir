@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { LogOut, Settings, User, LogIn, StickyNote, Search, Menu } from 'lucide-react'
+import { LogOut, Settings, User, LogIn, StickyNote, Search, Menu, ChevronDown } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { NavbarPostItButton } from './navbar-postit-button'
@@ -25,6 +25,7 @@ export function Navbar() {
 
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '')
   const [categories, setCategories] = useState([])
+  const [siteSettings, setSiteSettings] = useState<any>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const userRole = (session?.user as any)?.role
@@ -58,6 +59,14 @@ export function Navbar() {
         if (data.categories) setCategories(data.categories)
       })
       .catch(err => console.error("Error fetching categories:", err))
+
+    // Fetch site settings for menu appearance
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.settings) setSiteSettings(data.settings)
+      })
+      .catch(err => console.error("Error fetching settings:", err))
   }, [])
 
   const handleSignOut = async () => {
@@ -72,13 +81,26 @@ export function Navbar() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="shrink-0 px-2 py-1">
-                  <Menu className="w-5 h-5 text-gray-700 hover:text-gray-900" />
+                <Button
+                  variant="outline"
+                  className="gap-2 border-yellow-400/50 hover:border-yellow-400 hover:bg-yellow-50 transition-all duration-300 shadow-sm px-3 md:px-4"
+                >
+                  <Menu className="w-5 h-5 text-yellow-600" />
+                  <span className="font-semibold text-gray-700 text-sm">Kategoriler</span>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-72 max-h-[80vh] overflow-y-auto p-4 z-[100] bg-white text-gray-900 shadow-xl border">
+              <PopoverContent
+                align="start"
+                className="w-72 max-h-[80vh] overflow-y-auto p-4 z-[100] shadow-xl border"
+                style={{ backgroundColor: siteSettings?.navMenuBgColor || '#ffffff' }}
+              >
                 {categories.length > 0 ? (
-                  <CategoryFilter categories={categories} onSelect={() => setIsMenuOpen(false)} />
+                  <CategoryFilter
+                    categories={categories.filter((c: any) => !c.parentId)}
+                    onSelect={() => setIsMenuOpen(false)}
+                    settings={siteSettings}
+                  />
                 ) : (
                   <div className="flex justify-center p-4">Yükleniyor...</div>
                 )}

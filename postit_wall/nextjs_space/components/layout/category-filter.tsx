@@ -8,9 +8,6 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 interface Category {
   id: string
   name: string
-  categoryFont?: string | null
-  categoryColor?: string | null
-  categoryBgColor?: string | null
   postCount: number
   children?: Category[]
 }
@@ -18,9 +15,10 @@ interface Category {
 interface CategoryFilterProps {
   categories: Category[]
   onSelect?: () => void
+  settings?: any
 }
 
-export function CategoryFilter({ categories, onSelect }: CategoryFilterProps) {
+export function CategoryFilter({ categories, onSelect, settings }: CategoryFilterProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedCategory = searchParams?.get?.('category') ?? null
@@ -73,7 +71,6 @@ export function CategoryFilter({ categories, onSelect }: CategoryFilterProps) {
     const isSelected = selectedCategory === category.id
     const hasChildren = category.children && category.children.length > 0
     const isExpanded = expandedCategories.has(category.id)
-    const hasCustomStyle = category.categoryFont || category.categoryColor || category.categoryBgColor
     const childSelected = isAnyChildSelected(category)
     const totalCount = getCategoryTotal(category)
 
@@ -82,13 +79,15 @@ export function CategoryFilter({ categories, onSelect }: CategoryFilterProps) {
       setExpandedCategories(prev => new Set([...prev, category.id]))
     }
 
+    const isMainCategoryBold = level === 0 && settings?.navMenuMainBold
+
     return (
       <div key={category.id}>
         <div className="flex items-center">
           {hasChildren && (
             <button
               onClick={(e) => toggleExpand(category.id, e)}
-              className="p-1 hover:bg-gray-100 rounded mr-1"
+              className="p-1 hover:bg-black/5 rounded mr-1 transition-colors"
             >
               {isExpanded ? (
                 <ChevronDown className="w-4 h-4 text-gray-500" />
@@ -103,23 +102,26 @@ export function CategoryFilter({ categories, onSelect }: CategoryFilterProps) {
           <Button
             variant={isSelected ? 'default' : 'ghost'}
             size="sm"
-            className={`flex-1 justify-start ${!isSelected && hasCustomStyle ? 'hover:opacity-80' : ''} ${level > 0 ? 'text-sm' : ''}`}
+            className={`flex-1 justify-start ${!isSelected && settings?.navMenuTextColor ? 'hover:opacity-80' : ''} ${level > 0 ? 'text-sm' : ''} ${isMainCategoryBold ? 'font-bold' : ''}`}
             onClick={() => handleCategoryChange(category.id)}
-            style={!isSelected && hasCustomStyle ? {
-              fontFamily: category.categoryFont || undefined,
-              color: category.categoryColor || undefined,
-              backgroundColor: category.categoryBgColor || undefined
-            } : undefined}
+            style={{
+              fontFamily: isSelected ? undefined : (settings?.navMenuFont || undefined),
+              color: isSelected ? undefined : (settings?.navMenuTextColor || undefined),
+              fontSize: settings?.navMenuFontSize ? `${settings.navMenuFontSize}px` : undefined
+            }}
           >
             {category.name}
-            <span className="ml-auto text-xs text-muted-foreground bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full inline-block min-w-[20px] text-center">
+            <span
+              className="ml-auto text-[10px] text-muted-foreground bg-black/5 px-2 py-0.5 rounded-full inline-block min-w-[20px] text-center"
+              style={{ color: isSelected ? undefined : (settings?.navMenuTextColor ? `${settings.navMenuTextColor}99` : undefined) }}
+            >
               {totalCount}
             </span>
           </Button>
         </div>
 
         {hasChildren && isExpanded && (
-          <div className={`ml-${level === 0 ? '4' : '6'} mt-1 space-y-1 border-l-2 border-gray-200 pl-2`}>
+          <div className={`ml-${level === 0 ? '4' : '6'} mt-1 space-y-1 border-l border-gray-200/50 pl-2`}>
             {category.children!.map(child => renderCategory(child, level + 1))}
           </div>
         )}
@@ -141,16 +143,31 @@ export function CategoryFilter({ categories, onSelect }: CategoryFilterProps) {
   const totalPostits = calculateTotalPostits(categories)
 
   return (
-    <div className="space-y-2">
-      <h3 className="font-semibold text-lg mb-4">Kategoriler</h3>
+    <div className="space-y-2" style={{
+      fontFamily: settings?.navMenuFont || 'inherit',
+      fontSize: settings?.navMenuFontSize ? `${settings.navMenuFontSize}px` : 'inherit'
+    }}>
+      <h3 className="font-semibold text-lg mb-4" style={{
+        color: settings?.navMenuTextColor || 'inherit',
+        fontSize: settings?.navMenuFontSize ? `${Math.max(14, settings.navMenuFontSize + 4)}px` : 'inherit'
+      }}>
+        Kategoriler
+      </h3>
       <Button
         variant={selectedCategory === null ? 'default' : 'ghost'}
         size="sm"
-        className="w-full justify-start"
+        className={`w-full justify-start ${settings?.navMenuMainBold ? 'font-bold' : ''}`}
         onClick={() => handleCategoryChange(null)}
+        style={{
+          color: selectedCategory === null ? undefined : (settings?.navMenuTextColor || 'inherit'),
+          fontSize: settings?.navMenuFontSize ? `${settings.navMenuFontSize}px` : undefined
+        }}
       >
         Tüm Kategoriler
-        <span className="ml-auto text-xs text-muted-foreground bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full inline-block min-w-[20px] text-center">
+        <span
+          className="ml-auto text-[10px] text-muted-foreground bg-black/5 px-2 py-0.5 rounded-full inline-block min-w-[20px] text-center"
+          style={{ color: selectedCategory === null ? undefined : (settings?.navMenuTextColor ? `${settings.navMenuTextColor}99` : undefined) }}
+        >
           {totalPostits}
         </span>
       </Button>

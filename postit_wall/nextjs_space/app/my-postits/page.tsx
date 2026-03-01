@@ -88,6 +88,8 @@ export default function MyPostItsPage() {
     categoryId: string
     imageUrl: string
     imageUrls: string[]
+    createdAt: string
+    expiresAt: string
   }>({
     content: '',
     color: 'YELLOW',
@@ -96,7 +98,9 @@ export default function MyPostItsPage() {
     link: '',
     categoryId: '',
     imageUrl: '',
-    imageUrls: []
+    imageUrls: [],
+    createdAt: '',
+    expiresAt: ''
   })
   const [saving, setSaving] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -246,7 +250,9 @@ export default function MyPostItsPage() {
       link: post.link || '',
       categoryId: post.category.id,
       imageUrl: post.imageUrl || '',
-      imageUrls: initialImages
+      imageUrls: initialImages,
+      createdAt: new Date(new Date(post.createdAt).getTime() - new Date(post.createdAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+      expiresAt: new Date(new Date(post.expiresAt).getTime() - new Date(post.expiresAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16)
     })
     setShowEditModal(true)
   }
@@ -259,7 +265,11 @@ export default function MyPostItsPage() {
       const res = await fetch(`/api/my-postits/${editingPost.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify({
+          ...editForm,
+          createdAt: new Date(editForm.createdAt).toISOString(),
+          expiresAt: new Date(editForm.expiresAt).toISOString()
+        })
       })
 
       if (!res.ok) {
@@ -659,6 +669,25 @@ export default function MyPostItsPage() {
                 onChange={(e) => setEditForm({ ...editForm, link: e.target.value })}
                 placeholder="https://..."
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Yayınlanma Tarihi</Label>
+                <Input
+                  type="datetime-local"
+                  value={editForm.createdAt}
+                  onChange={(e) => setEditForm({ ...editForm, createdAt: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Bitiş Tarihi</Label>
+                <Input
+                  type="datetime-local"
+                  value={editForm.expiresAt}
+                  onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
+                />
+              </div>
             </div>
 
             <div className="flex gap-3 pt-4">

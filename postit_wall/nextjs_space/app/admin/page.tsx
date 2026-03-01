@@ -31,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { RichEditor } from '@/components/ui/rich-editor'
 import {
   Loader2,
   Trash2,
@@ -56,11 +57,25 @@ import {
   Settings,
   Calendar,
   X,
+  Info,
+  Phone,
+  FileText,
+  Lock,
+  Cookie,
+  HelpCircle,
+  Share2,
+  Facebook,
+  Twitter,
+  Instagram,
+  Linkedin,
+  Youtube,
+  Github,
+  Menu,
 } from 'lucide-react'
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
 
-type ActiveSection = 'dashboard' | 'users' | 'postits' | 'walls' | 'roles' | 'groups' | 'sliders' | 'locations' | 'settings' | 'calendar'
+type ActiveSection = 'dashboard' | 'users' | 'postits' | 'walls' | 'roles' | 'groups' | 'sliders' | 'locations' | 'settings' | 'calendar' | 'about' | 'contact' | 'terms' | 'privacy' | 'cookies' | 'help' | 'kvkk' | 'popularCategories' | 'discover' | 'socialMedia'
 
 export default function AdminPage() {
   const { data: session, status } = useSession() || {}
@@ -103,6 +118,16 @@ export default function AdminPage() {
     parentId: '',
     cityId: '',
     districtId: '',
+    heroSubtitle: '',
+    heroTitleFont: 'sans-serif',
+    heroTitleColor: '#ffffff',
+    heroTitleSize: '5xl',
+    heroSubtitleFont: 'sans-serif',
+    heroSubtitleColor: '#ffffff',
+    heroSubtitleSize: 'xl',
+    heroGradientFrom: '#facc15',
+    heroGradientVia: '#f472b6',
+    heroGradientTo: '#a855f7',
     calendarEntries: [] as any[]
   })
   const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
@@ -116,6 +141,7 @@ export default function AdminPage() {
   const [postitStatusFilter, setPostitStatusFilter] = useState<'all' | 'published' | 'unpublished' | 'pending'>('pending')
   const [userSearch, setUserSearch] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['appearance']))
 
   // Wall search and hierarchy states
   const [wallSearch, setWallSearch] = useState('')
@@ -178,7 +204,22 @@ export default function AdminPage() {
     calendarShow: true,
     calendarSize: 'medium',
     calendarPosition: 'right',
-    calendarColor: '#dc2626'
+    calendarColor: '#dc2626',
+    aboutContent: '',
+    contactContent: '',
+    termsContent: '',
+    privacyContent: '',
+    cookiesContent: '',
+    helpContent: '',
+    kvkkContent: '',
+    popularLinks: [] as { label: string; href: string }[],
+    discoverLinks: [] as { label: string; href: string }[],
+    socialLinks: [] as { platform: string; icon: string; url: string }[],
+    navMenuBgColor: '#ffffff',
+    navMenuFont: 'sans-serif',
+    navMenuMainBold: true,
+    navMenuTextColor: '#111827',
+    navMenuFontSize: 14,
   })
   const [savingSettings, setSavingSettings] = useState(false)
   const [uploadingSiteImage, setUploadingSiteImage] = useState(false)
@@ -355,6 +396,16 @@ export default function AdminPage() {
         parentId: wallForm.parentId || null,
         cityId: wallForm.cityId || null,
         districtId: wallForm.districtId || null,
+        heroSubtitle: wallForm.heroSubtitle,
+        heroTitleFont: wallForm.heroTitleFont,
+        heroTitleColor: wallForm.heroTitleColor,
+        heroTitleSize: wallForm.heroTitleSize,
+        heroSubtitleFont: wallForm.heroSubtitleFont,
+        heroSubtitleColor: wallForm.heroSubtitleColor,
+        heroSubtitleSize: wallForm.heroSubtitleSize,
+        heroGradientFrom: wallForm.heroGradientFrom,
+        heroGradientVia: wallForm.heroGradientVia,
+        heroGradientTo: wallForm.heroGradientTo,
         calendarEntries: wallForm.calendarEntries || []
       }
 
@@ -730,6 +781,16 @@ export default function AdminPage() {
       parentId: wall.parentId || '',
       cityId: wall.cityId || '',
       districtId: wall.districtId || '',
+      heroSubtitle: wall.heroSubtitle || '',
+      heroTitleFont: wall.heroTitleFont || 'sans-serif',
+      heroTitleColor: wall.heroTitleColor || '#ffffff',
+      heroTitleSize: wall.heroTitleSize || '5xl',
+      heroSubtitleFont: wall.heroSubtitleFont || 'sans-serif',
+      heroSubtitleColor: wall.heroSubtitleColor || '#ffffff',
+      heroSubtitleSize: wall.heroSubtitleSize || 'xl',
+      heroGradientFrom: wall.heroGradientFrom || '#facc15',
+      heroGradientVia: wall.heroGradientVia || '#f472b6',
+      heroGradientTo: wall.heroGradientTo || '#a855f7',
       calendarEntries: wall.calendarEntries || []
     })
     setShowWallModal(true)
@@ -746,6 +807,16 @@ export default function AdminPage() {
       parentId: parentWall.id,
       cityId: '',
       districtId: '',
+      heroSubtitle: '',
+      heroTitleFont: 'sans-serif',
+      heroTitleColor: '#ffffff',
+      heroTitleSize: '5xl',
+      heroSubtitleFont: 'sans-serif',
+      heroSubtitleColor: '#ffffff',
+      heroSubtitleSize: 'xl',
+      heroGradientFrom: '#facc15',
+      heroGradientVia: '#f472b6',
+      heroGradientTo: '#a855f7',
       calendarEntries: []
     })
     setSelectedPostsToMove([])
@@ -801,6 +872,16 @@ export default function AdminPage() {
       parentId: '',
       cityId: '',
       districtId: '',
+      heroSubtitle: '',
+      heroTitleFont: 'sans-serif',
+      heroTitleColor: '#ffffff',
+      heroTitleSize: '5xl',
+      heroSubtitleFont: 'sans-serif',
+      heroSubtitleColor: '#ffffff',
+      heroSubtitleSize: 'xl',
+      heroGradientFrom: '#facc15',
+      heroGradientVia: '#f472b6',
+      heroGradientTo: '#a855f7',
       calendarEntries: []
     })
     setSelectedPostsToMove([])
@@ -1226,7 +1307,24 @@ export default function AdminPage() {
   const userId = (session?.user as any)?.id
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'settings', label: 'Site Görünümü', icon: Settings },
+    {
+      id: 'appearance',
+      label: 'Site Görünümü',
+      icon: Palette,
+      children: [
+        { id: 'settings', label: 'Site Görseli', icon: Settings },
+        { id: 'about', label: 'Hakkımızda', icon: Info },
+        { id: 'contact', label: 'İletişim', icon: Phone },
+        { id: 'terms', label: 'Kullanım Koşulları', icon: FileText },
+        { id: 'privacy', label: 'Gizlilik Politikası', icon: Lock },
+        { id: 'cookies', label: 'Çerez Politikası', icon: Cookie },
+        { id: 'help', label: 'Yardım Merkezi', icon: HelpCircle },
+        { id: 'kvkk', label: 'KVKK Metni', icon: Shield },
+        { id: 'popularCategories', label: 'Popüler Kategoriler', icon: LayoutGrid },
+        { id: 'discover', label: 'Keşfet', icon: Search },
+        { id: 'socialMedia', label: 'Sosyal Medya', icon: Share2 },
+      ]
+    },
     { id: 'calendar', label: 'Takvim Ayarları', icon: Calendar },
     { id: 'walls', label: 'Duvarlar', icon: LayoutGrid },
     { id: 'locations', label: 'İl İlçe Tanımlama', icon: MapPin },
@@ -1279,21 +1377,65 @@ export default function AdminPage() {
           <p className="text-sm text-gray-400">Admin Paneli</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon
+            const isExpanded = expandedMenus.has(item.id)
+            const hasChildren = item.children && item.children.length > 0
+
             return (
-              <button
-                key={item.id}
-                onClick={() => setActiveSection(item.id as ActiveSection)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeSection === item.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800'
-                  }`}
-              >
-                <Icon className="w-5 h-5" />
-                {item.label}
-              </button>
+              <div key={item.id} className="space-y-1">
+                {hasChildren ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        const newExpanded = new Set(expandedMenus)
+                        if (isExpanded) newExpanded.delete(item.id)
+                        else newExpanded.add(item.id)
+                        setExpandedMenus(newExpanded)
+                      }}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-gray-300 hover:bg-gray-800`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-5 h-5" />
+                        <span>{item.label}</span>
+                      </div>
+                      {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
+                    {isExpanded && (
+                      <div className="ml-4 pl-4 border-l border-gray-700 space-y-1">
+                        {item.children?.map((child) => {
+                          const ChildIcon = child.icon
+                          return (
+                            <button
+                              key={child.id}
+                              onClick={() => setActiveSection(child.id as any)}
+                              className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${activeSection === child.id
+                                ? 'bg-blue-600 text-white'
+                                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                                }`}
+                            >
+                              <ChildIcon className="w-4 h-4" />
+                              {child.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setActiveSection(item.id as any)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeSection === item.id
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-800'
+                      }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.label}
+                  </button>
+                )}
+              </div>
             )
           })}
         </nav>
@@ -1747,6 +1889,91 @@ export default function AdminPage() {
                       </div>
                     </div>
 
+                    {/* Nav Menu Settings */}
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Menu className="w-4 h-4" /> Kategori Menü Görünümü
+                      </h4>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label>Menü Zemini</Label>
+                          <div className="flex gap-2">
+                            <input
+                              type="color"
+                              value={siteSettings.navMenuBgColor || '#ffffff'}
+                              onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })}
+                              className="w-10 h-10 rounded cursor-pointer"
+                            />
+                            <Input
+                              value={siteSettings.navMenuBgColor || '#ffffff'}
+                              onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })}
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Yazı Rengi</Label>
+                          <div className="flex gap-2">
+                            <input
+                              type="color"
+                              value={siteSettings.navMenuTextColor || '#111827'}
+                              onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })}
+                              className="w-10 h-10 rounded cursor-pointer"
+                            />
+                            <Input
+                              value={siteSettings.navMenuTextColor || '#111827'}
+                              onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })}
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Font</Label>
+                          <Select
+                            value={siteSettings.navMenuFont || 'sans-serif'}
+                            onValueChange={(value) => setSiteSettings({ ...siteSettings, navMenuFont: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                              <SelectItem value="serif">Serif</SelectItem>
+                              <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                              <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                              <SelectItem value="monospace">Monospace</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Yazı Boyutu (px)</Label>
+                          <Select
+                            value={String(siteSettings.navMenuFontSize || 14)}
+                            onValueChange={(value) => setSiteSettings({ ...siteSettings, navMenuFontSize: parseInt(value) })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[12, 13, 14, 15, 16, 17, 18, 20, 22, 24].map(size => (
+                                <SelectItem key={size} value={String(size)}>{size}px</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2 flex flex-col justify-end">
+                          <div className="flex items-center space-x-2 py-2">
+                            <Checkbox
+                              id="navMenuMainBold"
+                              checked={siteSettings.navMenuMainBold}
+                              onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, navMenuMainBold: !!checked }))}
+                            />
+                            <Label htmlFor="navMenuMainBold" className="cursor-pointer">Ana Kategoriler Kalın</Label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
               </div>
@@ -1768,6 +1995,328 @@ export default function AdminPage() {
                 }}
               >
                 <p className="m-auto text-xl opacity-50 bg-white/40 px-4 py-2 rounded shadow">Pano Detay Alanı</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Info Pages Placeholder */}
+        {['about', 'contact', 'terms', 'privacy', 'cookies', 'help', 'kvkk'].includes(activeSection) && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">
+                {activeSection === 'about' && 'Hakkımızda Sayfası Yönetimi'}
+                {activeSection === 'contact' && 'İletişim Sayfası Yönetimi'}
+                {activeSection === 'terms' && 'Kullanım Koşulları Yönetimi'}
+                {activeSection === 'privacy' && 'Gizlilik Politikası Yönetimi'}
+                {activeSection === 'cookies' && 'Çerez Politikası Yönetimi'}
+                {activeSection === 'help' && 'Yardım Merkezi Yönetimi'}
+                {activeSection === 'kvkk' && 'KVKK Metni Yönetimi'}
+              </h2>
+              <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
+                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Değişiklikleri Kaydet
+              </Button>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow border">
+              <Label className="text-lg font-semibold block mb-4">İçerik Editörü</Label>
+              <RichEditor
+                placeholder="Sayfa içeriğini buraya zengin metin olarak girebilirsiniz..."
+                value={(siteSettings as any)[
+                  activeSection === 'about' ? 'aboutContent' :
+                    activeSection === 'contact' ? 'contactContent' :
+                      activeSection === 'terms' ? 'termsContent' :
+                        activeSection === 'privacy' ? 'privacyContent' :
+                          activeSection === 'cookies' ? 'cookiesContent' :
+                            activeSection === 'help' ? 'helpContent' :
+                              activeSection === 'kvkk' ? 'kvkkContent' : 'aboutContent'
+                ] || ''}
+                onChange={(value) => {
+                  const field =
+                    activeSection === 'about' ? 'aboutContent' :
+                      activeSection === 'contact' ? 'contactContent' :
+                        activeSection === 'terms' ? 'termsContent' :
+                          activeSection === 'privacy' ? 'privacyContent' :
+                            activeSection === 'cookies' ? 'cookiesContent' :
+                              activeSection === 'help' ? 'helpContent' :
+                                activeSection === 'kvkk' ? 'kvkkContent' : 'aboutContent';
+                  setSiteSettings({ ...siteSettings, [field]: value });
+                }}
+              />
+              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+                <strong>İpucu:</strong> Buraya yazdığınız metinler sitedeki ilgili linklere tıklandığında popup (modal) içerisinde görüntülenecektir.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Popular Categories Management */}
+        {activeSection === 'popularCategories' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Popüler Kategorileri Yönet</h2>
+              <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
+                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Düzeni Kaydet
+              </Button>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow border">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Kategori Linkleri</h3>
+                  <p className="text-sm text-gray-500">Footer'da "Popüler Kategoriler" sütununda görünecek linkler.</p>
+                </div>
+                <Button
+                  onClick={() => {
+                    const links = [...(siteSettings.popularLinks || [])];
+                    links.push({ label: 'Yeni Kategori', href: '/kategori/yeni' });
+                    setSiteSettings({ ...siteSettings, popularLinks: links });
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ekle
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {(!siteSettings.popularLinks || siteSettings.popularLinks.length === 0) ? (
+                  <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-lg">
+                    Henüz bir link eklenmemiş. "Ekle" butonunu kullanarak yeni linkler tanımlayabilirsiniz.
+                  </div>
+                ) : (
+                  siteSettings.popularLinks.map((link, idx) => (
+                    <div key={idx} className="flex gap-4 items-end bg-gray-50 p-4 rounded-lg border">
+                      <div className="flex-1 space-y-2">
+                        <Label>Görünen Ad</Label>
+                        <Input
+                          value={link.label}
+                          onChange={(e) => {
+                            const links = [...(siteSettings.popularLinks || [])];
+                            links[idx].label = e.target.value;
+                            setSiteSettings({ ...siteSettings, popularLinks: links });
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <Label>Link Adresi (Href)</Label>
+                        <Input
+                          value={link.href}
+                          onChange={(e) => {
+                            const links = [...(siteSettings.popularLinks || [])];
+                            links[idx].href = e.target.value;
+                            setSiteSettings({ ...siteSettings, popularLinks: links });
+                          }}
+                          placeholder="/kategori/ornek"
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          const links = [...(siteSettings.popularLinks || [])];
+                          links.splice(idx, 1);
+                          setSiteSettings({ ...siteSettings, popularLinks: links });
+                        }}
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Discover Management */}
+        {activeSection === 'discover' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Keşfet Bölümünü Yönet</h2>
+              <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
+                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Düzeni Kaydet
+              </Button>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow border">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Keşfet Linkleri</h3>
+                  <p className="text-sm text-gray-500">Footer'da "Keşfet" sütununda görünecek linkler.</p>
+                </div>
+                <Button
+                  onClick={() => {
+                    const links = [...(siteSettings.discoverLinks || [])];
+                    links.push({ label: 'Yeni Link', href: '#' });
+                    setSiteSettings({ ...siteSettings, discoverLinks: links });
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ekle
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {(!siteSettings.discoverLinks || siteSettings.discoverLinks.length === 0) ? (
+                  <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-lg">
+                    Henüz bir link eklenmemiş. "Ekle" butonunu kullanarak yeni linkler tanımlayabilirsiniz.
+                  </div>
+                ) : (
+                  siteSettings.discoverLinks.map((link, idx) => (
+                    <div key={idx} className="flex gap-4 items-end bg-gray-50 p-4 rounded-lg border">
+                      <div className="flex-1 space-y-2">
+                        <Label>Görünen Ad</Label>
+                        <Input
+                          value={link.label}
+                          onChange={(e) => {
+                            const links = [...(siteSettings.discoverLinks || [])];
+                            links[idx].label = e.target.value;
+                            setSiteSettings({ ...siteSettings, discoverLinks: links });
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <Label>Link Adresi (Href)</Label>
+                        <Input
+                          value={link.href}
+                          onChange={(e) => {
+                            const links = [...(siteSettings.discoverLinks || [])];
+                            links[idx].href = e.target.value;
+                            setSiteSettings({ ...siteSettings, discoverLinks: links });
+                          }}
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          const links = [...(siteSettings.discoverLinks || [])];
+                          links.splice(idx, 1);
+                          setSiteSettings({ ...siteSettings, discoverLinks: links });
+                        }}
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Social Media Management */}
+        {activeSection === 'socialMedia' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Sosyal Medya Hesaplarını Yönet</h2>
+              <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
+                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Ayarları Kaydet
+              </Button>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow border">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Hesaplar</h3>
+                  <p className="text-sm text-gray-500">Footer'da görüntülenecek sosyal medya ikonları ve linkleri.</p>
+                </div>
+                <Button
+                  onClick={() => {
+                    const links = [...(siteSettings.socialLinks || [])];
+                    links.push({ platform: 'Instagram', icon: 'Instagram', url: 'https://instagram.com/panodasehir' });
+                    setSiteSettings({ ...siteSettings, socialLinks: links });
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ekle
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {(!siteSettings.socialLinks || siteSettings.socialLinks.length === 0) ? (
+                  <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-lg">
+                    Henüz bir hesap eklenmemiş. "Ekle" butonunu kullanarak bağlantılarınızı ekleyebilirsiniz.
+                  </div>
+                ) : (
+                  siteSettings.socialLinks.map((link, idx) => (
+                    <div key={idx} className="flex flex-col md:flex-row gap-4 items-end bg-gray-50 p-4 rounded-lg border">
+                      <div className="w-40 space-y-2">
+                        <Label>Platform</Label>
+                        <Input
+                          value={link.platform}
+                          onChange={(e) => {
+                            const links = [...(siteSettings.socialLinks || [])];
+                            links[idx].platform = e.target.value;
+                            setSiteSettings({ ...siteSettings, socialLinks: links });
+                          }}
+                          placeholder="Instagram"
+                        />
+                      </div>
+                      <div className="w-48 space-y-2">
+                        <Label>İkon (Lucide)</Label>
+                        <Select
+                          value={link.icon}
+                          onValueChange={(val) => {
+                            const links = [...(siteSettings.socialLinks || [])];
+                            links[idx].icon = val;
+                            setSiteSettings({ ...siteSettings, socialLinks: links });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="İkon Seçin" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Instagram">Instagram</SelectItem>
+                            <SelectItem value="Facebook">Facebook</SelectItem>
+                            <SelectItem value="Twitter">Twitter/X</SelectItem>
+                            <SelectItem value="Linkedin">LinkedIn</SelectItem>
+                            <SelectItem value="Youtube">Youtube</SelectItem>
+                            <SelectItem value="Github">Github</SelectItem>
+                            <SelectItem value="Share2">Paylaş</SelectItem>
+                            <SelectItem value="Mail">E-Posta</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex-1 space-y-2 w-full">
+                        <Label>Hesap Linki (URL)</Label>
+                        <Input
+                          value={link.url}
+                          onChange={(e) => {
+                            const links = [...(siteSettings.socialLinks || [])];
+                            links[idx].url = e.target.value;
+                            setSiteSettings({ ...siteSettings, socialLinks: links });
+                          }}
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          const links = [...(siteSettings.socialLinks || [])];
+                          links.splice(idx, 1);
+                          setSiteSettings({ ...siteSettings, socialLinks: links });
+                        }}
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -3637,6 +4186,142 @@ export default function AdminPage() {
               </Select>
             </div>
 
+            <div className="space-y-4 border-t pt-4">
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                <Palette className="w-4 h-4" /> Duvar Başlık Görünümü (Hero)
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Alt Başlık</Label>
+                  <Input
+                    value={wallForm.heroSubtitle}
+                    onChange={(e) => setWallForm({ ...wallForm, heroSubtitle: e.target.value })}
+                    placeholder="Duvar sayfasında görünecek alt başlık"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Ana Başlık Fontu</Label>
+                  <Select
+                    value={wallForm.heroTitleFont || 'sans-serif'}
+                    onValueChange={(value) => setWallForm({ ...wallForm, heroTitleFont: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                      <SelectItem value="serif">Serif</SelectItem>
+                      <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                      <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label>Başlık Rengi</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      className="w-10 h-10 p-1"
+                      value={wallForm.heroTitleColor}
+                      onChange={(e) => setWallForm({ ...wallForm, heroTitleColor: e.target.value })}
+                    />
+                    <Input
+                      className="text-xs font-mono"
+                      value={wallForm.heroTitleColor}
+                      onChange={(e) => setWallForm({ ...wallForm, heroTitleColor: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Başlık Boyutu</Label>
+                  <Select
+                    value={wallForm.heroTitleSize}
+                    onValueChange={(value) => setWallForm({ ...wallForm, heroTitleSize: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3xl">3XL</SelectItem>
+                      <SelectItem value="4xl">4XL</SelectItem>
+                      <SelectItem value="5xl">5XL</SelectItem>
+                      <SelectItem value="6xl">6XL</SelectItem>
+                      <SelectItem value="7xl">7XL</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Alt Başlık Fontu</Label>
+                  <Select
+                    value={wallForm.heroSubtitleFont}
+                    onValueChange={(value) => setWallForm({ ...wallForm, heroSubtitleFont: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                      <SelectItem value="serif">Serif</SelectItem>
+                      <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                      <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Alt Başlık Rengi</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      className="w-10 h-10 p-1"
+                      value={wallForm.heroSubtitleColor}
+                      onChange={(e) => setWallForm({ ...wallForm, heroSubtitleColor: e.target.value })}
+                    />
+                    <Input
+                      className="text-xs font-mono"
+                      value={wallForm.heroSubtitleColor}
+                      onChange={(e) => setWallForm({ ...wallForm, heroSubtitleColor: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Gradyan Başlangıç</Label>
+                  <Input
+                    type="color"
+                    className="w-full h-10 p-1"
+                    value={wallForm.heroGradientFrom}
+                    onChange={(e) => setWallForm({ ...wallForm, heroGradientFrom: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Gradyan Orta</Label>
+                  <Input
+                    type="color"
+                    className="w-full h-10 p-1"
+                    value={wallForm.heroGradientVia}
+                    onChange={(e) => setWallForm({ ...wallForm, heroGradientVia: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Gradyan Bitiş</Label>
+                  <Input
+                    type="color"
+                    className="w-full h-10 p-1"
+                    value={wallForm.heroGradientTo}
+                    onChange={(e) => setWallForm({ ...wallForm, heroGradientTo: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Calendar Areas Section */}
             <div className="space-y-4 pt-4 border-t">
               <div className="flex items-center justify-between">
@@ -3716,8 +4401,8 @@ export default function AdminPage() {
             </Button>
             <Button onClick={handleSaveWall}>Kaydet</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </DialogContent >
+      </Dialog >
 
       {/* Move Posts Modal */}
       <Dialog open={showMovePostsModal} onOpenChange={setShowMovePostsModal}>
@@ -3746,7 +4431,7 @@ export default function AdminPage() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       <Dialog open={showPostitModal} onOpenChange={setShowPostitModal}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">

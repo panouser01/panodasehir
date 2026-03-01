@@ -1,10 +1,10 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { ExternalLink, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import {
   Dialog,
@@ -80,6 +80,10 @@ export function PostItCard({
   onDelete,
 }: PostItCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [transitionEffect, setTransitionEffect] = useState<'flip-left' | 'flip-right' | 'fade'>('flip-left')
+
+  const effects: ('flip-left' | 'flip-right' | 'fade')[] = ['flip-left', 'flip-right', 'fade']
 
   const handleDelete = async () => {
     if (!onDelete) return
@@ -95,7 +99,60 @@ export function PostItCard({
   // Use provided images array, or fallback to imageUrl if array is empty but imageUrl exists
   const displayImages = images && images.length > 0 ? images : (imageUrl ? [imageUrl] : [])
   const hasMultipleImages = displayImages.length > 1
-  const mainImage = displayImages[0]
+
+  // Auto-play thumbnail slider if multiple images with random delays
+  useEffect(() => {
+    if (!hasMultipleImages) return
+
+    // Randomized delay and interval to prevent synchronized transitions
+    const initialDelay = Math.random() * 3000
+    const intervalTime = 3000 + Math.random() * 2000
+
+    const timeout = setTimeout(() => {
+      const interval = setInterval(() => {
+        setCurrentImageIndex((prev) => {
+          // Select a random effect for the next transition
+          const nextEffect = effects[Math.floor(Math.random() * effects.length)]
+          setTransitionEffect(nextEffect)
+          return (prev + 1) % displayImages.length
+        })
+      }, intervalTime)
+      return () => clearInterval(interval)
+    }, initialDelay)
+
+    return () => clearTimeout(timeout)
+  }, [hasMultipleImages, displayImages.length])
+
+  const mainImage = displayImages[currentImageIndex] || displayImages[0]
+
+  // Get motion props based on current effect
+  const getMotionProps = () => {
+    switch (transitionEffect) {
+      case 'flip-left':
+        return {
+          initial: { rotateY: 90, opacity: 0 },
+          animate: { rotateY: 0, opacity: 1 },
+          exit: { rotateY: -90, opacity: 0 },
+          style: { transformOrigin: 'left center' }
+        }
+      case 'flip-right':
+        return {
+          initial: { rotateY: -90, opacity: 0 },
+          animate: { rotateY: 0, opacity: 1 },
+          exit: { rotateY: 90, opacity: 0 },
+          style: { transformOrigin: 'right center' }
+        }
+      default: // fade
+        return {
+          initial: { opacity: 0, scale: 0.95 },
+          animate: { opacity: 1, scale: 1 },
+          exit: { opacity: 0, scale: 1.05 },
+          style: { transformOrigin: 'center center' }
+        }
+    }
+  }
+
+  const motionProps = getMotionProps()
 
   return (
     <Dialog>
@@ -124,18 +181,34 @@ export function PostItCard({
             className={`${colorClasses[color] ?? colorClasses.YELLOW
               } p-6 pt-8 rounded-sm shadow-lg hover:shadow-xl transition-shadow duration-200 min-h-[200px] max-w-[280px] h-full flex flex-col`}
           >
-            {/* Image Thumbnail (First Image) */}
-            {mainImage && (
-              <div className="relative w-full aspect-video mb-4 rounded bg-gray-100 overflow-hidden">
-                <Image
-                  src={mainImage}
-                  alt="Post-it image"
-                  fill
-                  className="object-cover"
-                />
+            {/* Image Thumbnail (Automatic Slider if multiple) */}
+            {displayImages.length > 0 && (
+              <div
+                className="relative w-full aspect-video mb-4 rounded bg-gray-100 overflow-hidden shadow-inner"
+                style={{ perspective: '1200px' }}
+              >
+                <AnimatePresence mode="popLayout">
+                  <motion.div
+                    key={currentImageIndex}
+                    {...motionProps}
+                    transition={{
+                      duration: 0.8,
+                      ease: [0.4, 0, 0.2, 1]
+                    }}
+                    style={{ ...motionProps.style, backfaceVisibility: 'hidden' }}
+                    className="absolute inset-0"
+                  >
+                    <Image
+                      src={displayImages[currentImageIndex]}
+                      alt={`Post-it image ${currentImageIndex + 1}`}
+                      fill
+                      className="object-cover"
+                    />
+                  </motion.div>
+                </AnimatePresence>
                 {hasMultipleImages && (
-                  <div className="absolute bottom-1 right-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-sm">
-                    +{displayImages.length - 1}
+                  <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full z-10 font-sans backdrop-blur-sm border border-white/20">
+                    {currentImageIndex + 1} / {displayImages.length}
                   </div>
                 )}
               </div>

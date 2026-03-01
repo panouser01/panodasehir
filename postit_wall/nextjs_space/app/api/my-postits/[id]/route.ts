@@ -44,7 +44,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { content, color, font, pushpin, link, categoryId, imageUrl, imageUrls } = body
+    const { content, color, font, pushpin, link, categoryId, imageUrl, imageUrls, createdAt, expiresAt } = body
 
     const updateData: any = {}
 
@@ -75,6 +75,8 @@ export async function PATCH(
     if (pushpin !== undefined) updateData.pushpin = pushpin
     if (link !== undefined) updateData.link = link || null
     if (categoryId !== undefined) updateData.categoryId = categoryId
+    if (createdAt !== undefined) updateData.createdAt = new Date(createdAt)
+    if (expiresAt !== undefined) updateData.expiresAt = new Date(expiresAt)
 
     // Handle images
     if (imageUrls !== undefined) {

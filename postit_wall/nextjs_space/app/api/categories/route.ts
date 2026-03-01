@@ -30,21 +30,20 @@ async function canManageCategory(userId: string, userRole: string, categoryId: s
 // GET all categories with hierarchy (up to 3 levels deep)
 export async function GET() {
   try {
+    const activeFilter = {
+      isApproved: true,
+      isPublished: true,
+      expiresAt: { gt: new Date() }
+    }
+
     const categories = await prisma.category.findMany({
       include: {
         assignedGroup: true,
         wallManager: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
+          select: { id: true, name: true, email: true }
         },
         parent: {
-          select: {
-            id: true,
-            name: true
-          }
+          select: { id: true, name: true }
         },
         city: { select: { id: true, name: true } },
         district: { select: { id: true, name: true } },
@@ -52,15 +51,11 @@ export async function GET() {
           include: {
             assignedGroup: true,
             wallManager: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
+              select: { id: true, name: true, email: true }
             },
             _count: {
               select: {
-                postits: true
+                postits: { where: activeFilter }
               }
             },
             city: { select: { id: true, name: true } },
@@ -69,30 +64,22 @@ export async function GET() {
               include: {
                 assignedGroup: true,
                 wallManager: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true
-                  }
+                  select: { id: true, name: true, email: true }
                 },
                 _count: {
                   select: {
-                    postits: true
+                    postits: { where: activeFilter }
                   }
                 },
                 children: {
                   include: {
                     assignedGroup: true,
                     wallManager: {
-                      select: {
-                        id: true,
-                        name: true,
-                        email: true
-                      }
+                      select: { id: true, name: true, email: true }
                     },
                     _count: {
                       select: {
-                        postits: true
+                        postits: { where: activeFilter }
                       }
                     }
                   },
@@ -106,7 +93,7 @@ export async function GET() {
         },
         _count: {
           select: {
-            postits: true
+            postits: { where: activeFilter }
           }
         },
         calendarEntries: {
@@ -118,7 +105,18 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json({ categories })
+    // Map _count.postits to postCount recursively for the frontend
+    const mapCounts = (cats: any[]): any[] => {
+      return cats.map(cat => ({
+        ...cat,
+        postCount: cat._count?.postits || 0,
+        children: cat.children ? mapCounts(cat.children) : []
+      }))
+    }
+
+    const categoriesWithCounts = mapCounts(categories)
+
+    return NextResponse.json({ categories: categoriesWithCounts })
   } catch (error) {
     console.error('Error fetching categories:', error)
     return NextResponse.json(
