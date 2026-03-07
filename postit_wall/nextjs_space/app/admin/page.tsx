@@ -2837,14 +2837,16 @@ export default function AdminPage() {
                             <Button variant="ghost" size="sm" onClick={() => openEditWall(wall)} title="Düzenle" className="h-7 w-7 p-0">
                               <Pencil className="w-3.5 h-3.5" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteWall(wall.id)}
-                              className="hover:bg-red-100 hover:text-red-600 h-7 w-7 p-0"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
+                            {wall.name !== 'Ana Sayfa Duvarı' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteWall(wall.id)}
+                                className="hover:bg-red-100 hover:text-red-600 h-7 w-7 p-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
