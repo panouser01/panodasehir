@@ -2738,7 +2738,11 @@ export default function AdminPage() {
                   return wallList.filter(w => matchesSearch(w, searchTerm))
                 }
 
-                const filteredRootWalls = filterWalls(rootWalls, wallSearch)
+                const filteredRootWalls = filterWalls(rootWalls, wallSearch).sort((a, b) => {
+                  if (a.name === 'Ana Duvar') return -1;
+                  if (b.name === 'Ana Duvar') return 1;
+                  return a.name.localeCompare(b.name);
+                });
 
                 const toggleWall = (wallId: string) => {
                   setExpandedWalls((prev) => {
