@@ -188,8 +188,8 @@ export default function MyPostItsPage() {
       return
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Dosya boyutu 5MB\'dan küçük olmalıdır')
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır')
       return
     }
 

@@ -201,6 +201,7 @@ export default function AdminPage() {
     siteGradientVia: '#fefce8',
     siteGradientTo: '#fff7ed',
     siteBackgroundColor: '#fffbeb',
+    siteBackgroundImage: '',
     calendarShow: true,
     calendarSize: 'medium',
     calendarPosition: 'right',
@@ -224,6 +225,7 @@ export default function AdminPage() {
   const [savingSettings, setSavingSettings] = useState(false)
   const [uploadingSiteImage, setUploadingSiteImage] = useState(false)
   const [uploadingSiteHeroImage, setUploadingSiteHeroImage] = useState(false)
+  const [uploadingSiteBackgroundImage, setUploadingSiteBackgroundImage] = useState(false)
   const [uploadingAppearanceImage, setUploadingAppearanceImage] = useState(false)
 
   useEffect(() => {
@@ -504,8 +506,8 @@ export default function AdminPage() {
       return
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Dosya boyutu 5MB\'dan küçük olmalıdır')
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır')
       return
     }
 
@@ -892,8 +894,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Dosya boyutu 5MB\'dan küçük olmalıdır')
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır')
       return
     }
 
@@ -931,8 +933,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Dosya boyutu 5MB\'dan küçük olmalıdır')
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır')
       return
     }
 
@@ -1091,8 +1093,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Dosya boyutu 5MB'dan küçük olmalıdır")
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
       return
     }
 
@@ -1125,8 +1127,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Dosya boyutu 5MB'dan küçük olmalıdır")
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
       return
     }
 
@@ -1159,8 +1161,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Dosya boyutu 5MB'dan küçük olmalıdır")
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
       return
     }
 
@@ -1186,6 +1188,40 @@ export default function AdminPage() {
       toast.error('Resim yüklenirken hata oluştu')
     } finally {
       setUploadingSiteHeroImage(false)
+    }
+  }
+
+  const handleSiteBackgroundImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+      return
+    }
+
+    setUploadingSiteBackgroundImage(true)
+    try {
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const response = await fetch('/api/upload/local', {
+        method: 'POST',
+        body: uploadFormData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Dosya yüklenemedi')
+      }
+
+      const { fileUrl } = await response.json()
+      setSiteSettings({ ...siteSettings, siteBackgroundImage: fileUrl })
+      toast.success('Resim yüklendi')
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Resim yüklenirken hata oluştu')
+    } finally {
+      setUploadingSiteBackgroundImage(false)
     }
   }
 
@@ -1611,6 +1647,35 @@ export default function AdminPage() {
                   <div>
                     <h3 className="text-lg font-semibold mb-4">Site Genel Arka Planı (Zemin)</h3>
                     <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Zemin Resmi (opsiyonel)</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={siteSettings.siteBackgroundImage || ''}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, siteBackgroundImage: e.target.value })}
+                            placeholder="URL veya dosya yükleyin"
+                          />
+                          <div className="flex-shrink-0">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={uploadingSiteBackgroundImage}
+                              onClick={() => document.getElementById('site-bg-upload')?.click()}
+                            >
+                              {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            </Button>
+                            <input
+                              id="site-bg-upload"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleSiteBackgroundImageUpload}
+                              className="hidden"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500">Sitenin genel arka planında görüntülenecek zemin görseli.</p>
+                      </div>
+
                       <div className="flex items-center space-x-2 pt-2 pb-2">
                         <Checkbox
                           id="siteGroundIsGradient"

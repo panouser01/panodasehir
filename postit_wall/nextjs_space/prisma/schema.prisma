@@ -264,6 +264,7 @@ model SiteSettings {
   gradientVia         String?  @default("#f472b6")
   isGradient          Boolean  @default(false)
   siteBackgroundColor String?  @default("#fffbeb")
+  siteBackgroundImage String?
   siteGradientFrom    String?  @default("#fffbeb")
   siteGradientTo      String?  @default("#fff7ed")
   siteGradientVia     String?  @default("#fefce8")

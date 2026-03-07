@@ -85,6 +85,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       siteGradientVia: '#fefce8',
       siteGradientTo: '#fff7ed',
       siteBackgroundColor: '#fffbeb',
+      siteBackgroundImage: null,
       updatedAt: new Date()
     }
   }
@@ -196,8 +197,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <div className="select-none transform rotate-3 hover:rotate-0 transition-all duration-500 group cursor-pointer">
       <div
         className={`rounded-lg shadow-xl border-2 border-gray-100 flex flex-col items-center relative transition-all duration-500 group-hover:-translate-y-1 ${siteSettings.calendarSize === 'large' ? 'min-w-[140px]' :
-            siteSettings.calendarSize === 'small' ? 'min-w-[80px]' :
-              'min-w-[110px]'
+          siteSettings.calendarSize === 'small' ? 'min-w-[80px]' :
+            'min-w-[110px]'
           }`}
         style={{
           backgroundColor: '#f4ecd8', // Samanlı kağıt rengi (Straw paper color)
@@ -219,25 +220,25 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           style={{ backgroundColor: siteSettings.calendarColor || '#dc2626' }}
         >
           <span className={`text-white font-bold uppercase tracking-wider ${siteSettings.calendarSize === 'large' ? 'text-xs' :
-              siteSettings.calendarSize === 'small' ? 'text-[8px]' :
-                'text-[10px]'
+            siteSettings.calendarSize === 'small' ? 'text-[8px]' :
+              'text-[10px]'
             }`}>
             {new Intl.DateTimeFormat('tr-TR', { month: 'long' }).format(new Date())}
           </span>
         </div>
         <div className={`flex flex-col items-center pb-2 ${siteSettings.calendarSize === 'large' ? 'py-4 px-6' :
-            siteSettings.calendarSize === 'small' ? 'py-1.5 px-3' :
-              'py-3 px-4'
+          siteSettings.calendarSize === 'small' ? 'py-1.5 px-3' :
+            'py-3 px-4'
           }`}>
           <span className={`font-black text-amber-900/80 leading-none ${siteSettings.calendarSize === 'large' ? 'text-6xl' :
-              siteSettings.calendarSize === 'small' ? 'text-3xl' :
-                'text-5xl'
+            siteSettings.calendarSize === 'small' ? 'text-3xl' :
+              'text-5xl'
             }`}>
             {new Date().getDate()}
           </span>
           <span className={`font-bold text-amber-800/60 uppercase ${siteSettings.calendarSize === 'large' ? 'text-sm mt-3' :
-              siteSettings.calendarSize === 'small' ? 'text-[9px] mt-1' :
-                'text-[11px] mt-2'
+            siteSettings.calendarSize === 'small' ? 'text-[9px] mt-1' :
+              'text-[11px] mt-2'
             }`}>
             {new Intl.DateTimeFormat('tr-TR', { weekday: 'long' }).format(new Date())}
           </span>
@@ -248,8 +249,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div
               key={i}
               className={`${siteSettings.calendarSize === 'large' ? 'w-3 h-5' :
-                  siteSettings.calendarSize === 'small' ? 'w-1.5 h-3' :
-                    'w-2.5 h-4'
+                siteSettings.calendarSize === 'small' ? 'w-1.5 h-3' :
+                  'w-2.5 h-4'
                 } bg-gray-400/50 rounded-full border border-gray-500/30 -mt-2 shadow-sm`}
             />
           ))}
@@ -267,9 +268,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <div
       className="min-h-screen"
       style={{
-        background: siteSettings.siteIsGradient
-          ? `linear-gradient(to bottom right, ${siteSettings.siteGradientFrom || '#fffbeb'}, ${siteSettings.siteGradientVia || '#fefce8'}, ${siteSettings.siteGradientTo || '#fff7ed'})`
-          : (siteSettings.siteBackgroundColor || '#fffbeb')
+        background: siteSettings.siteBackgroundImage
+          ? `url('${siteSettings.siteBackgroundImage}') center/cover fixed`
+          : (siteSettings.siteIsGradient
+            ? `linear-gradient(to bottom right, ${siteSettings.siteGradientFrom || '#fffbeb'}, ${siteSettings.siteGradientVia || '#fefce8'}, ${siteSettings.siteGradientTo || '#fff7ed'})`
+            : (siteSettings.siteBackgroundColor || '#fffbeb'))
       }}
     >
       {/* Top Fixed Calendar Section */}
