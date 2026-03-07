@@ -434,6 +434,19 @@ export default function AdminPage() {
 
       const data = await response.json()
       setEditingItem(data.category) // Keep modal editing the saved/newly created item
+
+      // Ana Duvar ise genel site ayarlarını da kaydet
+      if (wallForm.name === 'Ana Duvar') {
+        const settingsRes = await fetch('/api/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(siteSettings)
+        });
+        if (!settingsRes.ok) {
+          console.error('Site settings could not be saved along with Ana Duvar.');
+        }
+      }
+
       toast.success(isEditing ? 'Duvar güncellendi' : (wallForm.parentId ? 'Alt kategori oluşturuldu' : 'Duvar oluşturuldu'))
 
       loadData()
@@ -1408,549 +1421,549 @@ export default function AdminPage() {
   const renderSiteGorseli = () => {
     return (
       <div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6 bg-white p-6 rounded-lg shadow border">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Post-it Pano Görünümü (Mantar Pano)</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2 pt-2 pb-2">
-                      <Checkbox
-                        id="isWallTransparent"
-                        checked={siteSettings.isWallTransparent}
-                        onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, isWallTransparent: !!checked }))}
-                      />
-                      <Label htmlFor="isWallTransparent" className="cursor-pointer font-bold text-blue-600">Arka Plan Transparan Olsun</Label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-6 bg-white p-6 rounded-lg shadow border">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Post-it Pano Görünümü (Mantar Pano)</h3>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pt-2 pb-2">
+                  <Checkbox
+                    id="isWallTransparent"
+                    checked={siteSettings.isWallTransparent}
+                    onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, isWallTransparent: !!checked }))}
+                  />
+                  <Label htmlFor="isWallTransparent" className="cursor-pointer font-bold text-blue-600">Arka Plan Transparan Olsun</Label>
+                </div>
+
+                <div className={siteSettings.isWallTransparent ? 'opacity-50 pointer-events-none transition-opacity' : 'transition-opacity'}>
+                  <div className="flex items-center space-x-2 pt-2 pb-2">
+                    <Checkbox
+                      id="siteIsGradient"
+                      checked={siteSettings.isGradient}
+                      onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, isGradient: !!checked }))}
+                    />
+                    <Label htmlFor="siteIsGradient" className="cursor-pointer font-semibold">Panoda Renk Kullan</Label>
+                  </div>
+
+                  {!siteSettings.isGradient ? (
+                    <div className="space-y-2">
+                      <Label>Arka Plan Rengi</Label>
+                      <div className="flex gap-2">
+                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
+                        <Input value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
+                      </div>
                     </div>
-
-                    <div className={siteSettings.isWallTransparent ? 'opacity-50 pointer-events-none transition-opacity' : 'transition-opacity'}>
-                      <div className="flex items-center space-x-2 pt-2 pb-2">
-                        <Checkbox
-                          id="siteIsGradient"
-                          checked={siteSettings.isGradient}
-                          onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, isGradient: !!checked }))}
-                        />
-                        <Label htmlFor="siteIsGradient" className="cursor-pointer font-semibold">Panoda Renk Kullan</Label>
-                      </div>
-
-                      {!siteSettings.isGradient ? (
-                        <div className="space-y-2">
-                          <Label>Arka Plan Rengi</Label>
-                          <div className="flex gap-2">
-                            <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
-                            <Input value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                          <div className="space-y-2">
-                            <Label className="text-xs">Başlangıç</Label>
-                            <div className="flex gap-1">
-                              <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
-                              <Input className="font-mono text-xs h-8" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs">Orta</Label>
-                            <div className="flex gap-1">
-                              <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
-                              <Input className="font-mono text-xs h-8" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs">Bitiş</Label>
-                            <div className="flex gap-1">
-                              <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
-                              <Input className="font-mono text-xs h-8" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       <div className="space-y-2">
-                        <Label>Arka Plan Dokusu Resmi (Mantarımsı transparan doku) URL</Label>
-                        <div className="flex gap-2">
-                          <Input value={siteSettings.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setSiteSettings(s => ({ ...s, backgroundImage: e.target.value }))} />
-                          <div className="flex-shrink-0">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              disabled={uploadingSiteImage}
-                              onClick={() => document.getElementById('site-bg-upload')?.click()}
-                            >
-                              {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                            </Button>
-                            <input
-                              id="site-bg-upload"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleSiteImageUpload}
-                              className="hidden"
-                            />
-                          </div>
+                        <Label className="text-xs">Başlangıç</Label>
+                        <div className="flex gap-1">
+                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
+                          <Input className="font-mono text-xs h-8" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
                         </div>
                       </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Orta</Label>
+                        <div className="flex gap-1">
+                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
+                          <Input className="font-mono text-xs h-8" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Bitiş</Label>
+                        <div className="flex gap-1">
+                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
+                          <Input className="font-mono text-xs h-8" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                      <div className="flex items-center space-x-2 pt-4 pb-2">
-                        <Checkbox
-                          id="noBorder"
-                          checked={siteSettings.noBorder}
-                          onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, noBorder: !!checked }))}
-                        />
-                        <label
-                          htmlFor="noBorder"
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  <div className="space-y-2">
+                    <Label>Arka Plan Dokusu Resmi (Mantarımsı transparan doku) URL</Label>
+                    <div className="flex gap-2">
+                      <Input value={siteSettings.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setSiteSettings(s => ({ ...s, backgroundImage: e.target.value }))} />
+                      <div className="flex-shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={uploadingSiteImage}
+                          onClick={() => document.getElementById('site-bg-upload')?.click()}
                         >
-                          Çerçeve Yok
-                        </label>
-                      </div>
-
-                      <div className={`grid grid-cols-2 gap-4 ${siteSettings.noBorder ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <div className="space-y-2">
-                          <Label>Dış Çerçeve (Sağ) Rengi</Label>
-                          <div className="flex gap-2">
-                            <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
-                            <Input value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Üst ve Sol Çerçeve Rengi</Label>
-                          <div className="flex gap-2">
-                            <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
-                            <Input value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Alt Çerçeve Rengi</Label>
-                          <div className="flex gap-2">
-                            <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
-                            <Input value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6 bg-white p-6 rounded-lg shadow border mt-6">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Site Genel Arka Planı (Zemin)</h3>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Zemin Resmi (opsiyonel)</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            value={siteSettings.siteBackgroundImage || ''}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, siteBackgroundImage: e.target.value })}
-                            placeholder="URL veya dosya yükleyin"
-                          />
-                          <div className="flex-shrink-0">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              disabled={uploadingSiteBackgroundImage}
-                              onClick={() => document.getElementById('site-global-bg-upload')?.click()}
-                            >
-                              {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                            </Button>
-                            <input
-                              id="site-global-bg-upload"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleSiteBackgroundImageUpload}
-                              className="hidden"
-                            />
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500">Sitenin genel arka planında görüntülenecek zemin görseli.</p>
-                      </div>
-
-                      <div className="flex items-center space-x-2 pt-2 pb-2">
-                        <Checkbox
-                          id="siteGroundIsGradient"
-                          checked={siteSettings.siteIsGradient}
-                          onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, siteIsGradient: !!checked }))}
-                        />
-                        <Label htmlFor="siteGroundIsGradient" className="cursor-pointer font-semibold">Zeminde Renk/Gradyan Kullan</Label>
-                      </div>
-
-                      {!siteSettings.siteIsGradient ? (
-                        <div className="space-y-2">
-                          <Label>Arka Plan Rengi</Label>
-                          <div className="flex gap-2">
-                            <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.siteBackgroundColor || '#fffbeb'} onChange={e => setSiteSettings(s => ({ ...s, siteBackgroundColor: e.target.value }))} />
-                            <Input value={siteSettings.siteBackgroundColor || '#fffbeb'} onChange={e => setSiteSettings(s => ({ ...s, siteBackgroundColor: e.target.value }))} />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                          <div className="space-y-2">
-                            <Label className="text-xs">Başlangıç</Label>
-                            <div className="flex gap-1">
-                              <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.siteGradientFrom || '#fffbeb'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientFrom: e.target.value })} />
-                              <Input className="font-mono text-xs h-8" value={siteSettings.siteGradientFrom || '#fffbeb'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientFrom: e.target.value })} />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs">Orta</Label>
-                            <div className="flex gap-1">
-                              <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.siteGradientVia || '#fefce8'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientVia: e.target.value })} />
-                              <Input className="font-mono text-xs h-8" value={siteSettings.siteGradientVia || '#fefce8'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientVia: e.target.value })} />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label className="text-xs">Bitiş</Label>
-                            <div className="flex gap-1">
-                              <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.siteGradientTo || '#fff7ed'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientTo: e.target.value })} />
-                              <Input className="font-mono text-xs h-8" value={siteSettings.siteGradientTo || '#fff7ed'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientTo: e.target.value })} />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              <div className="space-y-6 bg-white p-6 rounded-lg shadow border mt-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Ana Sayfa Kapak (Hero) Görünümü</h3>
-                  <div className="space-y-4">
-
-                    {/* Hero Settings */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Zemin Resmi (opsiyonel)</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            value={siteSettings.heroBackgroundImage || ''}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, heroBackgroundImage: e.target.value })}
-                            placeholder="URL veya dosya yükleyin"
-                          />
-                          <div className="flex-shrink-0">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              disabled={uploadingSiteHeroImage}
-                              onClick={() => document.getElementById('site-hero-upload')?.click()}
-                            >
-                              {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                            </Button>
-                            <input
-                              id="site-hero-upload"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleSiteHeroImageUpload}
-                              className="hidden"
-                            />
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500">Resim varsa gradyan kullanılmaz</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Alt Başlık Metni</Label>
-                        <Input
-                          value={siteSettings.heroSubtitle || ''}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })}
-                          placeholder="Fikirlerinizi paylaşın..."
+                          {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        </Button>
+                        <input
+                          id="site-bg-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleSiteImageUpload}
+                          className="hidden"
                         />
                       </div>
                     </div>
+                  </div>
 
-                    {/* Gradient Colors */}
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>Gradyan Başlangıç</Label>
-                        <div className="flex gap-2">
-                          <input
-                            type="color"
-                            value={siteSettings.heroGradientFrom || '#facc15'}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
-                            className="w-10 h-10 rounded cursor-pointer"
-                          />
-                          <Input
-                            value={siteSettings.heroGradientFrom || '#facc15'}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Gradyan Orta</Label>
-                        <div className="flex gap-2">
-                          <input
-                            type="color"
-                            value={siteSettings.heroGradientVia || '#f472b6'}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
-                            className="w-10 h-10 rounded cursor-pointer"
-                          />
-                          <Input
-                            value={siteSettings.heroGradientVia || '#f472b6'}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Gradyan Bitiş</Label>
-                        <div className="flex gap-2">
-                          <input
-                            type="color"
-                            value={siteSettings.heroGradientTo || '#a855f7'}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
-                            className="w-10 h-10 rounded cursor-pointer"
-                          />
-                          <Input
-                            value={siteSettings.heroGradientTo || '#a855f7'}
-                            onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
-                            className="flex-1"
-                          />
-                        </div>
+                  <div className="flex items-center space-x-2 pt-4 pb-2">
+                    <Checkbox
+                      id="noBorder"
+                      checked={siteSettings.noBorder}
+                      onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, noBorder: !!checked }))}
+                    />
+                    <label
+                      htmlFor="noBorder"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Çerçeve Yok
+                    </label>
+                  </div>
+
+                  <div className={`grid grid-cols-2 gap-4 ${siteSettings.noBorder ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className="space-y-2">
+                      <Label>Dış Çerçeve (Sağ) Rengi</Label>
+                      <div className="flex gap-2">
+                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
+                        <Input value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
                       </div>
                     </div>
-
-                    {/* Title Settings */}
-                    <div className="border-t pt-4 mt-4">
-                      <h4 className="font-medium mb-3 flex items-center gap-2">
-                        <Type className="w-4 h-4" /> Başlık Ayarları
-                      </h4>
-                      <div className="grid grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <Label>Hizalama</Label>
-                          <Select
-                            value={siteSettings.heroAlignment || 'left'}
-                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroAlignment: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="left">Sol</SelectItem>
-                              <SelectItem value="center">Orta</SelectItem>
-                              <SelectItem value="right">Sağ</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Font</Label>
-                          <Select
-                            value={siteSettings.heroTitleFont || 'sans-serif'}
-                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleFont: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                              <SelectItem value="serif">Serif</SelectItem>
-                              <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                              <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                              <SelectItem value="monospace">Monospace</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Renk</Label>
-                          <div className="flex gap-2">
-                            <input
-                              type="color"
-                              value={siteSettings.heroTitleColor || '#ffffff'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
-                              className="w-10 h-10 rounded cursor-pointer"
-                            />
-                            <Input
-                              value={siteSettings.heroTitleColor || '#ffffff'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
-                              className="flex-1"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Boyut</Label>
-                          <Select
-                            value={siteSettings.heroTitleSize || '5xl'}
-                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleSize: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="4xl">Küçük (4xl)</SelectItem>
-                              <SelectItem value="5xl">Orta (5xl)</SelectItem>
-                              <SelectItem value="6xl">Büyük (6xl)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                    <div className="space-y-2">
+                      <Label>Üst ve Sol Çerçeve Rengi</Label>
+                      <div className="flex gap-2">
+                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
+                        <Input value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
                       </div>
                     </div>
-
-                    {/* Subtitle Settings */}
-                    <div className="border-t pt-4 mt-4">
-                      <h4 className="font-medium mb-3">Alt Başlık Ayarları</h4>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label>Font</Label>
-                          <Select
-                            value={siteSettings.heroSubtitleFont || 'sans-serif'}
-                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleFont: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                              <SelectItem value="serif">Serif</SelectItem>
-                              <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                              <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                              <SelectItem value="monospace">Monospace</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Renk</Label>
-                          <div className="flex gap-2">
-                            <input
-                              type="color"
-                              value={siteSettings.heroSubtitleColor || '#ffffff'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
-                              className="w-10 h-10 rounded cursor-pointer"
-                            />
-                            <Input
-                              value={siteSettings.heroSubtitleColor || '#ffffff'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
-                              className="flex-1"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Boyut</Label>
-                          <Select
-                            value={siteSettings.heroSubtitleSize || 'xl'}
-                            onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleSize: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="lg">Küçük (lg)</SelectItem>
-                              <SelectItem value="xl">Orta (xl)</SelectItem>
-                              <SelectItem value="2xl">Büyük (2xl)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                    <div className="space-y-2">
+                      <Label>Alt Çerçeve Rengi</Label>
+                      <div className="flex gap-2">
+                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
+                        <Input value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
                       </div>
                     </div>
-
-                    {/* Nav Menu Settings */}
-                    <div className="border-t pt-4 mt-4">
-                      <h4 className="font-medium mb-3 flex items-center gap-2">
-                        <Menu className="w-4 h-4" /> Kategori Menü Görünümü
-                      </h4>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <Label>Menü Zemini</Label>
-                          <div className="flex gap-2">
-                            <input
-                              type="color"
-                              value={siteSettings.navMenuBgColor || '#ffffff'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })}
-                              className="w-10 h-10 rounded cursor-pointer"
-                            />
-                            <Input
-                              value={siteSettings.navMenuBgColor || '#ffffff'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })}
-                              className="flex-1"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Yazı Rengi</Label>
-                          <div className="flex gap-2">
-                            <input
-                              type="color"
-                              value={siteSettings.navMenuTextColor || '#111827'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })}
-                              className="w-10 h-10 rounded cursor-pointer"
-                            />
-                            <Input
-                              value={siteSettings.navMenuTextColor || '#111827'}
-                              onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })}
-                              className="flex-1"
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Font</Label>
-                          <Select
-                            value={siteSettings.navMenuFont || 'sans-serif'}
-                            onValueChange={(value) => setSiteSettings({ ...siteSettings, navMenuFont: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                              <SelectItem value="serif">Serif</SelectItem>
-                              <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                              <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                              <SelectItem value="monospace">Monospace</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Yazı Boyutu (px)</Label>
-                          <Select
-                            value={String(siteSettings.navMenuFontSize || 14)}
-                            onValueChange={(value) => setSiteSettings({ ...siteSettings, navMenuFontSize: parseInt(value) })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {[12, 13, 14, 15, 16, 17, 18, 20, 22, 24].map(size => (
-                                <SelectItem key={size} value={String(size)}>{size}px</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2 flex flex-col justify-end">
-                          <div className="flex items-center space-x-2 py-2">
-                            <Checkbox
-                              id="navMenuMainBold"
-                              checked={siteSettings.navMenuMainBold}
-                              onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, navMenuMainBold: !!checked }))}
-                            />
-                            <Label htmlFor="navMenuMainBold" className="cursor-pointer">Ana Kategoriler Kalın</Label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
                   </div>
                 </div>
               </div>
             </div>
 
+            <div className="space-y-6 bg-white p-6 rounded-lg shadow border mt-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Site Genel Arka Planı (Zemin)</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Zemin Resmi (opsiyonel)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={siteSettings.siteBackgroundImage || ''}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, siteBackgroundImage: e.target.value })}
+                        placeholder="URL veya dosya yükleyin"
+                      />
+                      <div className="flex-shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={uploadingSiteBackgroundImage}
+                          onClick={() => document.getElementById('site-global-bg-upload')?.click()}
+                        >
+                          {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        </Button>
+                        <input
+                          id="site-global-bg-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleSiteBackgroundImageUpload}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">Sitenin genel arka planında görüntülenecek zemin görseli.</p>
+                  </div>
+
+                  <div className="flex items-center space-x-2 pt-2 pb-2">
+                    <Checkbox
+                      id="siteGroundIsGradient"
+                      checked={siteSettings.siteIsGradient}
+                      onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, siteIsGradient: !!checked }))}
+                    />
+                    <Label htmlFor="siteGroundIsGradient" className="cursor-pointer font-semibold">Zeminde Renk/Gradyan Kullan</Label>
+                  </div>
+
+                  {!siteSettings.siteIsGradient ? (
+                    <div className="space-y-2">
+                      <Label>Arka Plan Rengi</Label>
+                      <div className="flex gap-2">
+                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.siteBackgroundColor || '#fffbeb'} onChange={e => setSiteSettings(s => ({ ...s, siteBackgroundColor: e.target.value }))} />
+                        <Input value={siteSettings.siteBackgroundColor || '#fffbeb'} onChange={e => setSiteSettings(s => ({ ...s, siteBackgroundColor: e.target.value }))} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Başlangıç</Label>
+                        <div className="flex gap-1">
+                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.siteGradientFrom || '#fffbeb'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientFrom: e.target.value })} />
+                          <Input className="font-mono text-xs h-8" value={siteSettings.siteGradientFrom || '#fffbeb'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientFrom: e.target.value })} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Orta</Label>
+                        <div className="flex gap-1">
+                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.siteGradientVia || '#fefce8'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientVia: e.target.value })} />
+                          <Input className="font-mono text-xs h-8" value={siteSettings.siteGradientVia || '#fefce8'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientVia: e.target.value })} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Bitiş</Label>
+                        <div className="flex gap-1">
+                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.siteGradientTo || '#fff7ed'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientTo: e.target.value })} />
+                          <Input className="font-mono text-xs h-8" value={siteSettings.siteGradientTo || '#fff7ed'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientTo: e.target.value })} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="space-y-6 bg-white p-6 rounded-lg shadow border mt-6">
             <div>
-              <Label className="block mb-2 text-sm text-gray-700">Canlı Önizleme</Label>
-              <div className="w-full flex-1 rounded-sm relative p-4 md:p-8 flex"
-                style={{
-                  backgroundColor: siteSettings.backgroundColor,
-                  backgroundImage: `url("${siteSettings.backgroundImage}")`,
-                  border: siteSettings.noBorder ? '0px' : `18px solid ${siteSettings.borderColor}`,
-                  borderBottomColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
-                  borderRightColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
-                  borderTopColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
-                  borderLeftColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
-                  boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 15px 25px rgba(0,0,0,0.15)',
-                  minHeight: '400px'
-                }}
-              >
-                <p className="m-auto text-xl opacity-50 bg-white/40 px-4 py-2 rounded shadow">Pano Detay Alanı</p>
+              <h3 className="text-lg font-semibold mb-4">Ana Sayfa Kapak (Hero) Görünümü</h3>
+              <div className="space-y-4">
+
+                {/* Hero Settings */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Zemin Resmi (opsiyonel)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={siteSettings.heroBackgroundImage || ''}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, heroBackgroundImage: e.target.value })}
+                        placeholder="URL veya dosya yükleyin"
+                      />
+                      <div className="flex-shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={uploadingSiteHeroImage}
+                          onClick={() => document.getElementById('site-hero-upload')?.click()}
+                        >
+                          {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        </Button>
+                        <input
+                          id="site-hero-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleSiteHeroImageUpload}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">Resim varsa gradyan kullanılmaz</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Alt Başlık Metni</Label>
+                    <Input
+                      value={siteSettings.heroSubtitle || ''}
+                      onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })}
+                      placeholder="Fikirlerinizi paylaşın..."
+                    />
+                  </div>
+                </div>
+
+                {/* Gradient Colors */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Gradyan Başlangıç</Label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={siteSettings.heroGradientFrom || '#facc15'}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
+                        className="w-10 h-10 rounded cursor-pointer"
+                      />
+                      <Input
+                        value={siteSettings.heroGradientFrom || '#facc15'}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gradyan Orta</Label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={siteSettings.heroGradientVia || '#f472b6'}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
+                        className="w-10 h-10 rounded cursor-pointer"
+                      />
+                      <Input
+                        value={siteSettings.heroGradientVia || '#f472b6'}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gradyan Bitiş</Label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={siteSettings.heroGradientTo || '#a855f7'}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
+                        className="w-10 h-10 rounded cursor-pointer"
+                      />
+                      <Input
+                        value={siteSettings.heroGradientTo || '#a855f7'}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Title Settings */}
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Type className="w-4 h-4" /> Başlık Ayarları
+                  </h4>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label>Hizalama</Label>
+                      <Select
+                        value={siteSettings.heroAlignment || 'left'}
+                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroAlignment: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="left">Sol</SelectItem>
+                          <SelectItem value="center">Orta</SelectItem>
+                          <SelectItem value="right">Sağ</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Font</Label>
+                      <Select
+                        value={siteSettings.heroTitleFont || 'sans-serif'}
+                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleFont: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                          <SelectItem value="serif">Serif</SelectItem>
+                          <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                          <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                          <SelectItem value="monospace">Monospace</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Renk</Label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={siteSettings.heroTitleColor || '#ffffff'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
+                          className="w-10 h-10 rounded cursor-pointer"
+                        />
+                        <Input
+                          value={siteSettings.heroTitleColor || '#ffffff'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Boyut</Label>
+                      <Select
+                        value={siteSettings.heroTitleSize || '5xl'}
+                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleSize: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="4xl">Küçük (4xl)</SelectItem>
+                          <SelectItem value="5xl">Orta (5xl)</SelectItem>
+                          <SelectItem value="6xl">Büyük (6xl)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subtitle Settings */}
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-3">Alt Başlık Ayarları</h4>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label>Font</Label>
+                      <Select
+                        value={siteSettings.heroSubtitleFont || 'sans-serif'}
+                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleFont: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                          <SelectItem value="serif">Serif</SelectItem>
+                          <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                          <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                          <SelectItem value="monospace">Monospace</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Renk</Label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={siteSettings.heroSubtitleColor || '#ffffff'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
+                          className="w-10 h-10 rounded cursor-pointer"
+                        />
+                        <Input
+                          value={siteSettings.heroSubtitleColor || '#ffffff'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Boyut</Label>
+                      <Select
+                        value={siteSettings.heroSubtitleSize || 'xl'}
+                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleSize: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lg">Küçük (lg)</SelectItem>
+                          <SelectItem value="xl">Orta (xl)</SelectItem>
+                          <SelectItem value="2xl">Büyük (2xl)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nav Menu Settings */}
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Menu className="w-4 h-4" /> Kategori Menü Görünümü
+                  </h4>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label>Menü Zemini</Label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={siteSettings.navMenuBgColor || '#ffffff'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })}
+                          className="w-10 h-10 rounded cursor-pointer"
+                        />
+                        <Input
+                          value={siteSettings.navMenuBgColor || '#ffffff'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })}
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Yazı Rengi</Label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={siteSettings.navMenuTextColor || '#111827'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })}
+                          className="w-10 h-10 rounded cursor-pointer"
+                        />
+                        <Input
+                          value={siteSettings.navMenuTextColor || '#111827'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })}
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Font</Label>
+                      <Select
+                        value={siteSettings.navMenuFont || 'sans-serif'}
+                        onValueChange={(value) => setSiteSettings({ ...siteSettings, navMenuFont: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                          <SelectItem value="serif">Serif</SelectItem>
+                          <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                          <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                          <SelectItem value="monospace">Monospace</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Yazı Boyutu (px)</Label>
+                      <Select
+                        value={String(siteSettings.navMenuFontSize || 14)}
+                        onValueChange={(value) => setSiteSettings({ ...siteSettings, navMenuFontSize: parseInt(value) })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[12, 13, 14, 15, 16, 17, 18, 20, 22, 24].map(size => (
+                            <SelectItem key={size} value={String(size)}>{size}px</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 flex flex-col justify-end">
+                      <div className="flex items-center space-x-2 py-2">
+                        <Checkbox
+                          id="navMenuMainBold"
+                          checked={siteSettings.navMenuMainBold}
+                          onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, navMenuMainBold: !!checked }))}
+                        />
+                        <Label htmlFor="navMenuMainBold" className="cursor-pointer">Ana Kategoriler Kalın</Label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
+        </div>
+
+        <div>
+          <Label className="block mb-2 text-sm text-gray-700">Canlı Önizleme</Label>
+          <div className="w-full flex-1 rounded-sm relative p-4 md:p-8 flex"
+            style={{
+              backgroundColor: siteSettings.backgroundColor,
+              backgroundImage: `url("${siteSettings.backgroundImage}")`,
+              border: siteSettings.noBorder ? '0px' : `18px solid ${siteSettings.borderColor}`,
+              borderBottomColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
+              borderRightColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
+              borderTopColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
+              borderLeftColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
+              boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 15px 25px rgba(0,0,0,0.15)',
+              minHeight: '400px'
+            }}
+          >
+            <p className="m-auto text-xl opacity-50 bg-white/40 px-4 py-2 rounded shadow">Pano Detay Alanı</p>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -2065,7 +2078,7 @@ export default function AdminPage() {
           </div>
         )}
 
-                {/* Info Pages Placeholder */}
+        {/* Info Pages Placeholder */}
         {['about', 'contact', 'terms', 'privacy', 'cookies', 'help', 'kvkk'].includes(activeSection) && (
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-6">
@@ -4143,7 +4156,7 @@ export default function AdminPage() {
       </Dialog>
 
       <Dialog open={showWallModal} onOpenChange={setShowWallModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingItem ? 'Duvar Düzenle' : wallForm.parentId ? 'Alt Kategori Ekle' : 'Yeni Ana Duvar'}
@@ -4258,7 +4271,7 @@ export default function AdminPage() {
               </Select>
             </div>
 
-            
+
             {wallForm.name === 'Ana Duvar' ? (
               <div className="space-y-4 border-t pt-4 mt-4">
                 <h4 className="font-bold text-lg text-blue-600 mb-2">Ana Duvar Özel Site Başlık & Görünüm Ayarları</h4>
@@ -4266,141 +4279,141 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="space-y-4 border-t pt-4">
-              <h4 className="font-semibold text-sm flex items-center gap-2">
-                <Palette className="w-4 h-4" /> Duvar Başlık Görünümü (Hero)
-      
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Alt Başlık</Label>
-                  <Input
-                    value={wallForm.heroSubtitle}
-                    onChange={(e) => setWallForm({ ...wallForm, heroSubtitle: e.target.value })}
-                    placeholder="Duvar sayfasında görünecek alt başlık"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Ana Başlık Fontu</Label>
-                  <Select
-                    value={wallForm.heroTitleFont || 'sans-serif'}
-                    onValueChange={(value) => setWallForm({ ...wallForm, heroTitleFont: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                      <SelectItem value="serif">Serif</SelectItem>
-                      <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                      <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <Palette className="w-4 h-4" /> Duvar Başlık Görünümü (Hero)
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>Başlık Rengi</Label>
-                  <div className="flex gap-2">
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Alt Başlık</Label>
                     <Input
-                      type="color"
-                      className="w-10 h-10 p-1"
-                      value={wallForm.heroTitleColor}
-                      onChange={(e) => setWallForm({ ...wallForm, heroTitleColor: e.target.value })}
+                      value={wallForm.heroSubtitle}
+                      onChange={(e) => setWallForm({ ...wallForm, heroSubtitle: e.target.value })}
+                      placeholder="Duvar sayfasında görünecek alt başlık"
                     />
-                    <Input
-                      className="text-xs font-mono"
-                      value={wallForm.heroTitleColor}
-                      onChange={(e) => setWallForm({ ...wallForm, heroTitleColor: e.target.value })}
-                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Ana Başlık Fontu</Label>
+                    <Select
+                      value={wallForm.heroTitleFont || 'sans-serif'}
+                      onValueChange={(value) => setWallForm({ ...wallForm, heroTitleFont: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                        <SelectItem value="serif">Serif</SelectItem>
+                        <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                        <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Başlık Boyutu</Label>
-                  <Select
-                    value={wallForm.heroTitleSize}
-                    onValueChange={(value) => setWallForm({ ...wallForm, heroTitleSize: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="3xl">3XL</SelectItem>
-                      <SelectItem value="4xl">4XL</SelectItem>
-                      <SelectItem value="5xl">5XL</SelectItem>
-                      <SelectItem value="6xl">6XL</SelectItem>
-                      <SelectItem value="7xl">7XL</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label>Başlık Rengi</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        className="w-10 h-10 p-1"
+                        value={wallForm.heroTitleColor}
+                        onChange={(e) => setWallForm({ ...wallForm, heroTitleColor: e.target.value })}
+                      />
+                      <Input
+                        className="text-xs font-mono"
+                        value={wallForm.heroTitleColor}
+                        onChange={(e) => setWallForm({ ...wallForm, heroTitleColor: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Başlık Boyutu</Label>
+                    <Select
+                      value={wallForm.heroTitleSize}
+                      onValueChange={(value) => setWallForm({ ...wallForm, heroTitleSize: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="3xl">3XL</SelectItem>
+                        <SelectItem value="4xl">4XL</SelectItem>
+                        <SelectItem value="5xl">5XL</SelectItem>
+                        <SelectItem value="6xl">6XL</SelectItem>
+                        <SelectItem value="7xl">7XL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Alt Başlık Fontu</Label>
+                    <Select
+                      value={wallForm.heroSubtitleFont}
+                      onValueChange={(value) => setWallForm({ ...wallForm, heroSubtitleFont: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                        <SelectItem value="serif">Serif</SelectItem>
+                        <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                        <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Alt Başlık Rengi</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="color"
+                        className="w-10 h-10 p-1"
+                        value={wallForm.heroSubtitleColor}
+                        onChange={(e) => setWallForm({ ...wallForm, heroSubtitleColor: e.target.value })}
+                      />
+                      <Input
+                        className="text-xs font-mono"
+                        value={wallForm.heroSubtitleColor}
+                        onChange={(e) => setWallForm({ ...wallForm, heroSubtitleColor: e.target.value })}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Alt Başlık Fontu</Label>
-                  <Select
-                    value={wallForm.heroSubtitleFont}
-                    onValueChange={(value) => setWallForm({ ...wallForm, heroSubtitleFont: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                      <SelectItem value="serif">Serif</SelectItem>
-                      <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                      <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Alt Başlık Rengi</Label>
-                  <div className="flex gap-2">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Gradyan Başlangıç</Label>
                     <Input
                       type="color"
-                      className="w-10 h-10 p-1"
-                      value={wallForm.heroSubtitleColor}
-                      onChange={(e) => setWallForm({ ...wallForm, heroSubtitleColor: e.target.value })}
+                      className="w-full h-10 p-1"
+                      value={wallForm.heroGradientFrom}
+                      onChange={(e) => setWallForm({ ...wallForm, heroGradientFrom: e.target.value })}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gradyan Orta</Label>
                     <Input
-                      className="text-xs font-mono"
-                      value={wallForm.heroSubtitleColor}
-                      onChange={(e) => setWallForm({ ...wallForm, heroSubtitleColor: e.target.value })}
+                      type="color"
+                      className="w-full h-10 p-1"
+                      value={wallForm.heroGradientVia}
+                      onChange={(e) => setWallForm({ ...wallForm, heroGradientVia: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Gradyan Bitiş</Label>
+                    <Input
+                      type="color"
+                      className="w-full h-10 p-1"
+                      value={wallForm.heroGradientTo}
+                      onChange={(e) => setWallForm({ ...wallForm, heroGradientTo: e.target.value })}
                     />
                   </div>
                 </div>
               </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Gradyan Başlangıç</Label>
-                  <Input
-                    type="color"
-                    className="w-full h-10 p-1"
-                    value={wallForm.heroGradientFrom}
-                    onChange={(e) => setWallForm({ ...wallForm, heroGradientFrom: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Gradyan Orta</Label>
-                  <Input
-                    type="color"
-                    className="w-full h-10 p-1"
-                    value={wallForm.heroGradientVia}
-                    onChange={(e) => setWallForm({ ...wallForm, heroGradientVia: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Gradyan Bitiş</Label>
-                  <Input
-                    type="color"
-                    className="w-full h-10 p-1"
-                    value={wallForm.heroGradientTo}
-                    onChange={(e) => setWallForm({ ...wallForm, heroGradientTo: e.target.value })}
-                  />
-                </div>
-              </div>
-            </div>
 
 
             )}

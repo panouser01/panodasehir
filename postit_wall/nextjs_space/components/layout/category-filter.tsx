@@ -171,7 +171,7 @@ export function CategoryFilter({ categories, onSelect, settings }: CategoryFilte
           {totalPostits}
         </span>
       </Button>
-      {categories?.map?.((category) => renderCategory(category))}
+      {categories?.filter(c => c.name !== 'Ana Duvar').map?.((category) => renderCategory(category))}
     </div>
   )
 }

@@ -50,7 +50,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const categories = flattenCategories(allCategories)
 
   // Get selected category for appearance settings
-  const selectedCategory = categoryId
+  let selectedCategory = categoryId
     ? categories.find(c => c.id === categoryId)
     : null
 
@@ -109,27 +109,33 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     categoryBgColor: '#ffffff'
   }
 
-  // Use selected category appearance or default
-  const appearance = selectedCategory ? {
-    heroBackgroundImage: selectedCategory.heroBackgroundImage || defaultAppearance.heroBackgroundImage,
-    heroSubtitle: selectedCategory.heroSubtitle || defaultAppearance.heroSubtitle,
-    heroTitleFont: selectedCategory.heroTitleFont || defaultAppearance.heroTitleFont,
-    heroTitleColor: selectedCategory.heroTitleColor || defaultAppearance.heroTitleColor,
-    heroTitleSize: selectedCategory.heroTitleSize || defaultAppearance.heroTitleSize,
-    heroSubtitleFont: selectedCategory.heroSubtitleFont || defaultAppearance.heroSubtitleFont,
-    heroSubtitleColor: selectedCategory.heroSubtitleColor || defaultAppearance.heroSubtitleColor,
-    heroSubtitleSize: selectedCategory.heroSubtitleSize || defaultAppearance.heroSubtitleSize,
-    heroGradientFrom: selectedCategory.heroGradientFrom || defaultAppearance.heroGradientFrom,
-    heroGradientVia: selectedCategory.heroGradientVia || defaultAppearance.heroGradientVia,
-    heroGradientTo: selectedCategory.heroGradientTo || defaultAppearance.heroGradientTo,
-    heroAlignment: selectedCategory.heroAlignment || defaultAppearance.heroAlignment,
-    categoryFont: selectedCategory.categoryFont || defaultAppearance.categoryFont,
-    categoryColor: selectedCategory.categoryColor || defaultAppearance.categoryColor,
-    categoryBgColor: selectedCategory.categoryBgColor || defaultAppearance.categoryBgColor
+  // Get selected category for appearance settings
+  // (already defined as categoryId matching logic below)
+
+  // If we are on home page (no category), try to find "Ana Duvar" to use its appearance
+  const homeWall = !selectedCategory ? categories.find(c => c.name === 'Ana Duvar') : null
+
+  // Use selected category appearance or homeWall appearance or default
+  const appearance = (selectedCategory || homeWall) ? {
+    heroBackgroundImage: (selectedCategory || homeWall).heroBackgroundImage || defaultAppearance.heroBackgroundImage,
+    heroSubtitle: (selectedCategory || homeWall).heroSubtitle || defaultAppearance.heroSubtitle,
+    heroTitleFont: (selectedCategory || homeWall).heroTitleFont || defaultAppearance.heroTitleFont,
+    heroTitleColor: (selectedCategory || homeWall).heroTitleColor || defaultAppearance.heroTitleColor,
+    heroTitleSize: (selectedCategory || homeWall).heroTitleSize || defaultAppearance.heroTitleSize,
+    heroSubtitleFont: (selectedCategory || homeWall).heroSubtitleFont || defaultAppearance.heroSubtitleFont,
+    heroSubtitleColor: (selectedCategory || homeWall).heroSubtitleColor || defaultAppearance.heroSubtitleColor,
+    heroSubtitleSize: (selectedCategory || homeWall).heroSubtitleSize || defaultAppearance.heroSubtitleSize,
+    heroGradientFrom: (selectedCategory || homeWall).heroGradientFrom || defaultAppearance.heroGradientFrom,
+    heroGradientVia: (selectedCategory || homeWall).heroGradientVia || defaultAppearance.heroGradientVia,
+    heroGradientTo: (selectedCategory || homeWall).heroGradientTo || defaultAppearance.heroGradientTo,
+    heroAlignment: (selectedCategory || homeWall).heroAlignment || defaultAppearance.heroAlignment,
+    categoryFont: (selectedCategory || homeWall).categoryFont || defaultAppearance.categoryFont,
+    categoryColor: (selectedCategory || homeWall).categoryColor || defaultAppearance.categoryColor,
+    categoryBgColor: (selectedCategory || homeWall).categoryBgColor || defaultAppearance.categoryBgColor
   } : defaultAppearance
 
-  // Hero title - use category name if selected, otherwise default
-  const heroTitle = selectedCategory ? selectedCategory.name : 'Panoda Şehir'
+  // Hero title - use category name if selected, otherwise if homeWall exists use its name, otherwise default
+  const heroTitle = selectedCategory ? selectedCategory.name : (homeWall ? homeWall.name : 'Panoda Şehir')
 
   // Map size string to actual CSS size
   const titleSizeMap: Record<string, string> = {
