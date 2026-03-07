@@ -2837,7 +2837,7 @@ export default function AdminPage() {
                             <Button variant="ghost" size="sm" onClick={() => openEditWall(wall)} title="Düzenle" className="h-7 w-7 p-0">
                               <Pencil className="w-3.5 h-3.5" />
                             </Button>
-                            {wall.name !== 'Ana Sayfa Duvarı' && (
+                            {wall.name !== 'Ana Duvar' && (
                               <Button
                                 variant="ghost"
                                 size="sm"
