@@ -2022,6 +2022,7 @@ export default function AdminPage() {
             <div className="bg-white p-6 rounded-lg shadow border">
               <Label className="text-lg font-semibold block mb-4">İçerik Editörü</Label>
               <RichEditor
+                key={activeSection}
                 placeholder="Sayfa içeriğini buraya zengin metin olarak girebilirsiniz..."
                 value={(siteSettings as any)[
                   activeSection === 'about' ? 'aboutContent' :
@@ -2041,7 +2042,7 @@ export default function AdminPage() {
                             activeSection === 'cookies' ? 'cookiesContent' :
                               activeSection === 'help' ? 'helpContent' :
                                 activeSection === 'kvkk' ? 'kvkkContent' : 'aboutContent';
-                  setSiteSettings({ ...siteSettings, [field]: value });
+                  setSiteSettings(prev => ({ ...prev, [field]: value }));
                 }}
               />
               <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
