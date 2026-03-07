@@ -73,6 +73,20 @@ export function Navbar() {
     await signOut({ callbackUrl: '/' })
   }
 
+  const currentCategoryId = searchParams?.get('category')
+  const currentCategory: any = currentCategoryId ? categories.find((c: any) => c.id === currentCategoryId) : null
+
+  const effectiveSettings = siteSettings ? {
+    ...siteSettings,
+    ...(currentCategory ? {
+      navMenuBgColor: currentCategory.navMenuBgColor || siteSettings.navMenuBgColor,
+      navMenuFont: currentCategory.navMenuFont || siteSettings.navMenuFont,
+      navMenuTextColor: currentCategory.navMenuTextColor || siteSettings.navMenuTextColor,
+      navMenuFontSize: currentCategory.navMenuFontSize || siteSettings.navMenuFontSize,
+      navMenuMainBold: currentCategory.navMenuMainBold !== null ? currentCategory.navMenuMainBold : siteSettings.navMenuMainBold,
+    } : {})
+  } : null
+
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -93,13 +107,13 @@ export function Navbar() {
               <PopoverContent
                 align="start"
                 className="w-72 max-h-[80vh] overflow-y-auto p-4 z-[100] shadow-xl border"
-                style={{ backgroundColor: siteSettings?.navMenuBgColor || '#ffffff' }}
+                style={{ backgroundColor: effectiveSettings?.navMenuBgColor || '#ffffff' }}
               >
                 {categories.length > 0 ? (
                   <CategoryFilter
                     categories={categories.filter((c: any) => !c.parentId)}
                     onSelect={() => setIsMenuOpen(false)}
-                    settings={siteSettings}
+                    settings={effectiveSettings}
                   />
                 ) : (
                   <div className="flex justify-center p-4">Yükleniyor...</div>

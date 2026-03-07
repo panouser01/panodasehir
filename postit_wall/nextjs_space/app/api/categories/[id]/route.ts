@@ -150,6 +150,36 @@ export async function PATCH(
     if (categoryColor !== undefined) updateData.categoryColor = categoryColor
     if (categoryBgColor !== undefined) updateData.categoryBgColor = categoryBgColor
 
+    // Board appearance fields
+    const {
+      backgroundColor, backgroundImage, borderColor, borderTopColor, borderBottomColor,
+      isGradient, gradientFrom, gradientVia, gradientTo, isWallTransparent, noBorder
+    } = body
+    if (backgroundColor !== undefined) updateData.backgroundColor = backgroundColor
+    if (backgroundImage !== undefined) updateData.backgroundImage = backgroundImage
+    if (borderColor !== undefined) updateData.borderColor = borderColor
+    if (borderTopColor !== undefined) updateData.borderTopColor = borderTopColor
+    if (borderBottomColor !== undefined) updateData.borderBottomColor = borderBottomColor
+    if (isGradient !== undefined) updateData.isGradient = isGradient
+    if (gradientFrom !== undefined) updateData.gradientFrom = gradientFrom
+    if (gradientVia !== undefined) updateData.gradientVia = gradientVia
+    if (gradientTo !== undefined) updateData.gradientTo = gradientTo
+    if (isWallTransparent !== undefined) updateData.isWallTransparent = isWallTransparent
+    if (noBorder !== undefined) updateData.noBorder = noBorder
+
+    // New fields for full parity with SiteSettings
+    if (body.navMenuBgColor !== undefined) updateData.navMenuBgColor = body.navMenuBgColor
+    if (body.navMenuFont !== undefined) updateData.navMenuFont = body.navMenuFont
+    if (body.navMenuTextColor !== undefined) updateData.navMenuTextColor = body.navMenuTextColor
+    if (body.navMenuFontSize !== undefined) updateData.navMenuFontSize = body.navMenuFontSize
+    if (body.navMenuMainBold !== undefined) updateData.navMenuMainBold = body.navMenuMainBold
+    if (body.siteBackgroundColor !== undefined) updateData.siteBackgroundColor = body.siteBackgroundColor
+    if (body.siteBackgroundImage !== undefined) updateData.siteBackgroundImage = body.siteBackgroundImage
+    if (body.siteGradientFrom !== undefined) updateData.siteGradientFrom = body.siteGradientFrom
+    if (body.siteGradientVia !== undefined) updateData.siteGradientVia = body.siteGradientVia
+    if (body.siteGradientTo !== undefined) updateData.siteGradientTo = body.siteGradientTo
+    if (body.siteIsGradient !== undefined) updateData.siteIsGradient = body.siteIsGradient
+
     const category = await prisma.category.update({
       where: { id: params.id },
       data: updateData

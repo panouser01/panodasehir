@@ -107,11 +107,33 @@ model Category {
   categoryFont        String?             @default("sans-serif")
   categoryColor       String?             @default("#1f2937")
   categoryBgColor     String?             @default("#ffffff")
+  backgroundColor     String?
+  backgroundImage     String?
+  borderColor         String?
+  borderTopColor      String?
+  borderBottomColor   String?
+  isGradient          Boolean?            @default(false)
+  gradientFrom        String?             @default("#facc15")
+  gradientVia         String?             @default("#f472b6")
+  gradientTo          String?             @default("#a855f7")
+  isWallTransparent   Boolean?            @default(false)
+  noBorder            Boolean?            @default(false)
   postCount           Int                 @default(0)
   userGroupId         String?
   cityId              String?
   districtId          String?
   heroAlignment       String?             @default("left")
+  navMenuBgColor      String?
+  navMenuFont         String?
+  navMenuTextColor    String?
+  navMenuFontSize     Int?
+  navMenuMainBold     Boolean?
+  siteBackgroundColor String?
+  siteBackgroundImage String?
+  siteGradientFrom    String?
+  siteGradientVia     String?
+  siteGradientTo      String?
+  siteIsGradient      Boolean?
   ads                 Ad[]
   city                City?               @relation(fields: [cityId], references: [id])
   district            District?           @relation(fields: [districtId], references: [id])

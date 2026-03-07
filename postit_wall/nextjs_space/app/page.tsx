@@ -113,26 +113,49 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   // (already defined as categoryId matching logic below)
 
   // If we are on home page (no category), try to find "Ana Duvar" to use its appearance
-  const homeWall = !selectedCategory ? categories.find(c => c.name === 'Ana Duvar') : null
+  const homeWall = categories.find(c => c.name === 'Ana Duvar') || null
+
+  const isSet = (val: any) => val !== null && val !== undefined && val !== ''
+
+  const getProp = (prop: string, fallback: any) => {
+    if (selectedCategory && isSet(selectedCategory[prop])) return selectedCategory[prop]
+    if (homeWall && isSet(homeWall[prop])) return homeWall[prop]
+    return fallback
+  }
 
   // Use selected category appearance or homeWall appearance or default
-  const appearance = (selectedCategory || homeWall) ? {
-    heroBackgroundImage: (selectedCategory || homeWall).heroBackgroundImage || defaultAppearance.heroBackgroundImage,
-    heroSubtitle: (selectedCategory || homeWall).heroSubtitle || defaultAppearance.heroSubtitle,
-    heroTitleFont: (selectedCategory || homeWall).heroTitleFont || defaultAppearance.heroTitleFont,
-    heroTitleColor: (selectedCategory || homeWall).heroTitleColor || defaultAppearance.heroTitleColor,
-    heroTitleSize: (selectedCategory || homeWall).heroTitleSize || defaultAppearance.heroTitleSize,
-    heroSubtitleFont: (selectedCategory || homeWall).heroSubtitleFont || defaultAppearance.heroSubtitleFont,
-    heroSubtitleColor: (selectedCategory || homeWall).heroSubtitleColor || defaultAppearance.heroSubtitleColor,
-    heroSubtitleSize: (selectedCategory || homeWall).heroSubtitleSize || defaultAppearance.heroSubtitleSize,
-    heroGradientFrom: (selectedCategory || homeWall).heroGradientFrom || defaultAppearance.heroGradientFrom,
-    heroGradientVia: (selectedCategory || homeWall).heroGradientVia || defaultAppearance.heroGradientVia,
-    heroGradientTo: (selectedCategory || homeWall).heroGradientTo || defaultAppearance.heroGradientTo,
-    heroAlignment: (selectedCategory || homeWall).heroAlignment || defaultAppearance.heroAlignment,
-    categoryFont: (selectedCategory || homeWall).categoryFont || defaultAppearance.categoryFont,
-    categoryColor: (selectedCategory || homeWall).categoryColor || defaultAppearance.categoryColor,
-    categoryBgColor: (selectedCategory || homeWall).categoryBgColor || defaultAppearance.categoryBgColor
-  } : defaultAppearance
+  const appearance = {
+    heroBackgroundImage: getProp('heroBackgroundImage', siteSettings?.heroBackgroundImage || null),
+    heroSubtitle: getProp('heroSubtitle', siteSettings?.heroSubtitle || 'Fikirlerinizi paylaşın, topluluktaki diğerlerinin görüşlerini keşfedin'),
+    heroTitleFont: getProp('heroTitleFont', siteSettings?.heroTitleFont || 'sans-serif'),
+    heroTitleColor: getProp('heroTitleColor', siteSettings?.heroTitleColor || '#ffffff'),
+    heroTitleSize: getProp('heroTitleSize', siteSettings?.heroTitleSize || '5xl'),
+    heroSubtitleFont: getProp('heroSubtitleFont', siteSettings?.heroSubtitleFont || 'sans-serif'),
+    heroSubtitleColor: getProp('heroSubtitleColor', siteSettings?.heroSubtitleColor || '#ffffff'),
+    heroSubtitleSize: getProp('heroSubtitleSize', siteSettings?.heroSubtitleSize || 'xl'),
+    heroGradientFrom: getProp('heroGradientFrom', siteSettings?.heroGradientFrom || '#facc15'),
+    heroGradientVia: getProp('heroGradientVia', siteSettings?.heroGradientVia || '#f472b6'),
+    heroGradientTo: getProp('heroGradientTo', siteSettings?.heroGradientTo || '#a855f7'),
+    heroAlignment: getProp('heroAlignment', siteSettings?.heroAlignment || 'left'),
+    categoryFont: getProp('categoryFont', 'sans-serif'),
+    categoryColor: getProp('categoryColor', '#1f2937'),
+    categoryBgColor: getProp('categoryBgColor', '#ffffff')
+  }
+
+  // Pano (Board) Appearance settings with inheritance (Ana Duvar aka SiteSettings is fallback)
+  const boardAppearance = {
+    isWallTransparent: getProp('isWallTransparent', siteSettings?.isWallTransparent),
+    isGradient: getProp('isGradient', siteSettings?.isGradient),
+    backgroundColor: getProp('backgroundColor', siteSettings?.backgroundColor),
+    backgroundImage: getProp('backgroundImage', siteSettings?.backgroundImage),
+    gradientFrom: getProp('gradientFrom', siteSettings?.gradientFrom),
+    gradientVia: getProp('gradientVia', siteSettings?.gradientVia),
+    gradientTo: getProp('gradientTo', siteSettings?.gradientTo),
+    noBorder: getProp('noBorder', siteSettings?.noBorder),
+    borderColor: getProp('borderColor', siteSettings?.borderColor),
+    borderTopColor: getProp('borderTopColor', siteSettings?.borderTopColor),
+    borderBottomColor: getProp('borderBottomColor', siteSettings?.borderBottomColor),
+  }
 
   // Hero title - use category name if selected, otherwise if homeWall exists use its name, otherwise default
   const heroTitle = selectedCategory ? selectedCategory.name : (homeWall ? homeWall.name : 'Panoda Şehir')
@@ -186,12 +209,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   })
 
   // Fetch slider for this category (or home page if category is null)
-  const activeSlider = await prisma.slider.findFirst({
+  let activeSlider = await prisma.slider.findFirst({
     where: {
       categoryId: categoryId || null,
       isActive: true,
     }
   })
+
+  // If slider is missing on selectedCategory or front page, fallback to homeWall (Ana Duvar) slider 
+  if (!activeSlider && homeWall) {
+    activeSlider = await prisma.slider.findFirst({
+      where: {
+        categoryId: homeWall.id,
+        isActive: true,
+      }
+    })
+  }
   const sliderImages = (activeSlider?.images as string[]) || []
   const sliderLinks = (activeSlider?.links as string[]) || []
 
@@ -270,15 +303,25 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     ? `url('${appearance.heroBackgroundImage}') center/cover`
     : `linear-gradient(to right, ${appearance.heroGradientFrom}, ${appearance.heroGradientVia}, ${appearance.heroGradientTo})`
 
+  // Site Ground (Zemin) Appearance with inheritance
+  const siteAppearance = {
+    backgroundColor: getProp('siteBackgroundColor', siteSettings?.siteBackgroundColor),
+    backgroundImage: getProp('siteBackgroundImage', siteSettings?.siteBackgroundImage),
+    isGradient: getProp('siteIsGradient', siteSettings?.siteIsGradient),
+    gradientFrom: getProp('siteGradientFrom', siteSettings?.siteGradientFrom),
+    gradientVia: getProp('siteGradientVia', siteSettings?.siteGradientVia),
+    gradientTo: getProp('siteGradientTo', siteSettings?.siteGradientTo),
+  }
+
   return (
     <div
       className="min-h-screen"
       style={{
-        background: siteSettings.siteBackgroundImage
-          ? `url('${siteSettings.siteBackgroundImage}') center/cover fixed`
-          : (siteSettings.siteIsGradient
-            ? `linear-gradient(to bottom right, ${siteSettings.siteGradientFrom || '#fffbeb'}, ${siteSettings.siteGradientVia || '#fefce8'}, ${siteSettings.siteGradientTo || '#fff7ed'})`
-            : (siteSettings.siteBackgroundColor || '#fffbeb'))
+        background: siteAppearance.backgroundImage
+          ? `url('${siteAppearance.backgroundImage}') center/cover fixed`
+          : (siteAppearance.isGradient
+            ? `linear-gradient(to bottom right, ${siteAppearance.gradientFrom || '#fffbeb'}, ${siteAppearance.gradientVia || '#fefce8'}, ${siteAppearance.gradientTo || '#fff7ed'})`
+            : (siteAppearance.backgroundColor || '#fffbeb'))
       }}
     >
       {/* Top Fixed Calendar Section */}
@@ -350,20 +393,20 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <main
             className="flex-1 w-full rounded-sm relative p-4 md:p-8 shadow-2xl"
             style={{
-              background: siteSettings.isWallTransparent
+              background: boardAppearance.isWallTransparent
                 ? 'transparent'
-                : (siteSettings.isGradient
-                  ? `linear-gradient(to right, ${siteSettings.gradientFrom || '#facc15'}, ${siteSettings.gradientVia || '#f472b6'}, ${siteSettings.gradientTo || '#a855f7'})`
-                  : siteSettings.backgroundColor),
-              backgroundImage: siteSettings.isWallTransparent
+                : (boardAppearance.isGradient
+                  ? `linear-gradient(to right, ${boardAppearance.gradientFrom || '#facc15'}, ${boardAppearance.gradientVia || '#f472b6'}, ${boardAppearance.gradientTo || '#a855f7'})`
+                  : boardAppearance.backgroundColor),
+              backgroundImage: boardAppearance.isWallTransparent
                 ? 'none'
-                : (siteSettings.isGradient ? undefined : `url("${siteSettings.backgroundImage}")`),
-              border: siteSettings.noBorder ? '0px' : `18px solid ${siteSettings.borderColor}`,
-              borderBottomColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
-              borderRightColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
-              borderTopColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
-              borderLeftColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
-              boxShadow: siteSettings.isWallTransparent
+                : (boardAppearance.isGradient ? undefined : (boardAppearance.backgroundImage ? `url("${boardAppearance.backgroundImage}")` : undefined)),
+              border: boardAppearance.noBorder ? '0px' : `18px solid ${boardAppearance.borderColor}`,
+              borderBottomColor: boardAppearance.noBorder ? 'transparent' : boardAppearance.borderBottomColor,
+              borderRightColor: boardAppearance.noBorder ? 'transparent' : boardAppearance.borderBottomColor,
+              borderTopColor: boardAppearance.noBorder ? 'transparent' : boardAppearance.borderTopColor,
+              borderLeftColor: boardAppearance.noBorder ? 'transparent' : boardAppearance.borderTopColor,
+              boxShadow: boardAppearance.isWallTransparent
                 ? 'none'
                 : 'inset 0 0 30px rgba(0,0,0,0.6), 0 15px 25px rgba(0,0,0,0.15)',
               minHeight: '75vh'

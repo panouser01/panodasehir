@@ -1,27 +1,15 @@
-const mysql = require('mysql2/promise');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-async function testConnection(user, password, database) {
-    console.log(`Testing connection for user: ${user}`);
-    try {
-        const connection = await mysql.createConnection({
-            host: 'localhost',
-            user: user,
-            password: password,
-            database: database
-        });
-        console.log(`Successfully connected as ${user}!`);
-        await connection.end();
-        return true;
-    } catch (error) {
-        console.error(`Failed to connect as ${user}:`, error.message);
-        return false;
-    }
+async function main() {
+    const anaDuvar = await prisma.category.findFirst({
+        where: { name: 'Ana Duvar' }
+    });
+    console.log('Ana Duvar isWallTransparent (Category DB):', anaDuvar?.isWallTransparent);
+
+    const siteSettings = await prisma.siteSettings.findUnique({
+        where: { id: 'global' }
+    });
+    console.log('siteSettings isWallTransparent (SiteSettings DB):', siteSettings?.isWallTransparent);
 }
-
-(async () => {
-    // Config 1: From .env
-    await testConnection('panodasehir01', 'D.220575dlk.', 'panodasehir');
-
-    // Config 2: From history
-    await testConnection('kaclira', 'KacliraKaclira1234**', 'panodasehir');
-})();
+main().finally(() => prisma.$disconnect());

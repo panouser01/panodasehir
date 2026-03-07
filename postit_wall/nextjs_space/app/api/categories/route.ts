@@ -217,7 +217,31 @@ export async function POST(request: NextRequest) {
         heroGradientTo: heroGradientTo || '#a855f7',
         categoryFont: categoryFont || 'sans-serif',
         categoryColor: categoryColor || '#1f2937',
-        categoryBgColor: categoryBgColor || '#ffffff'
+        categoryBgColor: categoryBgColor || '#ffffff',
+        // Board appearance fields
+        backgroundColor: body.backgroundColor || null,
+        backgroundImage: body.backgroundImage || null,
+        borderColor: body.borderColor || null,
+        borderTopColor: body.borderTopColor || null,
+        borderBottomColor: body.borderBottomColor || null,
+        isGradient: body.isGradient !== undefined ? body.isGradient : null,
+        gradientFrom: body.gradientFrom || '#facc15',
+        gradientVia: body.gradientVia || '#f472b6',
+        gradientTo: body.gradientTo || '#a855f7',
+        isWallTransparent: body.isWallTransparent !== undefined ? body.isWallTransparent : null,
+        noBorder: body.noBorder !== undefined ? body.noBorder : null,
+        // Full parity with SiteSettings
+        navMenuBgColor: body.navMenuBgColor || null,
+        navMenuFont: body.navMenuFont || null,
+        navMenuTextColor: body.navMenuTextColor || null,
+        navMenuFontSize: body.navMenuFontSize || null,
+        navMenuMainBold: body.navMenuMainBold !== undefined ? body.navMenuMainBold : null,
+        siteBackgroundColor: body.siteBackgroundColor || null,
+        siteBackgroundImage: body.siteBackgroundImage || null,
+        siteGradientFrom: body.siteGradientFrom || null,
+        siteGradientVia: body.siteGradientVia || null,
+        siteGradientTo: body.siteGradientTo || null,
+        siteIsGradient: body.siteIsGradient !== undefined ? body.siteIsGradient : null,
       }
     })
 

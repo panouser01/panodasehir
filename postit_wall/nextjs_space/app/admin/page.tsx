@@ -31,6 +31,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
 import { RichEditor } from '@/components/ui/rich-editor'
 import {
   Loader2,
@@ -128,6 +134,30 @@ export default function AdminPage() {
     heroGradientFrom: '#facc15',
     heroGradientVia: '#f472b6',
     heroGradientTo: '#a855f7',
+    backgroundColor: '',
+    backgroundImage: '',
+    borderColor: '',
+    borderTopColor: '',
+    borderBottomColor: '',
+    isGradient: false,
+    gradientFrom: '#facc15',
+    gradientVia: '#f472b6',
+    gradientTo: '#a855f7',
+    isWallTransparent: false,
+    noBorder: false,
+    heroAlignment: 'left',
+    heroBackgroundImage: '',
+    navMenuBgColor: '',
+    navMenuFont: 'sans-serif',
+    navMenuTextColor: '',
+    navMenuFontSize: 14,
+    navMenuMainBold: true,
+    siteBackgroundColor: '',
+    siteBackgroundImage: '',
+    siteGradientFrom: '',
+    siteGradientVia: '',
+    siteGradientTo: '',
+    siteIsGradient: false,
     calendarEntries: [] as any[]
   })
   const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
@@ -141,7 +171,7 @@ export default function AdminPage() {
   const [postitStatusFilter, setPostitStatusFilter] = useState<'all' | 'published' | 'unpublished' | 'pending'>('pending')
   const [userSearch, setUserSearch] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
-  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['appearance']))
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set())
 
   // Wall search and hierarchy states
   const [wallSearch, setWallSearch] = useState('')
@@ -409,6 +439,30 @@ export default function AdminPage() {
         heroGradientFrom: wallForm.heroGradientFrom,
         heroGradientVia: wallForm.heroGradientVia,
         heroGradientTo: wallForm.heroGradientTo,
+        backgroundColor: wallForm.backgroundColor,
+        backgroundImage: wallForm.backgroundImage,
+        borderColor: wallForm.borderColor,
+        borderTopColor: wallForm.borderTopColor,
+        borderBottomColor: wallForm.borderBottomColor,
+        isGradient: wallForm.isGradient,
+        gradientFrom: wallForm.gradientFrom,
+        gradientVia: wallForm.gradientVia,
+        gradientTo: wallForm.gradientTo,
+        isWallTransparent: wallForm.isWallTransparent,
+        noBorder: wallForm.noBorder,
+        heroAlignment: wallForm.heroAlignment,
+        heroBackgroundImage: wallForm.heroBackgroundImage,
+        navMenuBgColor: wallForm.navMenuBgColor,
+        navMenuFont: wallForm.navMenuFont,
+        navMenuTextColor: wallForm.navMenuTextColor,
+        navMenuFontSize: wallForm.navMenuFontSize,
+        navMenuMainBold: wallForm.navMenuMainBold,
+        siteBackgroundColor: wallForm.siteBackgroundColor,
+        siteBackgroundImage: wallForm.siteBackgroundImage,
+        siteGradientFrom: wallForm.siteGradientFrom,
+        siteGradientVia: wallForm.siteGradientVia,
+        siteGradientTo: wallForm.siteGradientTo,
+        siteIsGradient: wallForm.siteIsGradient,
         calendarEntries: wallForm.calendarEntries || []
       }
 
@@ -433,7 +487,39 @@ export default function AdminPage() {
       }
 
       const data = await response.json()
-      setEditingItem(data.category) // Keep modal editing the saved/newly created item
+      const savedWall = data.category
+      setEditingItem(savedWall) // Keep modal editing the saved/newly created item
+
+      // Slayder ayarlarını kaydet (Ana Duvar harici duvarlar için tab kullanıldıysa)
+      if (wallForm.name !== 'Ana Duvar') {
+        try {
+          const cleanedImages = sliderForm.images.filter(img => img && img.trim() !== '')
+          const cleanedLinks = sliderForm.links ? sliderForm.links.slice(0, cleanedImages.length) : []
+
+          const sliderPayload = {
+            ...sliderForm,
+            categoryId: savedWall.id,
+            images: cleanedImages,
+            links: cleanedLinks
+          }
+
+          const existingSlider = sliders.find(s => s.categoryId === savedWall.id)
+          const sliderRes = await fetch(
+            existingSlider ? `/api/sliders/${existingSlider.id}` : '/api/sliders',
+            {
+              method: existingSlider ? 'PATCH' : 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(sliderPayload)
+            }
+          )
+
+          if (!sliderRes.ok) {
+            console.error('Slider settings could not be saved.')
+          }
+        } catch (err) {
+          console.error('Error saving wall slider:', err)
+        }
+      }
 
       // Ana Duvar ise genel site ayarlarını da kaydet
       if (wallForm.name === 'Ana Duvar') {
@@ -807,8 +893,63 @@ export default function AdminPage() {
       heroGradientFrom: wall.heroGradientFrom || '#facc15',
       heroGradientVia: wall.heroGradientVia || '#f472b6',
       heroGradientTo: wall.heroGradientTo || '#a855f7',
+      backgroundColor: wall.backgroundColor || '',
+      backgroundImage: wall.backgroundImage || '',
+      borderColor: wall.borderColor || '',
+      borderTopColor: wall.borderTopColor || '',
+      borderBottomColor: wall.borderBottomColor || '',
+      isGradient: !!wall.isGradient,
+      gradientFrom: wall.gradientFrom || '#facc15',
+      gradientVia: wall.gradientVia || '#f472b6',
+      gradientTo: wall.gradientTo || '#a855f7',
+      isWallTransparent: !!wall.isWallTransparent,
+      noBorder: !!wall.noBorder,
+      heroAlignment: wall.heroAlignment || 'left',
+      heroBackgroundImage: wall.heroBackgroundImage || '',
+      navMenuBgColor: wall.navMenuBgColor || '',
+      navMenuFont: wall.navMenuFont || 'sans-serif',
+      navMenuTextColor: wall.navMenuTextColor || '',
+      navMenuFontSize: wall.navMenuFontSize || 14,
+      navMenuMainBold: wall.navMenuMainBold !== null ? wall.navMenuMainBold : true,
+      siteBackgroundColor: wall.siteBackgroundColor || '',
+      siteBackgroundImage: wall.siteBackgroundImage || '',
+      siteGradientFrom: wall.siteGradientFrom || '',
+      siteGradientVia: wall.siteGradientVia || '',
+      siteGradientTo: wall.siteGradientTo || '',
+      siteIsGradient: !!wall.siteIsGradient,
       calendarEntries: wall.calendarEntries || []
     })
+
+    // Slayder ayarlarını yükle
+    const wallSlider = sliders.find(s => s.categoryId === wall.id)
+    if (wallSlider) {
+      setSliderForm({
+        categoryId: wall.id,
+        images: wallSlider.images || ['', '', '', '', ''],
+        links: wallSlider.links || ['', '', '', '', ''],
+        backgroundColor: wallSlider.backgroundColor || '#f8f9fa',
+        backgroundImage: wallSlider.backgroundImage || '',
+        isGradient: wallSlider.isGradient || false,
+        heroGradientFrom: wallSlider.heroGradientFrom || '#facc15',
+        heroGradientVia: wallSlider.heroGradientVia || '#f472b6',
+        heroGradientTo: wallSlider.heroGradientTo || '#a855f7',
+        isActive: wallSlider.isActive !== undefined ? wallSlider.isActive : true
+      })
+    } else {
+      setSliderForm({
+        categoryId: wall.id,
+        images: ['', '', '', '', ''],
+        links: ['', '', '', '', ''],
+        backgroundColor: '#f8f9fa',
+        backgroundImage: '',
+        isGradient: false,
+        heroGradientFrom: '#facc15',
+        heroGradientVia: '#f472b6',
+        heroGradientTo: '#a855f7',
+        isActive: true
+      })
+    }
+
     setShowWallModal(true)
   }
 
@@ -833,7 +974,43 @@ export default function AdminPage() {
       heroGradientFrom: '#facc15',
       heroGradientVia: '#f472b6',
       heroGradientTo: '#a855f7',
+      backgroundColor: '',
+      backgroundImage: '',
+      borderColor: '',
+      borderTopColor: '',
+      borderBottomColor: '',
+      isGradient: false,
+      gradientFrom: '#facc15',
+      gradientVia: '#f472b6',
+      gradientTo: '#a855f7',
+      isWallTransparent: false,
+      noBorder: false,
+      heroAlignment: 'left',
+      heroBackgroundImage: '',
+      navMenuBgColor: '',
+      navMenuFont: 'sans-serif',
+      navMenuTextColor: '',
+      navMenuFontSize: 14,
+      navMenuMainBold: true,
+      siteBackgroundColor: '',
+      siteBackgroundImage: '',
+      siteGradientFrom: '',
+      siteGradientVia: '',
+      siteGradientTo: '',
+      siteIsGradient: false,
       calendarEntries: []
+    })
+    setSliderForm({
+      categoryId: '',
+      images: ['', '', '', '', ''],
+      links: ['', '', '', '', ''],
+      backgroundColor: '#f8f9fa',
+      backgroundImage: '',
+      isGradient: false,
+      heroGradientFrom: '#facc15',
+      heroGradientVia: '#f472b6',
+      heroGradientTo: '#a855f7',
+      isActive: true
     })
     setSelectedPostsToMove([])
     // If parent has posts, show option to move them
@@ -898,7 +1075,43 @@ export default function AdminPage() {
       heroGradientFrom: '#facc15',
       heroGradientVia: '#f472b6',
       heroGradientTo: '#a855f7',
+      backgroundColor: '',
+      backgroundImage: '',
+      borderColor: '',
+      borderTopColor: '',
+      borderBottomColor: '',
+      isGradient: false,
+      gradientFrom: '#facc15',
+      gradientVia: '#f472b6',
+      gradientTo: '#a855f7',
+      isWallTransparent: false,
+      noBorder: false,
+      heroAlignment: 'left',
+      heroBackgroundImage: '',
+      navMenuBgColor: '',
+      navMenuFont: 'sans-serif',
+      navMenuTextColor: '',
+      navMenuFontSize: 14,
+      navMenuMainBold: true,
+      siteBackgroundColor: '',
+      siteBackgroundImage: '',
+      siteGradientFrom: '',
+      siteGradientVia: '',
+      siteGradientTo: '',
+      siteIsGradient: false,
       calendarEntries: []
+    })
+    setSliderForm({
+      categoryId: '',
+      images: ['', '', '', '', ''],
+      links: ['', '', '', '', ''],
+      backgroundColor: '#f8f9fa',
+      backgroundImage: '',
+      isGradient: false,
+      heroGradientFrom: '#facc15',
+      heroGradientVia: '#f472b6',
+      heroGradientTo: '#a855f7',
+      isActive: true
     })
     setSelectedPostsToMove([])
     setShowWallModal(true)
@@ -1359,7 +1572,7 @@ export default function AdminPage() {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     {
       id: 'appearance',
-      label: 'Site Görünümü',
+      label: 'Site Yönetim Metinleri',
       icon: Palette,
       children: [
         { id: 'about', label: 'Hakkımızda', icon: Info },
@@ -1377,7 +1590,6 @@ export default function AdminPage() {
     { id: 'calendar', label: 'Takvim Ayarları', icon: Calendar },
     { id: 'walls', label: 'Duvarlar', icon: LayoutGrid },
     { id: 'locations', label: 'İl İlçe Tanımlama', icon: MapPin },
-    { id: 'sliders', label: 'Slayder Ayarları', icon: ImageIcon },
     { id: 'users', label: 'Kullanıcılar', icon: Users },
     { id: 'roles', label: 'Yetki Türü Tanımla', icon: Shield },
     { id: 'groups', label: 'Kullanıcı Grupları', icon: UserGroupIcon },
@@ -1418,15 +1630,856 @@ export default function AdminPage() {
   ]
 
 
+  const renderSliderSettings = () => {
+    // Filter sliders for "Ana Sayfa (Varsayılan)"
+    const homeSliders = sliders.filter(s => !s.categoryId)
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <ImageIcon className="w-6 h-6 text-blue-500" /> Ana Sayfa Slayder Yönetimi
+            </h3>
+            <p className="text-sm text-gray-500">Ana sayfanın en üstünde dönecek olan görsel slayderları buradan yönetebilirsiniz.</p>
+          </div>
+          <Button
+            type="button"
+            onClick={openAddSlider}
+            className="gap-2 bg-blue-600 hover:bg-blue-700 shadow-md transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" /> Yeni Slayder Ekle
+          </Button>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <Table>
+            <TableHeader className="bg-gray-50/50">
+              <TableRow>
+                <TableHead className="font-bold text-gray-700 py-4 pl-6">Sıra / Resimler</TableHead>
+                <TableHead className="font-bold text-gray-700">Durum</TableHead>
+                <TableHead className="font-bold text-gray-700 text-right pr-6">İşlemler</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {homeSliders.length > 0 ? (
+                homeSliders.map((slider, index) => (
+                  <TableRow key={slider.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <TableCell className="py-4 pl-6">
+                      <div className="flex items-center gap-4">
+                        <span className="flex items-center justify-center min-w-[24px] h-6 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold">
+                          {index + 1}
+                        </span>
+                        <div className="flex -space-x-4 overflow-hidden py-1">
+                          {slider.images?.filter((img: string) => img).slice(0, 4).map((img: string, i: number) => (
+                            <div key={i} className="relative h-12 w-20 rounded-lg border-2 border-white shadow-sm overflow-hidden transform group-hover:translate-x-1 transition-transform" style={{ transitionDelay: `${i * 50}ms` }}>
+                              <img
+                                src={img}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            </div>
+                          ))}
+                          {(slider.images?.filter((img: string) => img).length || 0) > 4 && (
+                            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-gray-100 border-2 border-white text-[10px] font-bold text-gray-500 z-10 shadow-sm">
+                              +{(slider.images?.filter((img: string) => img).length || 0) - 4}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-gray-700">
+                            {slider.images?.filter((img: string) => img).length || 0} Görsel
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {slider.isGradient ? 'Gradyan Hero kullanılıyor' : 'Görsel Arka Plan'}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2.5 h-2.5 rounded-full ${slider.isActive ? 'bg-green-500 animate-pulse' : 'bg-red-400'}`}></div>
+                        <span className={`text-xs font-bold ${slider.isActive ? 'text-green-700' : 'text-red-700'}`}>
+                          {slider.isActive ? 'YAYINDA' : 'PASİF'}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right pr-6">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditSlider(slider)}
+                          className="h-9 w-9 p-0 hover:bg-blue-50 hover:text-blue-600 border-gray-200 shadow-sm"
+                          title="Düzenle"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteSlider(slider.id)}
+                          className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-600 border-gray-200 shadow-sm"
+                          title="Sil"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center py-16 text-gray-400">
+                    <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                    Henüz bir slayder eklenmemiş.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-3">
+          <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 leading-relaxed">
+            <strong>Bilgi:</strong> Ana sayfa slayderları, herhangi bir kategoriye bağlanmamış genel slayderlardır.
+            Birden fazla aktif slayder olması durumunda sistem bunları rastgele veya sıralı olarak gösterebilir.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const renderWallSliderTabContent = () => {
+    return (
+      <div className="space-y-6">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h4 className="font-semibold text-blue-800 flex items-center gap-2 mb-1">
+            <ImageIcon className="w-5 h-5" /> Duvar Slayder Yönetimi
+          </h4>
+          <p className="text-sm text-blue-700">Bu duvarın en üstünde yer alacak olan görsel slayder'ı buradan yönetebilirsiniz.</p>
+        </div>
+
+        <div className="grid gap-4 py-4">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="wallSliderIsActive"
+              checked={sliderForm.isActive}
+              onCheckedChange={(checked) => setSliderForm({ ...sliderForm, isActive: !!checked })}
+            />
+            <Label htmlFor="wallSliderIsActive" className="cursor-pointer font-medium">Slayder Aktif (Gösterilsin mi?)</Label>
+          </div>
+
+          <div className="space-y-4 border p-4 rounded-lg bg-gray-50">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="wallSliderIsGradient"
+                checked={sliderForm.isGradient}
+                onCheckedChange={(checked) => setSliderForm({ ...sliderForm, isGradient: !!checked })}
+              />
+              <Label htmlFor="wallSliderIsGradient" className="cursor-pointer font-semibold">Hero Gradyan Renk Kullan</Label>
+            </div>
+
+            <div className="space-y-2 mt-4">
+              <Label>Zemin Resmi (opsiyonel)</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  value={sliderForm.backgroundImage || ''}
+                  onChange={(e) => setSliderForm({ ...sliderForm, backgroundImage: e.target.value })}
+                  placeholder="https://... veya dosya yükleyin"
+                  className="flex-1"
+                />
+                <div className="relative">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSliderBgImageUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={uploadingSliderImage}
+                  />
+                  <Button type="button" variant="outline" disabled={uploadingSliderImage}>
+                    {uploadingSliderImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">Resim varsa, seçilen arkaplan rengi veya gradyan kullanılmaz.</p>
+            </div>
+
+            {!sliderForm.isGradient ? (
+              <div className="space-y-2">
+                <Label htmlFor="wallSliderBackgroundColor">Tek Arka Plan Rengi</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="wallSliderBackgroundColor"
+                    type="color"
+                    value={sliderForm.backgroundColor}
+                    onChange={(e) => setSliderForm({ ...sliderForm, backgroundColor: e.target.value })}
+                    className="w-12 h-10 p-1 cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={sliderForm.backgroundColor}
+                    onChange={(e) => setSliderForm({ ...sliderForm, backgroundColor: e.target.value })}
+                    className="flex-1 font-mono text-sm"
+                    placeholder="#f8f9fa"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Başlangıç Rengi</Label>
+                  <div className="flex gap-2">
+                    <Input type="color" className="w-10 h-10 p-1 cursor-pointer" value={sliderForm.heroGradientFrom} onChange={(e) => setSliderForm({ ...sliderForm, heroGradientFrom: e.target.value })} />
+                    <Input className="font-mono text-xs" value={sliderForm.heroGradientFrom} onChange={(e) => setSliderForm({ ...sliderForm, heroGradientFrom: e.target.value })} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Orta Renk</Label>
+                  <div className="flex gap-2">
+                    <Input type="color" className="w-10 h-10 p-1 cursor-pointer" value={sliderForm.heroGradientVia} onChange={(e) => setSliderForm({ ...sliderForm, heroGradientVia: e.target.value })} />
+                    <Input className="font-mono text-xs" value={sliderForm.heroGradientVia} onChange={(e) => setSliderForm({ ...sliderForm, heroGradientVia: e.target.value })} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Bitiş Rengi</Label>
+                  <div className="flex gap-2">
+                    <Input type="color" className="w-10 h-10 p-1 cursor-pointer" value={sliderForm.heroGradientTo} onChange={(e) => setSliderForm({ ...sliderForm, heroGradientTo: e.target.value })} />
+                    <Input className="font-mono text-xs" value={sliderForm.heroGradientTo} onChange={(e) => setSliderForm({ ...sliderForm, heroGradientTo: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 pt-4 border-t">
+            <Label className="text-base font-bold">Resimler ve Linkler (Maks. 5)</Label>
+            {[0, 1, 2, 3, 4].map((idx) => (
+              <div key={idx} className="space-y-2 p-3 border rounded-lg bg-white relative group">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                    {idx + 1}
+                  </span>
+                  <Label className="text-xs">Görsel {idx + 1}</Label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-gray-500 uppercase">Resim URL</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        value={sliderForm.images[idx] || ''}
+                        onChange={(e) => {
+                          const newImages = [...sliderForm.images]
+                          newImages[idx] = e.target.value
+                          setSliderForm({ ...sliderForm, images: newImages })
+                        }}
+                        placeholder="https://..."
+                        className="text-xs h-8"
+                      />
+                      <div className="relative">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleSliderImageUpload(e, idx)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          disabled={uploadingSliderImage}
+                        />
+                        <Button type="button" variant="outline" size="sm" className="h-8" disabled={uploadingSliderImage}>
+                          {uploadingSliderImage ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-gray-500 uppercase">Tıklama Linki (URL)</Label>
+                    <Input
+                      value={sliderForm.links ? (sliderForm.links[idx] || '') : ''}
+                      onChange={(e) => {
+                        const newLinks = [...(sliderForm.links || ['', '', '', '', ''])]
+                        newLinks[idx] = e.target.value
+                        setSliderForm({ ...sliderForm, links: newLinks })
+                      }}
+                      placeholder="https://..."
+                      className="text-xs h-8"
+                    />
+                  </div>
+                </div>
+                {sliderForm.images[idx] && (
+                  <div className="mt-2 h-20 w-32 border rounded overflow-hidden shadow-sm">
+                    <img src={sliderForm.images[idx]} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderWallGorseli = () => {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          {/* Sol Kolon: Pano ve Zemin Ayarları */}
+          <div className="space-y-6">
+            {/* Post-it Pano Görünümü Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
+                <LayoutGrid className="w-5 h-5 text-blue-500" /> Post-it Pano Görünümü (Mantar Pano) - Duvara Özel
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                  <Checkbox
+                    id="isWallTransparent"
+                    checked={wallForm.isWallTransparent}
+                    onCheckedChange={(checked) => setWallForm(s => ({ ...s, isWallTransparent: !!checked }))}
+                  />
+                  <Label htmlFor="isWallTransparent" className="cursor-pointer font-bold text-blue-600">Arka Plan Transparan Olsun</Label>
+                </div>
+
+                <div className={wallForm.isWallTransparent ? 'opacity-50 pointer-events-none transition-all' : 'transition-all'}>
+                  <div className="flex items-center space-x-2 pt-2 pb-2">
+                    <Checkbox
+                      id="siteIsGradient"
+                      checked={wallForm.isGradient}
+                      onCheckedChange={(checked) => setWallForm(s => ({ ...s, isGradient: !!checked }))}
+                    />
+                    <Label htmlFor="siteIsGradient" className="cursor-pointer font-semibold text-gray-700">Panoda Renk/Gradyan Kullan</Label>
+                  </div>
+
+                  {!wallForm.isGradient ? (
+                    <div className="space-y-2 pl-6">
+                      <Label className="text-sm font-medium">Arka Plan Rengi</Label>
+                      <div className="flex gap-2">
+                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer border-gray-200" value={wallForm.backgroundColor} onChange={e => setWallForm(s => ({ ...s, backgroundColor: e.target.value }))} />
+                        <Input value={wallForm.backgroundColor} onChange={e => setWallForm(s => ({ ...s, backgroundColor: e.target.value }))} className="font-mono text-sm" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pl-6">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-500">Başlangıç</Label>
+                        <div className="flex gap-1.5">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={wallForm.gradientFrom || '#facc15'} onChange={(e) => setWallForm({ ...wallForm, gradientFrom: e.target.value })} />
+                          <Input className="font-mono text-xs h-9" value={wallForm.gradientFrom || '#facc15'} onChange={(e) => setWallForm({ ...wallForm, gradientFrom: e.target.value })} />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-500">Orta</Label>
+                        <div className="flex gap-1.5">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={wallForm.gradientVia || '#f472b6'} onChange={(e) => setWallForm({ ...wallForm, gradientVia: e.target.value })} />
+                          <Input className="font-mono text-xs h-9" value={wallForm.gradientVia || '#f472b6'} onChange={(e) => setWallForm({ ...wallForm, gradientVia: e.target.value })} />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-500">Bitiş</Label>
+                        <div className="flex gap-1.5">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={wallForm.gradientTo || '#a855f7'} onChange={(e) => setWallForm({ ...wallForm, gradientTo: e.target.value })} />
+                          <Input className="font-mono text-xs h-9" value={wallForm.gradientTo || '#a855f7'} onChange={(e) => setWallForm({ ...wallForm, gradientTo: e.target.value })} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 mt-4 pt-4 border-t border-gray-100">
+                    <Label className="text-sm font-medium">Arka Plan Dokusu Resmi URL</Label>
+                    <div className="flex gap-2">
+                      <Input value={wallForm.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setWallForm(s => ({ ...s, backgroundImage: e.target.value }))} className="flex-1 h-10 text-sm" />
+                      <div className="flex-shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = async (e: any) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const formData = new FormData();
+                              formData.append('file', file);
+                              try {
+                                const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
+                                const data = await res.json();
+                                if (data.fileUrl) {
+                                  setWallForm(prev => ({ ...prev, backgroundImage: data.fileUrl }));
+                                  toast.success('Resim yüklendi');
+                                }
+                              } catch (err) {
+                                toast.error('Yükleme başarısız');
+                              }
+                            };
+                            input.click();
+                          }}
+                          className="h-10 px-3 border-gray-200 hover:bg-gray-50"
+                        >
+                          <Upload className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="noBorder"
+                        checked={wallForm.noBorder}
+                        onCheckedChange={(checked) => setWallForm(s => ({ ...s, noBorder: !!checked }))}
+                      />
+                      <label htmlFor="noBorder" className="text-sm font-semibold text-gray-700 cursor-pointer">
+                        Çerçeve Yok
+                      </label>
+                    </div>
+
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${wallForm.noBorder ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-500">Dış Çerçeve (Sağ) Rengi</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={wallForm.borderColor} onChange={e => setWallForm(s => ({ ...s, borderColor: e.target.value }))} />
+                          <Input value={wallForm.borderColor} onChange={e => setWallForm(s => ({ ...s, borderColor: e.target.value }))} className="h-9 text-[10px] font-mono" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-500">Üst ve Sol Çerçeve Rengi</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={wallForm.borderTopColor} onChange={e => setWallForm(s => ({ ...s, borderTopColor: e.target.value }))} />
+                          <Input value={wallForm.borderTopColor} onChange={e => setWallForm(s => ({ ...s, borderTopColor: e.target.value }))} className="h-9 text-[10px] font-mono" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-500">Alt Çerçeve Rengi</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={wallForm.borderBottomColor} onChange={e => setWallForm(s => ({ ...s, borderBottomColor: e.target.value }))} />
+                          <Input value={wallForm.borderBottomColor} onChange={e => setWallForm(s => ({ ...s, borderBottomColor: e.target.value }))} className="h-9 text-[10px] font-mono" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Site Genel Arka Planı Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
+                <Home className="w-5 h-5 text-emerald-500" /> Duvar Arka Planı (Zemin) - Duvara Özel
+              </h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Zemin Resmi (opsiyonel)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={wallForm.siteBackgroundImage || ''}
+                      onChange={(e) => setWallForm({ ...wallForm, siteBackgroundImage: e.target.value })}
+                      placeholder="URL veya dosya yükleyin"
+                      className="flex-1 h-10 text-sm"
+                    />
+                    <div className="flex-shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*';
+                          input.onchange = async (e: any) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                              const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
+                              const data = await res.json();
+                              if (data.fileUrl) {
+                                setWallForm(prev => ({ ...prev, siteBackgroundImage: data.fileUrl }));
+                                toast.success('Resim yüklendi');
+                              }
+                            } catch (err) {
+                              toast.error('Yükleme başarısız');
+                            }
+                          };
+                          input.click();
+                        }}
+                        className="h-10 px-3 border-gray-200 hover:bg-gray-50"
+                      >
+                        <Upload className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50/50 p-4 rounded-lg border border-emerald-100">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="siteGroundIsGradient"
+                      checked={wallForm.siteIsGradient}
+                      onCheckedChange={(checked) => setWallForm(s => ({ ...s, siteIsGradient: !!checked }))}
+                    />
+                    <Label htmlFor="siteGroundIsGradient" className="cursor-pointer font-bold text-emerald-700">Zeminde Renk/Gradyan Kullan</Label>
+                  </div>
+
+                  <div className="mt-4 transition-all">
+                    {!wallForm.siteIsGradient ? (
+                      <div className="space-y-2 pl-6">
+                        <Label className="text-xs font-semibold text-emerald-600">Arka Plan Rengi</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-12 h-10 p-1 cursor-pointer border-emerald-200" value={wallForm.siteBackgroundColor || '#fffbeb'} onChange={e => setWallForm(s => ({ ...s, siteBackgroundColor: e.target.value }))} />
+                          <Input value={wallForm.siteBackgroundColor || '#fffbeb'} onChange={e => setWallForm(s => ({ ...s, siteBackgroundColor: e.target.value }))} className="flex-1 h-10 font-mono text-sm" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pl-6">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-emerald-600">Başlangıç</Label>
+                          <div className="flex gap-1.5">
+                            <Input type="color" className="w-9 h-8 p-1 cursor-pointer border-emerald-200" value={wallForm.siteGradientFrom || '#fffbeb'} onChange={(e) => setWallForm({ ...wallForm, siteGradientFrom: e.target.value })} />
+                            <Input className="font-mono text-[9px] h-8" value={wallForm.siteGradientFrom || '#fffbeb'} onChange={(e) => setWallForm({ ...wallForm, siteGradientFrom: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-emerald-600">Orta</Label>
+                          <div className="flex gap-1.5">
+                            <Input type="color" className="w-9 h-8 p-1 cursor-pointer border-emerald-200" value={wallForm.siteGradientVia || '#fefce8'} onChange={(e) => setWallForm({ ...wallForm, siteGradientVia: e.target.value })} />
+                            <Input className="font-mono text-[9px] h-8" value={wallForm.siteGradientVia || '#fefce8'} onChange={(e) => setWallForm({ ...wallForm, siteGradientVia: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-emerald-600">Bitiş</Label>
+                          <div className="flex gap-1.5">
+                            <Input type="color" className="w-9 h-8 p-1 cursor-pointer border-emerald-200" value={wallForm.siteGradientTo || '#fff7ed'} onChange={(e) => setWallForm({ ...wallForm, siteGradientTo: e.target.value })} />
+                            <Input className="font-mono text-[9px] h-8" value={wallForm.siteGradientTo || '#fff7ed'} onChange={(e) => setWallForm({ ...wallForm, siteGradientTo: e.target.value })} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sağ Kolon: Hero ve Menü Ayarları */}
+          <div className="space-y-6">
+            {/* Hero Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
+                <Palette className="w-5 h-5 text-amber-500" /> Duvar Kapak (Hero) Görünümü - Duvara Özel
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-500">Zemin Resmi (opsiyonel)</Label>
+                    <div className="flex gap-2">
+                      <Input value={wallForm.heroBackgroundImage || ''} onChange={(e) => setWallForm({ ...wallForm, heroBackgroundImage: e.target.value })} placeholder="URL veya dosya yükleyin" className="flex-1 h-9 text-xs" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*';
+                          input.onchange = async (e: any) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                              const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
+                              const data = await res.json();
+                              if (data.fileUrl) {
+                                setWallForm(prev => ({ ...prev, heroBackgroundImage: data.fileUrl }));
+                                toast.success('Resim yüklendi');
+                              }
+                            } catch (err) {
+                              toast.error('Yükleme başarısız');
+                            }
+                          };
+                          input.click();
+                        }}
+                        className="h-9 px-2 border-gray-200 hover:bg-gray-50"
+                      >
+                        <Upload className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-500">Alt Başlık Metni</Label>
+                    <Input value={wallForm.heroSubtitle || ''} onChange={(e) => setWallForm({ ...wallForm, heroSubtitle: e.target.value })} placeholder="Fikirlerinizi paylaşın..." className="h-9 text-xs" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {['From', 'Via', 'To'].map((pos) => (
+                    <div key={pos} className="space-y-1">
+                      <Label className="text-[10px] font-bold text-gray-400">Gradyan {pos === 'From' ? 'Başlangıç' : pos === 'Via' ? 'Orta' : 'Bitiş'}</Label>
+                      <div className="flex gap-1.5">
+                        <input type="color" value={(wallForm as any)[`heroGradient${pos}`] || (pos === 'From' ? '#facc15' : pos === 'Via' ? '#f472b6' : '#a855f7')} onChange={(e) => setWallForm({ ...wallForm, [`heroGradient${pos}`]: e.target.value })} className="w-9 h-9 rounded cursor-pointer border border-gray-200" />
+                        <Input value={(wallForm as any)[`heroGradient${pos}`] || (pos === 'From' ? '#facc15' : pos === 'Via' ? '#f472b6' : '#a855f7')} onChange={(e) => setWallForm({ ...wallForm, [`heroGradient${pos}`]: e.target.value })} className="h-9 text-[10px] font-mono flex-1" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t border-gray-100 pt-4">
+                  <h4 className="text-xs font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <Type className="w-4 h-4" /> Başlık Ayarları
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Hizalama</Label>
+                      <Select value={wallForm.heroAlignment || 'left'} onValueChange={(v) => setWallForm({ ...wallForm, heroAlignment: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="left">Sol</SelectItem>
+                          <SelectItem value="center">Orta</SelectItem>
+                          <SelectItem value="right">Sağ</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Font</Label>
+                      <Select value={wallForm.heroTitleFont || 'sans-serif'} onValueChange={(v) => setWallForm({ ...wallForm, heroTitleFont: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                          <SelectItem value="serif">Serif</SelectItem>
+                          <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Renk</Label>
+                      <input type="color" value={wallForm.heroTitleColor || '#ffffff'} onChange={(e) => setWallForm({ ...wallForm, heroTitleColor: e.target.value })} className="w-full h-8 rounded cursor-pointer border border-gray-200" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Boyut</Label>
+                      <Select value={wallForm.heroTitleSize || '5xl'} onValueChange={(v) => setWallForm({ ...wallForm, heroTitleSize: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="4xl">Küçük</SelectItem>
+                          <SelectItem value="5xl">Orta</SelectItem>
+                          <SelectItem value="6xl">Büyük</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 pt-4">
+                  <h4 className="text-xs font-bold text-gray-700 mb-3">Alt Başlık Ayarları</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Font</Label>
+                      <Select value={wallForm.heroSubtitleFont || 'sans-serif'} onValueChange={(v) => setWallForm({ ...wallForm, heroSubtitleFont: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                          <SelectItem value="serif">Serif</SelectItem>
+                          <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Renk</Label>
+                      <input type="color" value={wallForm.heroSubtitleColor || '#ffffff'} onChange={(e) => setWallForm({ ...wallForm, heroSubtitleColor: e.target.value })} className="w-full h-8 rounded cursor-pointer border border-gray-200" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Boyut</Label>
+                      <Select value={wallForm.heroSubtitleSize || 'xl'} onValueChange={(v) => setWallForm({ ...wallForm, heroSubtitleSize: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lg">Küçük</SelectItem>
+                          <SelectItem value="xl">Orta</SelectItem>
+                          <SelectItem value="2xl">Büyük</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Navbar Menu Settings Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
+                <Menu className="w-5 h-5 text-indigo-500" /> Kategori Menü Görünümü - Duvara Özel
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Menü Zemini</Label>
+                    <div className="flex gap-2">
+                      <input type="color" value={wallForm.navMenuBgColor || '#ffffff'} onChange={(e) => setWallForm({ ...wallForm, navMenuBgColor: e.target.value })} className="w-10 h-10 rounded cursor-pointer border border-gray-200" />
+                      <Input value={wallForm.navMenuBgColor || '#ffffff'} onChange={(e) => setWallForm({ ...wallForm, navMenuBgColor: e.target.value })} className="flex-1 font-mono text-sm" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Yazı Rengi</Label>
+                    <div className="flex gap-2">
+                      <input type="color" value={wallForm.navMenuTextColor || '#111827'} onChange={(e) => setWallForm({ ...wallForm, navMenuTextColor: e.target.value })} className="w-10 h-10 rounded cursor-pointer border border-gray-200" />
+                      <Input value={wallForm.navMenuTextColor || '#111827'} onChange={(e) => setWallForm({ ...wallForm, navMenuTextColor: e.target.value })} className="flex-1 font-mono text-sm" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Font</Label>
+                    <Select value={wallForm.navMenuFont || 'sans-serif'} onValueChange={(v) => setWallForm({ ...wallForm, navMenuFont: v })}>
+                      <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                        <SelectItem value="serif">Serif</SelectItem>
+                        <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Yazı Boyutu (px)</Label>
+                    <Select value={String(wallForm.navMenuFontSize || 14)} onValueChange={(v) => setWallForm({ ...wallForm, navMenuFontSize: parseInt(v) })}>
+                      <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[12, 14, 15, 16, 18, 20].map(s => (
+                          <SelectItem key={s} value={String(s)}>{s}px</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                  <Checkbox
+                    id="navMenuMainBold"
+                    checked={wallForm.navMenuMainBold}
+                    onCheckedChange={(checked) => setWallForm(s => ({ ...s, navMenuMainBold: !!checked }))}
+                  />
+                  <Label htmlFor="navMenuMainBold" className="cursor-pointer font-bold text-indigo-700">Ana Kategoriler Kalın Olsun</Label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Canlı Önizleme Alanı */}
+        <div className="pt-6 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <Label className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Eye className="w-5 h-5 text-blue-500" /> Canlı Önizleme
+            </Label>
+            <span className="text-[10px] text-gray-400 italic">Sol taraf: Site Zemini | Orta: Duvar Panosu</span>
+          </div>
+
+          {/* Site Zemini Önizlemesi */}
+          <div
+            className="w-full rounded-3xl p-6 md:p-12 shadow-inner border border-gray-100 relative overflow-hidden transition-all duration-700"
+            style={{
+              backgroundColor: wallForm.siteBackgroundColor || '#f8fafc',
+              backgroundImage: wallForm.siteIsGradient
+                ? `linear-gradient(135deg, ${wallForm.siteGradientFrom || '#fffbeb'}, ${wallForm.siteGradientVia || '#fefce8'}, ${wallForm.siteGradientTo || '#fff7ed'})`
+                : wallForm.siteBackgroundImage ? `url("${wallForm.siteBackgroundImage}")` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
+          >
+            {/* Duvar Panosu (Wall Board) Önizlemesi */}
+            <div className="w-full max-w-4xl mx-auto rounded-2xl relative p-4 md:p-10 flex shadow-2xl overflow-hidden border-4 border-white/30"
+              style={{
+                backgroundColor: wallForm.isWallTransparent ? 'transparent' : wallForm.backgroundColor,
+                backgroundImage: !wallForm.isWallTransparent ? (wallForm.isGradient ? `linear-gradient(to bottom right, ${wallForm.gradientFrom || '#facc15'}, ${wallForm.gradientVia || '#f472b6'}, ${wallForm.gradientTo || '#a855f7'})` : `url("${wallForm.backgroundImage}")`) : 'none',
+                border: wallForm.noBorder ? '0px' : `20px solid transparent`,
+                borderImage: wallForm.noBorder ? 'none' : `linear-gradient(to right, ${wallForm.borderTopColor}, ${wallForm.borderColor}, ${wallForm.borderBottomColor}) 1`,
+                minHeight: '450px',
+                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >
+              {/* Dokulu kaplama */}
+              {!wallForm.isWallTransparent && wallForm.backgroundImage && (
+                <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-multiply" style={{ backgroundImage: `url("${wallForm.backgroundImage}")`, backgroundSize: '200px' }}></div>
+              )}
+
+              <div className="m-auto relative z-10 w-full">
+                {/* Hero Önizlemesi */}
+                <div
+                  className="mb-8 p-6 rounded-2xl overflow-hidden relative shadow-lg group transition-all duration-500 border border-white/20"
+                  style={{
+                    backgroundImage: wallForm.heroBackgroundImage
+                      ? `url("${wallForm.heroBackgroundImage}")`
+                      : `linear-gradient(135deg, ${wallForm.heroGradientFrom || '#facc15'}, ${wallForm.heroGradientVia || '#f472b6'}, ${wallForm.heroGradientTo || '#a855f7'})`,
+                    backgroundSize: 'cover',
+                    textAlign: (wallForm.heroAlignment as any) || 'left'
+                  }}
+                >
+                  <h4
+                    className="font-bold mb-2 transition-all duration-300 drop-shadow-md"
+                    style={{
+                      fontFamily: wallForm.heroTitleFont || 'sans-serif',
+                      color: wallForm.heroTitleColor || '#ffffff',
+                      fontSize: wallForm.heroTitleSize === '4xl' ? '1.5rem' : wallForm.heroTitleSize === '5xl' ? '2rem' : '2.5rem'
+                    }}
+                  >
+                    Ana Sayfa Başlığı
+                  </h4>
+                  <p
+                    className="opacity-90 font-medium transition-all duration-300 drop-shadow-sm"
+                    style={{
+                      fontFamily: wallForm.heroSubtitleFont || 'sans-serif',
+                      color: wallForm.heroSubtitleColor || '#ffffff',
+                      fontSize: wallForm.heroSubtitleSize === 'lg' ? '0.9rem' : wallForm.heroSubtitleSize === 'xl' ? '1.1rem' : '1.3rem'
+                    }}
+                  >
+                    {wallForm.heroSubtitle || 'Harika fikirlerin buluşma noktası'}
+                  </p>
+                </div>
+
+                <div className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/50 text-center scale-95 hover:scale-100 transition-transform duration-500">
+                  {/* Kategori Menü Mockup */}
+                  <div
+                    className="flex gap-4 justify-center mb-6 py-3 px-4 rounded-full shadow-sm mx-auto w-fit"
+                    style={{
+                      backgroundColor: wallForm.navMenuBgColor || '#ffffff',
+                      fontFamily: wallForm.navMenuFont || 'sans-serif',
+                      fontSize: `${wallForm.navMenuFontSize || 14}px`,
+                      color: wallForm.navMenuTextColor || '#111827'
+                    }}
+                  >
+                    <span style={{ fontWeight: wallForm.navMenuMainBold ? 'bold' : 'normal' }}>Gündem</span>
+                    <span style={{ fontWeight: wallForm.navMenuMainBold ? 'bold' : 'normal' }}>Haberler</span>
+                    <span style={{ fontWeight: wallForm.navMenuMainBold ? 'bold' : 'normal' }}>Spor</span>
+                  </div>
+
+                  <p className="text-xl font-bold text-gray-800 mb-2">Pano İçerik Alanı</p>
+                  <div className="flex gap-4 justify-center mt-6">
+                    <div className="w-16 h-16 bg-yellow-200 shadow-md -rotate-3 rounded-sm border-t-4 border-yellow-300"></div>
+                    <div className="w-16 h-16 bg-blue-200 shadow-md rotate-6 rounded-sm border-t-4 border-blue-300"></div>
+                    <div className="w-16 h-16 bg-pink-200 shadow-md -rotate-6 rounded-sm border-t-4 border-pink-300"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSiteGorseli = () => {
     return (
-      <div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-6 bg-white p-6 rounded-lg shadow border">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Post-it Pano Görünümü (Mantar Pano)</h3>
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          {/* Sol Kolon: Pano ve Zemin Ayarları */}
+          <div className="space-y-6">
+            {/* Post-it Pano Görünümü Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
+                <LayoutGrid className="w-5 h-5 text-blue-500" /> Post-it Pano Görünümü (Mantar Pano)
+              </h3>
               <div className="space-y-4">
-                <div className="flex items-center space-x-2 pt-2 pb-2">
+                <div className="flex items-center space-x-2 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
                   <Checkbox
                     id="isWallTransparent"
                     checked={siteSettings.isWallTransparent}
@@ -1435,108 +2488,102 @@ export default function AdminPage() {
                   <Label htmlFor="isWallTransparent" className="cursor-pointer font-bold text-blue-600">Arka Plan Transparan Olsun</Label>
                 </div>
 
-                <div className={siteSettings.isWallTransparent ? 'opacity-50 pointer-events-none transition-opacity' : 'transition-opacity'}>
+                <div className={siteSettings.isWallTransparent ? 'opacity-50 pointer-events-none transition-all' : 'transition-all'}>
                   <div className="flex items-center space-x-2 pt-2 pb-2">
                     <Checkbox
                       id="siteIsGradient"
                       checked={siteSettings.isGradient}
                       onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, isGradient: !!checked }))}
                     />
-                    <Label htmlFor="siteIsGradient" className="cursor-pointer font-semibold">Panoda Renk Kullan</Label>
+                    <Label htmlFor="siteIsGradient" className="cursor-pointer font-semibold text-gray-700">Panoda Renk/Gradyan Kullan</Label>
                   </div>
 
                   {!siteSettings.isGradient ? (
-                    <div className="space-y-2">
-                      <Label>Arka Plan Rengi</Label>
+                    <div className="space-y-2 pl-6">
+                      <Label className="text-sm font-medium">Arka Plan Rengi</Label>
                       <div className="flex gap-2">
-                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
-                        <Input value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
+                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer border-gray-200" value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
+                        <Input value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} className="font-mono text-sm" />
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Başlangıç</Label>
-                        <div className="flex gap-1">
-                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
-                          <Input className="font-mono text-xs h-8" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pl-6">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-500">Başlangıç</Label>
+                        <div className="flex gap-1.5">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
+                          <Input className="font-mono text-xs h-9" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Orta</Label>
-                        <div className="flex gap-1">
-                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
-                          <Input className="font-mono text-xs h-8" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-500">Orta</Label>
+                        <div className="flex gap-1.5">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
+                          <Input className="font-mono text-xs h-9" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Bitiş</Label>
-                        <div className="flex gap-1">
-                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
-                          <Input className="font-mono text-xs h-8" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-500">Bitiş</Label>
+                        <div className="flex gap-1.5">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
+                          <Input className="font-mono text-xs h-9" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <Label>Arka Plan Dokusu Resmi (Mantarımsı transparan doku) URL</Label>
+                  <div className="space-y-2 mt-4 pt-4 border-t border-gray-100">
+                    <Label className="text-sm font-medium">Arka Plan Dokusu Resmi URL</Label>
                     <div className="flex gap-2">
-                      <Input value={siteSettings.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setSiteSettings(s => ({ ...s, backgroundImage: e.target.value }))} />
+                      <Input value={siteSettings.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setSiteSettings(s => ({ ...s, backgroundImage: e.target.value }))} className="flex-1 h-10 text-sm" />
                       <div className="flex-shrink-0">
                         <Button
                           type="button"
                           variant="outline"
                           disabled={uploadingSiteImage}
                           onClick={() => document.getElementById('site-bg-upload')?.click()}
+                          className="h-10 px-3 border-gray-200 hover:bg-gray-50"
                         >
                           {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                         </Button>
-                        <input
-                          id="site-bg-upload"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleSiteImageUpload}
-                          className="hidden"
-                        />
+                        <input id="site-bg-upload" type="file" accept="image/*" onChange={handleSiteImageUpload} className="hidden" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 pt-4 pb-2">
-                    <Checkbox
-                      id="noBorder"
-                      checked={siteSettings.noBorder}
-                      onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, noBorder: !!checked }))}
-                    />
-                    <label
-                      htmlFor="noBorder"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      Çerçeve Yok
-                    </label>
-                  </div>
+                  <div className="space-y-4 mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="noBorder"
+                        checked={siteSettings.noBorder}
+                        onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, noBorder: !!checked }))}
+                      />
+                      <label htmlFor="noBorder" className="text-sm font-semibold text-gray-700 cursor-pointer">
+                        Çerçeve Yok
+                      </label>
+                    </div>
 
-                  <div className={`grid grid-cols-2 gap-4 ${siteSettings.noBorder ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <div className="space-y-2">
-                      <Label>Dış Çerçeve (Sağ) Rengi</Label>
-                      <div className="flex gap-2">
-                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
-                        <Input value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${siteSettings.noBorder ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-500">Dış Çerçeve (Sağ) Rengi</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
+                          <Input value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} className="h-9 text-[10px] font-mono" />
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Üst ve Sol Çerçeve Rengi</Label>
-                      <div className="flex gap-2">
-                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
-                        <Input value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-500">Üst ve Sol Çerçeve Rengi</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
+                          <Input value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} className="h-9 text-[10px] font-mono" />
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Alt Çerçeve Rengi</Label>
-                      <div className="flex gap-2">
-                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
-                        <Input value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-gray-500">Alt Çerçeve Rengi</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-10 h-9 p-1 cursor-pointer border-gray-200" value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
+                          <Input value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} className="h-9 text-[10px] font-mono" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1544,200 +2591,133 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="space-y-6 bg-white p-6 rounded-lg shadow border mt-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Site Genel Arka Planı (Zemin)</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Zemin Resmi (opsiyonel)</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={siteSettings.siteBackgroundImage || ''}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, siteBackgroundImage: e.target.value })}
-                        placeholder="URL veya dosya yükleyin"
-                      />
-                      <div className="flex-shrink-0">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={uploadingSiteBackgroundImage}
-                          onClick={() => document.getElementById('site-global-bg-upload')?.click()}
-                        >
-                          {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        </Button>
-                        <input
-                          id="site-global-bg-upload"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleSiteBackgroundImageUpload}
-                          className="hidden"
-                        />
-                      </div>
+            {/* Site Genel Arka Planı Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
+                <Home className="w-5 h-5 text-emerald-500" /> Site Genel Arka Planı (Zemin)
+              </h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Zemin Resmi (opsiyonel)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={siteSettings.siteBackgroundImage || ''}
+                      onChange={(e) => setSiteSettings({ ...siteSettings, siteBackgroundImage: e.target.value })}
+                      placeholder="URL veya dosya yükleyin"
+                      className="flex-1 h-10 text-sm"
+                    />
+                    <div className="flex-shrink-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={uploadingSiteBackgroundImage}
+                        onClick={() => document.getElementById('site-global-bg-upload')?.click()}
+                        className="h-10 px-3 border-gray-200 hover:bg-gray-50"
+                      >
+                        {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      </Button>
+                      <input id="site-global-bg-upload" type="file" accept="image/*" onChange={handleSiteBackgroundImageUpload} className="hidden" />
                     </div>
-                    <p className="text-xs text-gray-500">Sitenin genel arka planında görüntülenecek zemin görseli.</p>
                   </div>
+                </div>
 
-                  <div className="flex items-center space-x-2 pt-2 pb-2">
+                <div className="bg-emerald-50/50 p-4 rounded-lg border border-emerald-100">
+                  <div className="flex items-center space-x-2">
                     <Checkbox
                       id="siteGroundIsGradient"
                       checked={siteSettings.siteIsGradient}
                       onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, siteIsGradient: !!checked }))}
                     />
-                    <Label htmlFor="siteGroundIsGradient" className="cursor-pointer font-semibold">Zeminde Renk/Gradyan Kullan</Label>
+                    <Label htmlFor="siteGroundIsGradient" className="cursor-pointer font-bold text-emerald-700">Zeminde Renk/Gradyan Kullan</Label>
                   </div>
 
-                  {!siteSettings.siteIsGradient ? (
-                    <div className="space-y-2">
-                      <Label>Arka Plan Rengi</Label>
-                      <div className="flex gap-2">
-                        <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.siteBackgroundColor || '#fffbeb'} onChange={e => setSiteSettings(s => ({ ...s, siteBackgroundColor: e.target.value }))} />
-                        <Input value={siteSettings.siteBackgroundColor || '#fffbeb'} onChange={e => setSiteSettings(s => ({ ...s, siteBackgroundColor: e.target.value }))} />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Başlangıç</Label>
-                        <div className="flex gap-1">
-                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.siteGradientFrom || '#fffbeb'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientFrom: e.target.value })} />
-                          <Input className="font-mono text-xs h-8" value={siteSettings.siteGradientFrom || '#fffbeb'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientFrom: e.target.value })} />
+                  <div className="mt-4 transition-all">
+                    {!siteSettings.siteIsGradient ? (
+                      <div className="space-y-2 pl-6">
+                        <Label className="text-xs font-semibold text-emerald-600">Arka Plan Rengi</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-12 h-10 p-1 cursor-pointer border-emerald-200" value={siteSettings.siteBackgroundColor || '#fffbeb'} onChange={e => setSiteSettings(s => ({ ...s, siteBackgroundColor: e.target.value }))} />
+                          <Input value={siteSettings.siteBackgroundColor || '#fffbeb'} onChange={e => setSiteSettings(s => ({ ...s, siteBackgroundColor: e.target.value }))} className="flex-1 h-10 font-mono text-sm" />
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Orta</Label>
-                        <div className="flex gap-1">
-                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.siteGradientVia || '#fefce8'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientVia: e.target.value })} />
-                          <Input className="font-mono text-xs h-8" value={siteSettings.siteGradientVia || '#fefce8'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientVia: e.target.value })} />
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pl-6">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-emerald-600">Başlangıç</Label>
+                          <div className="flex gap-1.5">
+                            <Input type="color" className="w-9 h-8 p-1 cursor-pointer border-emerald-200" value={siteSettings.siteGradientFrom || '#fffbeb'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientFrom: e.target.value })} />
+                            <Input className="font-mono text-[9px] h-8" value={siteSettings.siteGradientFrom || '#fffbeb'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientFrom: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-emerald-600">Orta</Label>
+                          <div className="flex gap-1.5">
+                            <Input type="color" className="w-9 h-8 p-1 cursor-pointer border-emerald-200" value={siteSettings.siteGradientVia || '#fefce8'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientVia: e.target.value })} />
+                            <Input className="font-mono text-[9px] h-8" value={siteSettings.siteGradientVia || '#fefce8'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientVia: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-emerald-600">Bitiş</Label>
+                          <div className="flex gap-1.5">
+                            <Input type="color" className="w-9 h-8 p-1 cursor-pointer border-emerald-200" value={siteSettings.siteGradientTo || '#fff7ed'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientTo: e.target.value })} />
+                            <Input className="font-mono text-[9px] h-8" value={siteSettings.siteGradientTo || '#fff7ed'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientTo: e.target.value })} />
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Bitiş</Label>
-                        <div className="flex gap-1">
-                          <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.siteGradientTo || '#fff7ed'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientTo: e.target.value })} />
-                          <Input className="font-mono text-xs h-8" value={siteSettings.siteGradientTo || '#fff7ed'} onChange={(e) => setSiteSettings({ ...siteSettings, siteGradientTo: e.target.value })} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-
           </div>
 
-          <div className="space-y-6 bg-white p-6 rounded-lg shadow border mt-6">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Ana Sayfa Kapak (Hero) Görünümü</h3>
+          {/* Sağ Kolon: Hero ve Menü Ayarları */}
+          <div className="space-y-6">
+            {/* Hero Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
+                <Palette className="w-5 h-5 text-amber-500" /> Ana Sayfa Kapak (Hero) Görünümü
+              </h3>
               <div className="space-y-4">
-
-                {/* Hero Settings */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Zemin Resmi (opsiyonel)</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-500">Zemin Resmi (opsiyonel)</Label>
                     <div className="flex gap-2">
-                      <Input
-                        value={siteSettings.heroBackgroundImage || ''}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, heroBackgroundImage: e.target.value })}
-                        placeholder="URL veya dosya yükleyin"
-                      />
-                      <div className="flex-shrink-0">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={uploadingSiteHeroImage}
-                          onClick={() => document.getElementById('site-hero-upload')?.click()}
-                        >
-                          {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        </Button>
-                        <input
-                          id="site-hero-upload"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleSiteHeroImageUpload}
-                          className="hidden"
-                        />
+                      <Input value={siteSettings.heroBackgroundImage || ''} onChange={(e) => setSiteSettings({ ...siteSettings, heroBackgroundImage: e.target.value })} placeholder="URL veya dosya yükleyin" className="flex-1 h-9 text-xs" />
+                      <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('site-hero-upload')?.click()} className="h-9 h-9 px-2">
+                        {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      </Button>
+                      <input id="site-hero-upload" type="file" accept="image/*" onChange={handleSiteHeroImageUpload} className="hidden" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-gray-500">Alt Başlık Metni</Label>
+                    <Input value={siteSettings.heroSubtitle || ''} onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })} placeholder="Fikirlerinizi paylaşın..." className="h-9 text-xs" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {['From', 'Via', 'To'].map((pos) => (
+                    <div key={pos} className="space-y-1">
+                      <Label className="text-[10px] font-bold text-gray-400">Gradyan {pos === 'From' ? 'Başlangıç' : pos === 'Via' ? 'Orta' : 'Bitiş'}</Label>
+                      <div className="flex gap-1.5">
+                        <input type="color" value={(siteSettings as any)[`heroGradient${pos}`] || (pos === 'From' ? '#facc15' : pos === 'Via' ? '#f472b6' : '#a855f7')} onChange={(e) => setSiteSettings({ ...siteSettings, [`heroGradient${pos}`]: e.target.value })} className="w-9 h-9 rounded cursor-pointer border border-gray-200" />
+                        <Input value={(siteSettings as any)[`heroGradient${pos}`] || (pos === 'From' ? '#facc15' : pos === 'Via' ? '#f472b6' : '#a855f7')} onChange={(e) => setSiteSettings({ ...siteSettings, [`heroGradient${pos}`]: e.target.value })} className="h-9 text-[10px] font-mono flex-1" />
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500">Resim varsa gradyan kullanılmaz</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Alt Başlık Metni</Label>
-                    <Input
-                      value={siteSettings.heroSubtitle || ''}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })}
-                      placeholder="Fikirlerinizi paylaşın..."
-                    />
-                  </div>
+                  ))}
                 </div>
 
-                {/* Gradient Colors */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Gradyan Başlangıç</Label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={siteSettings.heroGradientFrom || '#facc15'}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
-                        className="w-10 h-10 rounded cursor-pointer"
-                      />
-                      <Input
-                        value={siteSettings.heroGradientFrom || '#facc15'}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientFrom: e.target.value })}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Gradyan Orta</Label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={siteSettings.heroGradientVia || '#f472b6'}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
-                        className="w-10 h-10 rounded cursor-pointer"
-                      />
-                      <Input
-                        value={siteSettings.heroGradientVia || '#f472b6'}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientVia: e.target.value })}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Gradyan Bitiş</Label>
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        value={siteSettings.heroGradientTo || '#a855f7'}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
-                        className="w-10 h-10 rounded cursor-pointer"
-                      />
-                      <Input
-                        value={siteSettings.heroGradientTo || '#a855f7'}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, heroGradientTo: e.target.value })}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Title Settings */}
-                <div className="border-t pt-4 mt-4">
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                <div className="border-t border-gray-100 pt-4">
+                  <h4 className="text-xs font-bold text-gray-700 mb-3 flex items-center gap-2">
                     <Type className="w-4 h-4" /> Başlık Ayarları
                   </h4>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label>Hizalama</Label>
-                      <Select
-                        value={siteSettings.heroAlignment || 'left'}
-                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroAlignment: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Hizalama</Label>
+                      <Select value={siteSettings.heroAlignment || 'left'} onValueChange={(v) => setSiteSettings({ ...siteSettings, heroAlignment: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="left">Sol</SelectItem>
                           <SelectItem value="center">Orta</SelectItem>
@@ -1745,222 +2725,226 @@ export default function AdminPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Font</Label>
-                      <Select
-                        value={siteSettings.heroTitleFont || 'sans-serif'}
-                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleFont: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Font</Label>
+                      <Select value={siteSettings.heroTitleFont || 'sans-serif'} onValueChange={(v) => setSiteSettings({ ...siteSettings, heroTitleFont: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="sans-serif">Sans Serif</SelectItem>
                           <SelectItem value="serif">Serif</SelectItem>
                           <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                          <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                          <SelectItem value="monospace">Monospace</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Renk</Label>
-                      <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={siteSettings.heroTitleColor || '#ffffff'}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
-                          className="w-10 h-10 rounded cursor-pointer"
-                        />
-                        <Input
-                          value={siteSettings.heroTitleColor || '#ffffff'}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })}
-                          className="flex-1"
-                        />
-                      </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Renk</Label>
+                      <input type="color" value={siteSettings.heroTitleColor || '#ffffff'} onChange={(e) => setSiteSettings({ ...siteSettings, heroTitleColor: e.target.value })} className="w-full h-8 rounded cursor-pointer border border-gray-200" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Boyut</Label>
-                      <Select
-                        value={siteSettings.heroTitleSize || '5xl'}
-                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroTitleSize: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Boyut</Label>
+                      <Select value={siteSettings.heroTitleSize || '5xl'} onValueChange={(v) => setSiteSettings({ ...siteSettings, heroTitleSize: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="4xl">Küçük (4xl)</SelectItem>
-                          <SelectItem value="5xl">Orta (5xl)</SelectItem>
-                          <SelectItem value="6xl">Büyük (6xl)</SelectItem>
+                          <SelectItem value="4xl">Küçük</SelectItem>
+                          <SelectItem value="5xl">Orta</SelectItem>
+                          <SelectItem value="6xl">Büyük</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                 </div>
 
-                {/* Subtitle Settings */}
-                <div className="border-t pt-4 mt-4">
-                  <h4 className="font-medium mb-3">Alt Başlık Ayarları</h4>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Font</Label>
-                      <Select
-                        value={siteSettings.heroSubtitleFont || 'sans-serif'}
-                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleFont: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                <div className="border-t border-gray-100 pt-4">
+                  <h4 className="text-xs font-bold text-gray-700 mb-3">Alt Başlık Ayarları</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Font</Label>
+                      <Select value={siteSettings.heroSubtitleFont || 'sans-serif'} onValueChange={(v) => setSiteSettings({ ...siteSettings, heroSubtitleFont: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="sans-serif">Sans Serif</SelectItem>
                           <SelectItem value="serif">Serif</SelectItem>
                           <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                          <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                          <SelectItem value="monospace">Monospace</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Renk</Label>
-                      <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={siteSettings.heroSubtitleColor || '#ffffff'}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
-                          className="w-10 h-10 rounded cursor-pointer"
-                        />
-                        <Input
-                          value={siteSettings.heroSubtitleColor || '#ffffff'}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })}
-                          className="flex-1"
-                        />
-                      </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Renk</Label>
+                      <input type="color" value={siteSettings.heroSubtitleColor || '#ffffff'} onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitleColor: e.target.value })} className="w-full h-8 rounded cursor-pointer border border-gray-200" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Boyut</Label>
-                      <Select
-                        value={siteSettings.heroSubtitleSize || 'xl'}
-                        onValueChange={(value) => setSiteSettings({ ...siteSettings, heroSubtitleSize: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] font-medium text-gray-500">Boyut</Label>
+                      <Select value={siteSettings.heroSubtitleSize || 'xl'} onValueChange={(v) => setSiteSettings({ ...siteSettings, heroSubtitleSize: v })}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="lg">Küçük (lg)</SelectItem>
-                          <SelectItem value="xl">Orta (xl)</SelectItem>
-                          <SelectItem value="2xl">Büyük (2xl)</SelectItem>
+                          <SelectItem value="lg">Küçük</SelectItem>
+                          <SelectItem value="xl">Orta</SelectItem>
+                          <SelectItem value="2xl">Büyük</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                {/* Nav Menu Settings */}
-                <div className="border-t pt-4 mt-4">
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <Menu className="w-4 h-4" /> Kategori Menü Görünümü
-                  </h4>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label>Menü Zemini</Label>
-                      <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={siteSettings.navMenuBgColor || '#ffffff'}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })}
-                          className="w-10 h-10 rounded cursor-pointer"
-                        />
-                        <Input
-                          value={siteSettings.navMenuBgColor || '#ffffff'}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })}
-                          className="flex-1"
-                        />
-                      </div>
+            {/* Navbar Menu Settings Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
+                <Menu className="w-5 h-5 text-indigo-500" /> Kategori Menü Görünümü
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Menü Zemini</Label>
+                    <div className="flex gap-2">
+                      <input type="color" value={siteSettings.navMenuBgColor || '#ffffff'} onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })} className="w-10 h-10 rounded cursor-pointer border border-gray-200" />
+                      <Input value={siteSettings.navMenuBgColor || '#ffffff'} onChange={(e) => setSiteSettings({ ...siteSettings, navMenuBgColor: e.target.value })} className="flex-1 font-mono text-sm" />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Yazı Rengi</Label>
-                      <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={siteSettings.navMenuTextColor || '#111827'}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })}
-                          className="w-10 h-10 rounded cursor-pointer"
-                        />
-                        <Input
-                          value={siteSettings.navMenuTextColor || '#111827'}
-                          onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })}
-                          className="flex-1"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Font</Label>
-                      <Select
-                        value={siteSettings.navMenuFont || 'sans-serif'}
-                        onValueChange={(value) => setSiteSettings({ ...siteSettings, navMenuFont: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                          <SelectItem value="serif">Serif</SelectItem>
-                          <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                          <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                          <SelectItem value="monospace">Monospace</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Yazı Boyutu (px)</Label>
-                      <Select
-                        value={String(siteSettings.navMenuFontSize || 14)}
-                        onValueChange={(value) => setSiteSettings({ ...siteSettings, navMenuFontSize: parseInt(value) })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[12, 13, 14, 15, 16, 17, 18, 20, 22, 24].map(size => (
-                            <SelectItem key={size} value={String(size)}>{size}px</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2 flex flex-col justify-end">
-                      <div className="flex items-center space-x-2 py-2">
-                        <Checkbox
-                          id="navMenuMainBold"
-                          checked={siteSettings.navMenuMainBold}
-                          onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, navMenuMainBold: !!checked }))}
-                        />
-                        <Label htmlFor="navMenuMainBold" className="cursor-pointer">Ana Kategoriler Kalın</Label>
-                      </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Yazı Rengi</Label>
+                    <div className="flex gap-2">
+                      <input type="color" value={siteSettings.navMenuTextColor || '#111827'} onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })} className="w-10 h-10 rounded cursor-pointer border border-gray-200" />
+                      <Input value={siteSettings.navMenuTextColor || '#111827'} onChange={(e) => setSiteSettings({ ...siteSettings, navMenuTextColor: e.target.value })} className="flex-1 font-mono text-sm" />
                     </div>
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Font</Label>
+                    <Select value={siteSettings.navMenuFont || 'sans-serif'} onValueChange={(v) => setSiteSettings({ ...siteSettings, navMenuFont: v })}>
+                      <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                        <SelectItem value="serif">Serif</SelectItem>
+                        <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Yazı Boyutu (px)</Label>
+                    <Select value={String(siteSettings.navMenuFontSize || 14)} onValueChange={(v) => setSiteSettings({ ...siteSettings, navMenuFontSize: parseInt(v) })}>
+                      <SelectTrigger className="h-10 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[12, 14, 15, 16, 18, 20].map(s => (
+                          <SelectItem key={s} value={String(s)}>{s}px</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                  <Checkbox
+                    id="navMenuMainBold"
+                    checked={siteSettings.navMenuMainBold}
+                    onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, navMenuMainBold: !!checked }))}
+                  />
+                  <Label htmlFor="navMenuMainBold" className="cursor-pointer font-bold text-indigo-700">Ana Kategoriler Kalın Olsun</Label>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div>
-          <Label className="block mb-2 text-sm text-gray-700">Canlı Önizleme</Label>
-          <div className="w-full flex-1 rounded-sm relative p-4 md:p-8 flex"
+        {/* Canlı Önizleme Alanı */}
+        <div className="pt-6 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <Label className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Eye className="w-5 h-5 text-blue-500" /> Canlı Önizleme
+            </Label>
+            <span className="text-[10px] text-gray-400 italic">Sol taraf: Site Zemini | Orta: Duvar Panosu</span>
+          </div>
+
+          {/* Site Zemini Önizlemesi */}
+          <div
+            className="w-full rounded-3xl p-6 md:p-12 shadow-inner border border-gray-100 relative overflow-hidden transition-all duration-700"
             style={{
-              backgroundColor: siteSettings.backgroundColor,
-              backgroundImage: `url("${siteSettings.backgroundImage}")`,
-              border: siteSettings.noBorder ? '0px' : `18px solid ${siteSettings.borderColor}`,
-              borderBottomColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
-              borderRightColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
-              borderTopColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
-              borderLeftColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
-              boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 15px 25px rgba(0,0,0,0.15)',
-              minHeight: '400px'
+              backgroundColor: siteSettings.siteBackgroundColor || '#f8fafc',
+              backgroundImage: siteSettings.siteIsGradient
+                ? `linear-gradient(135deg, ${siteSettings.siteGradientFrom || '#fffbeb'}, ${siteSettings.siteGradientVia || '#fefce8'}, ${siteSettings.siteGradientTo || '#fff7ed'})`
+                : siteSettings.siteBackgroundImage ? `url("${siteSettings.siteBackgroundImage}")` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
             }}
           >
-            <p className="m-auto text-xl opacity-50 bg-white/40 px-4 py-2 rounded shadow">Pano Detay Alanı</p>
+            {/* Duvar Panosu (Wall Board) Önizlemesi */}
+            <div className="w-full max-w-4xl mx-auto rounded-2xl relative p-4 md:p-10 flex shadow-2xl overflow-hidden border-4 border-white/30"
+              style={{
+                backgroundColor: siteSettings.isWallTransparent ? 'transparent' : siteSettings.backgroundColor,
+                backgroundImage: !siteSettings.isWallTransparent ? (siteSettings.isGradient ? `linear-gradient(to bottom right, ${siteSettings.gradientFrom || '#facc15'}, ${siteSettings.gradientVia || '#f472b6'}, ${siteSettings.gradientTo || '#a855f7'})` : `url("${siteSettings.backgroundImage}")`) : 'none',
+                border: siteSettings.noBorder ? '0px' : `20px solid transparent`,
+                borderImage: siteSettings.noBorder ? 'none' : `linear-gradient(to right, ${siteSettings.borderTopColor}, ${siteSettings.borderColor}, ${siteSettings.borderBottomColor}) 1`,
+                minHeight: '450px',
+                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >
+              {/* Dokulu kaplama */}
+              {!siteSettings.isWallTransparent && siteSettings.backgroundImage && (
+                <div className="absolute inset-0 opacity-20 pointer-events-none mix-blend-multiply" style={{ backgroundImage: `url("${siteSettings.backgroundImage}")`, backgroundSize: '200px' }}></div>
+              )}
+
+              <div className="m-auto relative z-10 w-full">
+                {/* Hero Önizlemesi */}
+                <div
+                  className="mb-8 p-6 rounded-2xl overflow-hidden relative shadow-lg group transition-all duration-500 border border-white/20"
+                  style={{
+                    backgroundImage: siteSettings.heroBackgroundImage
+                      ? `url("${siteSettings.heroBackgroundImage}")`
+                      : `linear-gradient(135deg, ${siteSettings.heroGradientFrom || '#facc15'}, ${siteSettings.heroGradientVia || '#f472b6'}, ${siteSettings.heroGradientTo || '#a855f7'})`,
+                    backgroundSize: 'cover',
+                    textAlign: (siteSettings.heroAlignment as any) || 'left'
+                  }}
+                >
+                  <h4
+                    className="font-bold mb-2 transition-all duration-300 drop-shadow-md"
+                    style={{
+                      fontFamily: siteSettings.heroTitleFont || 'sans-serif',
+                      color: siteSettings.heroTitleColor || '#ffffff',
+                      fontSize: siteSettings.heroTitleSize === '4xl' ? '1.5rem' : siteSettings.heroTitleSize === '5xl' ? '2rem' : '2.5rem'
+                    }}
+                  >
+                    Ana Sayfa Başlığı
+                  </h4>
+                  <p
+                    className="opacity-90 font-medium transition-all duration-300 drop-shadow-sm"
+                    style={{
+                      fontFamily: siteSettings.heroSubtitleFont || 'sans-serif',
+                      color: siteSettings.heroSubtitleColor || '#ffffff',
+                      fontSize: siteSettings.heroSubtitleSize === 'lg' ? '0.9rem' : siteSettings.heroSubtitleSize === 'xl' ? '1.1rem' : '1.3rem'
+                    }}
+                  >
+                    {siteSettings.heroSubtitle || 'Harika fikirlerin buluşma noktası'}
+                  </p>
+                </div>
+
+                <div className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/50 text-center scale-95 hover:scale-100 transition-transform duration-500">
+                  {/* Kategori Menü Mockup */}
+                  <div
+                    className="flex gap-4 justify-center mb-6 py-3 px-4 rounded-full shadow-sm mx-auto w-fit"
+                    style={{
+                      backgroundColor: siteSettings.navMenuBgColor || '#ffffff',
+                      fontFamily: siteSettings.navMenuFont || 'sans-serif',
+                      fontSize: `${siteSettings.navMenuFontSize || 14}px`,
+                      color: siteSettings.navMenuTextColor || '#111827'
+                    }}
+                  >
+                    <span style={{ fontWeight: siteSettings.navMenuMainBold ? 'bold' : 'normal' }}>Gündem</span>
+                    <span style={{ fontWeight: siteSettings.navMenuMainBold ? 'bold' : 'normal' }}>Haberler</span>
+                    <span style={{ fontWeight: siteSettings.navMenuMainBold ? 'bold' : 'normal' }}>Spor</span>
+                  </div>
+
+                  <p className="text-xl font-bold text-gray-800 mb-2">Pano İçerik Alanı</p>
+                  <div className="flex gap-4 justify-center mt-6">
+                    <div className="w-16 h-16 bg-yellow-200 shadow-md -rotate-3 rounded-sm border-t-4 border-yellow-300"></div>
+                    <div className="w-16 h-16 bg-blue-200 shadow-md rotate-6 rounded-sm border-t-4 border-blue-300"></div>
+                    <div className="w-16 h-16 bg-pink-200 shadow-md -rotate-6 rounded-sm border-t-4 border-pink-300"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1995,9 +2979,9 @@ export default function AdminPage() {
                       }}
                       className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-gray-300 hover:bg-gray-800`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Icon className="w-5 h-5" />
-                        <span>{item.label}</span>
+                      <div className="flex items-center gap-3 text-left">
+                        <Icon className="w-5 h-5 flex-shrink-0" />
+                        <span className="text-left leading-tight">{item.label}</span>
                       </div>
                       {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
@@ -2970,11 +3954,10 @@ export default function AdminPage() {
           activeSection === 'sliders' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Slayder Yönetimi</h2>
-                <Button onClick={openAddSlider} className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Yeni Slayder
-                </Button>
+                <div>
+                  <h2 className="text-2xl font-bold">Kategori Slayder Yönetimi</h2>
+                  <p className="text-sm text-gray-500">Kategori bazlı slayderlar artık ilgili kategorinin (duvarın) düzenleme sayfasından yönetilmektedir.</p>
+                </div>
               </div>
 
               <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -2988,10 +3971,10 @@ export default function AdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sliders.length > 0 ? (
-                      sliders.map((slider) => (
+                    {sliders.filter(s => s.categoryId).length > 0 ? (
+                      sliders.filter(s => s.categoryId).map((slider) => (
                         <TableRow key={slider.id}>
-                          <TableCell className="font-medium">{slider.categoryId ? slider.category?.name : 'Ana Sayfa (Varsayılan)'}</TableCell>
+                          <TableCell className="font-medium">{slider.category?.name}</TableCell>
                           <TableCell>{slider.images?.length || 0} resim</TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs ${slider.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -3000,25 +3983,15 @@ export default function AdminPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => openEditSlider(slider)}>
+                              <Button variant="ghost" size="icon" onClick={() => openEditWall(slider.category)} title="Bu Duvarı Düzenle">
                                 <Pencil className="w-4 h-4" />
                               </Button>
-                              {slider.categoryId && slider.category && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openAppearanceSettings(slider.category)}
-                                  title="Kategori Görünüm Ayarları"
-                                  className="hover:bg-purple-100 hover:text-purple-600"
-                                >
-                                  <Palette className="w-4 h-4" />
-                                </Button>
-                              )}
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => handleDeleteSlider(slider.id)}
-                                className="hover:bg-red-100 hover:text-red-600"
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                title="Slayderı Sil"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -3029,7 +4002,7 @@ export default function AdminPage() {
                     ) : (
                       <TableRow>
                         <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                          Henüz slayder eklenmemiş.
+                          {sliders.length > 0 ? 'Ana sayfa slayderları Ana Duvar ayarlarından yönetilmektedir.' : 'Henüz slayder eklenmemiş.'}
                         </TableCell>
                       </TableRow>
                     )}
@@ -3982,10 +4955,10 @@ export default function AdminPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowLocationModal(false)}>
+            <Button variant="outline" type="button" onClick={() => setShowLocationModal(false)}>
               İptal
             </Button>
-            <Button onClick={handleSaveLocation}>Kaydet</Button>
+            <Button type="button" onClick={handleSaveLocation}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -4015,10 +4988,10 @@ export default function AdminPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRoleModal(false)}>
+            <Button variant="outline" type="button" onClick={() => setShowRoleModal(false)}>
               İptal
             </Button>
-            <Button onClick={handleSaveRole}>Kaydet</Button>
+            <Button type="button" onClick={handleSaveRole}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -4048,10 +5021,10 @@ export default function AdminPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUserGroupModal(false)}>
+            <Button variant="outline" type="button" onClick={() => setShowUserGroupModal(false)}>
               İptal
             </Button>
-            <Button onClick={handleSaveUserGroup}>Kaydet</Button>
+            <Button type="button" onClick={handleSaveUserGroup}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -4147,16 +5120,16 @@ export default function AdminPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUserModal(false)}>
+            <Button variant="outline" type="button" onClick={() => setShowUserModal(false)}>
               İptal
             </Button>
-            <Button onClick={handleSaveUser}>Kaydet</Button>
+            <Button type="button" onClick={handleSaveUser}>Kaydet</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showWallModal} onOpenChange={setShowWallModal}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingItem ? 'Duvar Düzenle' : wallForm.parentId ? 'Alt Kategori Ekle' : 'Yeni Ana Duvar'}
@@ -4167,334 +5140,241 @@ export default function AdminPage() {
               </DialogDescription>
             )}
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Duvar Adı</Label>
-              <Input
-                value={wallForm.name}
-                onChange={(e) => setWallForm({ ...wallForm, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Açıklama</Label>
-              <Textarea
-                value={wallForm.description}
-                onChange={(e) => setWallForm({ ...wallForm, description: e.target.value })}
-              />
-            </div>
+          <div className="py-4">
+            <Tabs defaultValue="general" className="w-full">
+              <TabsList className={`grid w-full ${wallForm.name === 'Ana Duvar' ? 'grid-cols-4' : 'grid-cols-4'} mb-6`}>
+                <TabsTrigger value="general" className="flex items-center gap-2">
+                  <Info className="w-4 h-4" /> Genel Bilgiler
+                </TabsTrigger>
+                <TabsTrigger value="appearance" className="flex items-center gap-2">
+                  <Palette className="w-4 h-4" /> Görünüm Ayarları
+                </TabsTrigger>
+                <TabsTrigger value="sliders" className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4" /> Slayder Yönetimi
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" /> Takvim Alanları
+                </TabsTrigger>
+              </TabsList>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Bağlı Olduğu İl</Label>
-                <Select
-                  value={wallForm.cityId || 'none'}
-                  onValueChange={(value) => {
-                    setWallForm({
-                      ...wallForm,
-                      cityId: value === 'none' ? '' : value,
-                      districtId: '' // Reset district when city changes
-                    })
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="İl seçin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">İl Yok</SelectItem>
-                    {cities.map(city => (
-                      <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Bağlı Olduğu İlçe</Label>
-                <Select
-                  value={wallForm.districtId || 'none'}
-                  onValueChange={(value) => setWallForm({ ...wallForm, districtId: value === 'none' ? '' : value })}
-                  disabled={!wallForm.cityId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="İlçe seçin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">İlçe Yok</SelectItem>
-                    {wallForm.cityId && districts
-                      .filter(d => d.cityId === wallForm.cityId)
-                      .map(district => (
-                        <SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Yönetici</Label>
-              <Select
-                value={wallForm.wallManagerId}
-                onValueChange={(value) => setWallForm({ ...wallForm, wallManagerId: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Yönetici seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value=" ">Yönetici Yok</SelectItem>
-                  {wallManagers.map((manager) => (
-                    <SelectItem key={manager.id} value={manager.id}>
-                      {manager.name} ({manager.role === 'SUPER_ADMIN' ? 'Süper Admin' : 'Yönetici'})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Grup Yetkisi</Label>
-              <Select
-                value={wallForm.userGroupId || 'none'}
-                onValueChange={(value) => setWallForm({ ...wallForm, userGroupId: value === 'none' ? '' : value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Grup seçiniz" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Grup Yok</SelectItem>
-                  {userGroups.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-
-            {wallForm.name === 'Ana Duvar' ? (
-              <div className="space-y-4 border-t pt-4 mt-4">
-                <h4 className="font-bold text-lg text-blue-600 mb-2">Ana Duvar Özel Site Başlık & Görünüm Ayarları</h4>
-                {renderSiteGorseli()}
-              </div>
-            ) : (
-              <div className="space-y-4 border-t pt-4">
-                <h4 className="font-semibold text-sm flex items-center gap-2">
-                  <Palette className="w-4 h-4" /> Duvar Başlık Görünümü (Hero)
-
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Alt Başlık</Label>
-                    <Input
-                      value={wallForm.heroSubtitle}
-                      onChange={(e) => setWallForm({ ...wallForm, heroSubtitle: e.target.value })}
-                      placeholder="Duvar sayfasında görünecek alt başlık"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Ana Başlık Fontu</Label>
-                    <Select
-                      value={wallForm.heroTitleFont || 'sans-serif'}
-                      onValueChange={(value) => setWallForm({ ...wallForm, heroTitleFont: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                        <SelectItem value="serif">Serif</SelectItem>
-                        <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                        <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label>Başlık Rengi</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="color"
-                        className="w-10 h-10 p-1"
-                        value={wallForm.heroTitleColor}
-                        onChange={(e) => setWallForm({ ...wallForm, heroTitleColor: e.target.value })}
-                      />
-                      <Input
-                        className="text-xs font-mono"
-                        value={wallForm.heroTitleColor}
-                        onChange={(e) => setWallForm({ ...wallForm, heroTitleColor: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Başlık Boyutu</Label>
-                    <Select
-                      value={wallForm.heroTitleSize}
-                      onValueChange={(value) => setWallForm({ ...wallForm, heroTitleSize: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="3xl">3XL</SelectItem>
-                        <SelectItem value="4xl">4XL</SelectItem>
-                        <SelectItem value="5xl">5XL</SelectItem>
-                        <SelectItem value="6xl">6XL</SelectItem>
-                        <SelectItem value="7xl">7XL</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Alt Başlık Fontu</Label>
-                    <Select
-                      value={wallForm.heroSubtitleFont}
-                      onValueChange={(value) => setWallForm({ ...wallForm, heroSubtitleFont: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sans-serif">Sans Serif</SelectItem>
-                        <SelectItem value="serif">Serif</SelectItem>
-                        <SelectItem value="Patrick Hand, cursive">El Yazısı</SelectItem>
-                        <SelectItem value="Dancing Script, cursive">Süslü</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Alt Başlık Rengi</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="color"
-                        className="w-10 h-10 p-1"
-                        value={wallForm.heroSubtitleColor}
-                        onChange={(e) => setWallForm({ ...wallForm, heroSubtitleColor: e.target.value })}
-                      />
-                      <Input
-                        className="text-xs font-mono"
-                        value={wallForm.heroSubtitleColor}
-                        onChange={(e) => setWallForm({ ...wallForm, heroSubtitleColor: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Gradyan Başlangıç</Label>
-                    <Input
-                      type="color"
-                      className="w-full h-10 p-1"
-                      value={wallForm.heroGradientFrom}
-                      onChange={(e) => setWallForm({ ...wallForm, heroGradientFrom: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Gradyan Orta</Label>
-                    <Input
-                      type="color"
-                      className="w-full h-10 p-1"
-                      value={wallForm.heroGradientVia}
-                      onChange={(e) => setWallForm({ ...wallForm, heroGradientVia: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Gradyan Bitiş</Label>
-                    <Input
-                      type="color"
-                      className="w-full h-10 p-1"
-                      value={wallForm.heroGradientTo}
-                      onChange={(e) => setWallForm({ ...wallForm, heroGradientTo: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-
-            )}
-            {/* Calendar Areas Section */}
-            <div className="space-y-4 pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Label className="text-base font-semibold">Takvim Alanları</Label>
+              <TabsContent value="general" className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Duvar Adı</Label>
                   <Input
-                    type="date"
-                    className="w-auto h-8 text-sm"
-                    value={selectedCalendarDate}
-                    onChange={(e) => setSelectedCalendarDate(e.target.value)}
+                    value={wallForm.name}
+                    onChange={(e) => setWallForm({ ...wallForm, name: e.target.value })}
                   />
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={handleAddCalendarEntry} className="gap-1">
-                  <Plus className="w-3 h-3" /> Ekle
-                </Button>
-              </div>
+                <div className="space-y-2">
+                  <Label>Açıklama</Label>
+                  <Textarea
+                    value={wallForm.description}
+                    onChange={(e) => setWallForm({ ...wallForm, description: e.target.value })}
+                  />
+                </div>
 
-              <div className="space-y-4">
-                {wallForm.calendarEntries && wallForm.calendarEntries.map((entry: any, index: number) => {
-                  const entryDateStr = entry.date ? (typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]) : '';
-                  if (entryDateStr !== selectedCalendarDate) return null;
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Bağlı Olduğu İl</Label>
+                    <Select
+                      value={wallForm.cityId || 'none'}
+                      onValueChange={(value) => {
+                        setWallForm({
+                          ...wallForm,
+                          cityId: value === 'none' ? '' : value,
+                          districtId: '' // Reset district when city changes
+                        })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="İl seçin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">İl Yok</SelectItem>
+                        {cities.map(city => (
+                          <SelectItem key={city.id} value={city.id}>{city.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                  return (
-                    <div key={index} className="p-3 border rounded-md bg-gray-50 relative group">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveCalendarEntry(index)}
-                        className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                  <div className="space-y-2">
+                    <Label>Bağlı Olduğu İlçe</Label>
+                    <Select
+                      value={wallForm.districtId || 'none'}
+                      onValueChange={(value) => setWallForm({ ...wallForm, districtId: value === 'none' ? '' : value })}
+                      disabled={!wallForm.cityId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="İlçe seçin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">İlçe Yok</SelectItem>
+                        {wallForm.cityId && districts
+                          .filter(d => d.cityId === wallForm.cityId)
+                          .map(district => (
+                            <SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>
+                          ))
+                        }
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-                      <div className="grid grid-cols-1 gap-3 mb-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Yönetici</Label>
+                    <Select
+                      value={wallForm.wallManagerId}
+                      onValueChange={(value) => setWallForm({ ...wallForm, wallManagerId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Yönetici seçin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value=" ">Yönetici Yok</SelectItem>
+                        {wallManagers.map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id}>
+                            {manager.name} ({manager.role === 'SUPER_ADMIN' ? 'Süper Admin' : 'Yönetici'})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Grup Yetkisi</Label>
+                    <Select
+                      value={wallForm.userGroupId || 'none'}
+                      onValueChange={(value) => setWallForm({ ...wallForm, userGroupId: value === 'none' ? '' : value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Grup seçiniz" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Grup Yok</SelectItem>
+                        {userGroups.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="sliders" className="space-y-4 pt-2">
+                {wallForm.name === 'Ana Duvar' ? renderSliderSettings() : renderWallSliderTabContent()}
+              </TabsContent>
+
+              <TabsContent value="appearance" className="space-y-4 pt-2">
+                {wallForm.name === 'Ana Duvar' ? (
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h4 className="font-bold text-lg text-blue-700 flex items-center gap-2 mb-1">
+                        <Settings className="w-5 h-5" /> Siteye Ait Metinler
+                      </h4>
+                      <p className="text-sm text-blue-600 mb-2 text-left">Bu ayarlar tüm site genelindeki görünümü ve pano yapısını etkiler.</p>
+                    </div>
+                    {renderSiteGorseli()}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="bg-amber-50 p-4 rounded-lg">
+                      <h4 className="font-bold text-lg text-amber-800 flex items-center gap-2 mb-1">
+                        <Palette className="w-5 h-5" /> Duvara Özgü Görünüm Ayarları
+                      </h4>
+                      <p className="text-sm text-amber-700 mb-2 text-left">Bu ayarlar sadece bu duvarın (kategorinin) görünümünü değiştirir. Boş bırakılan alanlar ana sayfanın görünüm ayarlarından miras alınır.</p>
+                    </div>
+                    {renderWallGorseli()}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="calendar" className="space-y-4 pt-2">
+                <div className="bg-purple-50 p-4 rounded-lg flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="font-semibold text-purple-800 flex items-center gap-2 mb-1">
+                      <Calendar className="w-5 h-5" /> Takvim Alanları Yönetimi
+                    </h4>
+                    <p className="text-sm text-purple-700">Duvarın sağ tarafında tarihe göre değişen bilgilendirme alanlarını yönetin.</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="date"
+                      className="w-auto h-9 text-sm border-purple-200"
+                      value={selectedCalendarDate}
+                      onChange={(e) => setSelectedCalendarDate(e.target.value)}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddCalendarEntry} className="gap-1 border-purple-300 text-purple-700 hover:bg-purple-100">
+                      <Plus className="w-3 h-3" /> Alan Ekle
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-4">
+                  {wallForm.calendarEntries && wallForm.calendarEntries.map((entry: any, index: number) => {
+                    const entryDateStr = entry.date ? (typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]) : '';
+                    if (entryDateStr !== selectedCalendarDate) return null;
+
+                    return (
+                      <div key={index} className="p-3 border rounded-md bg-gray-50 relative group">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveCalendarEntry(index)}
+                          className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+
+                        <div className="grid grid-cols-1 gap-3 mb-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Başlık</Label>
+                            <Select
+                              value={entry.calendarCategoryId}
+                              onValueChange={(val) => handleCalendarEntryChange(index, 'calendarCategoryId', val)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="Başlık Seçin" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {calendarCategories.filter(c => c.isActive).map(cat => (
+                                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Başlık</Label>
-                          <Select
-                            value={entry.calendarCategoryId}
-                            onValueChange={(val) => handleCalendarEntryChange(index, 'calendarCategoryId', val)}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Başlık Seçin" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {calendarCategories.filter(c => c.isActive).map(cat => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Label className="text-xs">Metin</Label>
+                          <Textarea
+                            className="text-xs min-h-[60px]"
+                            placeholder="İçerik giriniz..."
+                            value={entry.content}
+                            onChange={(e) => handleCalendarEntryChange(index, 'content', e.target.value)}
+                          />
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Metin</Label>
-                        <Textarea
-                          className="text-xs min-h-[60px]"
-                          placeholder="İçerik giriniz..."
-                          value={entry.content}
-                          onChange={(e) => handleCalendarEntryChange(index, 'content', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-                {(!wallForm.calendarEntries || wallForm.calendarEntries.filter((e: any) => {
-                  const eDateStr = e.date ? (typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0]) : '';
-                  return eDateStr === selectedCalendarDate;
-                }).length === 0) && (
-                    <p className="text-xs text-gray-500 text-center py-2">Bu tarih için henüz takvim alanı eklenmedi.</p>
-                  )}
-              </div>
-            </div>
+                    )
+                  })}
+                  {(!wallForm.calendarEntries || wallForm.calendarEntries.filter((e: any) => {
+                    const eDateStr = e.date ? (typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0]) : '';
+                    return eDateStr === selectedCalendarDate;
+                  }).length === 0) && (
+                      <p className="text-xs text-gray-500 text-center py-2">Bu tarih için henüz takvim alanı eklenmedi.</p>
+                    )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowWallModal(false)}>
+            <Button variant="outline" type="button" onClick={() => setShowWallModal(false)}>
               İptal
             </Button>
-            <Button onClick={handleSaveWall}>Kaydet</Button>
+            <Button type="button" onClick={handleSaveWall}>Kaydet</Button>
           </DialogFooter>
         </DialogContent >
       </Dialog >
