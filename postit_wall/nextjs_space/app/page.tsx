@@ -344,16 +344,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <main
             className="flex-1 w-full rounded-sm relative p-4 md:p-8 shadow-2xl"
             style={{
-              background: siteSettings.isGradient
-                ? `linear-gradient(to right, ${siteSettings.gradientFrom || '#facc15'}, ${siteSettings.gradientVia || '#f472b6'}, ${siteSettings.gradientTo || '#a855f7'})`
-                : siteSettings.backgroundColor,
-              backgroundImage: siteSettings.isGradient ? undefined : `url("${siteSettings.backgroundImage}")`,
+              background: siteSettings.isWallTransparent
+                ? 'transparent'
+                : (siteSettings.isGradient
+                  ? `linear-gradient(to right, ${siteSettings.gradientFrom || '#facc15'}, ${siteSettings.gradientVia || '#f472b6'}, ${siteSettings.gradientTo || '#a855f7'})`
+                  : siteSettings.backgroundColor),
+              backgroundImage: siteSettings.isWallTransparent
+                ? 'none'
+                : (siteSettings.isGradient ? undefined : `url("${siteSettings.backgroundImage}")`),
               border: siteSettings.noBorder ? '0px' : `18px solid ${siteSettings.borderColor}`,
               borderBottomColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
               borderRightColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderBottomColor,
               borderTopColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
               borderLeftColor: siteSettings.noBorder ? 'transparent' : siteSettings.borderTopColor,
-              boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6), 0 15px 25px rgba(0,0,0,0.15)',
+              boxShadow: siteSettings.isWallTransparent
+                ? 'none'
+                : 'inset 0 0 30px rgba(0,0,0,0.6), 0 15px 25px rgba(0,0,0,0.15)',
               minHeight: '75vh'
             }}
           >

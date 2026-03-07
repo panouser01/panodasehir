@@ -263,6 +263,7 @@ model SiteSettings {
   gradientTo          String?  @default("#a855f7")
   gradientVia         String?  @default("#f472b6")
   isGradient          Boolean  @default(false)
+  isWallTransparent   Boolean  @default(false)
   siteBackgroundColor String?  @default("#fffbeb")
   siteBackgroundImage String?
   siteGradientFrom    String?  @default("#fffbeb")

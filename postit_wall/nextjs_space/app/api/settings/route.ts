@@ -50,6 +50,7 @@ export async function PATCH(request: NextRequest) {
         if (data.borderBottomColor !== undefined) updateData.borderBottomColor = data.borderBottomColor
         if (data.noBorder !== undefined) updateData.noBorder = data.noBorder
         if (data.isGradient !== undefined) updateData.isGradient = data.isGradient
+        if (data.isWallTransparent !== undefined) updateData.isWallTransparent = data.isWallTransparent
         if (data.gradientFrom !== undefined) updateData.gradientFrom = data.gradientFrom
         if (data.gradientVia !== undefined) updateData.gradientVia = data.gradientVia
         if (data.gradientTo !== undefined) updateData.gradientTo = data.gradientTo

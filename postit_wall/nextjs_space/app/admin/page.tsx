@@ -181,6 +181,7 @@ export default function AdminPage() {
     borderBottomColor: '#4a2f18',
     noBorder: false,
     isGradient: false,
+    isWallTransparent: false,
     gradientFrom: '#facc15',
     gradientVia: '#f472b6',
     gradientTo: '#a855f7',
@@ -1538,105 +1539,116 @@ export default function AdminPage() {
                   <div className="space-y-4">
                     <div className="flex items-center space-x-2 pt-2 pb-2">
                       <Checkbox
-                        id="siteIsGradient"
-                        checked={siteSettings.isGradient}
-                        onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, isGradient: !!checked }))}
+                        id="isWallTransparent"
+                        checked={siteSettings.isWallTransparent}
+                        onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, isWallTransparent: !!checked }))}
                       />
-                      <Label htmlFor="siteIsGradient" className="cursor-pointer font-semibold">Panoda Renk Kullan</Label>
+                      <Label htmlFor="isWallTransparent" className="cursor-pointer font-bold text-blue-600">Arka Plan Transparan Olsun</Label>
                     </div>
 
-                    {!siteSettings.isGradient ? (
+                    <div className={siteSettings.isWallTransparent ? 'opacity-50 pointer-events-none transition-opacity' : 'transition-opacity'}>
+                      <div className="flex items-center space-x-2 pt-2 pb-2">
+                        <Checkbox
+                          id="siteIsGradient"
+                          checked={siteSettings.isGradient}
+                          onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, isGradient: !!checked }))}
+                        />
+                        <Label htmlFor="siteIsGradient" className="cursor-pointer font-semibold">Panoda Renk Kullan</Label>
+                      </div>
+
+                      {!siteSettings.isGradient ? (
+                        <div className="space-y-2">
+                          <Label>Arka Plan Rengi</Label>
+                          <div className="flex gap-2">
+                            <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
+                            <Input value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                          <div className="space-y-2">
+                            <Label className="text-xs">Başlangıç</Label>
+                            <div className="flex gap-1">
+                              <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
+                              <Input className="font-mono text-xs h-8" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">Orta</Label>
+                            <div className="flex gap-1">
+                              <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
+                              <Input className="font-mono text-xs h-8" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">Bitiş</Label>
+                            <div className="flex gap-1">
+                              <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
+                              <Input className="font-mono text-xs h-8" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
-                        <Label>Arka Plan Rengi</Label>
+                        <Label>Arka Plan Dokusu Resmi (Mantarımsı transparan doku) URL</Label>
                         <div className="flex gap-2">
-                          <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
-                          <Input value={siteSettings.backgroundColor} onChange={e => setSiteSettings(s => ({ ...s, backgroundColor: e.target.value }))} />
+                          <Input value={siteSettings.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setSiteSettings(s => ({ ...s, backgroundImage: e.target.value }))} />
+                          <div className="flex-shrink-0">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={uploadingSiteImage}
+                              onClick={() => document.getElementById('site-bg-upload')?.click()}
+                            >
+                              {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                            </Button>
+                            <input
+                              id="site-bg-upload"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleSiteImageUpload}
+                              className="hidden"
+                            />
+                          </div>
                         </div>
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+
+                      <div className="flex items-center space-x-2 pt-4 pb-2">
+                        <Checkbox
+                          id="noBorder"
+                          checked={siteSettings.noBorder}
+                          onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, noBorder: !!checked }))}
+                        />
+                        <label
+                          htmlFor="noBorder"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          Çerçeve Yok
+                        </label>
+                      </div>
+
+                      <div className={`grid grid-cols-2 gap-4 ${siteSettings.noBorder ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="space-y-2">
-                          <Label className="text-xs">Başlangıç</Label>
-                          <div className="flex gap-1">
-                            <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
-                            <Input className="font-mono text-xs h-8" value={siteSettings.gradientFrom || '#facc15'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientFrom: e.target.value })} />
+                          <Label>Dış Çerçeve (Sağ) Rengi</Label>
+                          <div className="flex gap-2">
+                            <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
+                            <Input value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-xs">Orta</Label>
-                          <div className="flex gap-1">
-                            <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
-                            <Input className="font-mono text-xs h-8" value={siteSettings.gradientVia || '#f472b6'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientVia: e.target.value })} />
+                          <Label>Üst ve Sol Çerçeve Rengi</Label>
+                          <div className="flex gap-2">
+                            <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
+                            <Input value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-xs">Bitiş</Label>
-                          <div className="flex gap-1">
-                            <Input type="color" className="w-10 h-8 p-1 cursor-pointer" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
-                            <Input className="font-mono text-xs h-8" value={siteSettings.gradientTo || '#a855f7'} onChange={(e) => setSiteSettings({ ...siteSettings, gradientTo: e.target.value })} />
+                          <Label>Alt Çerçeve Rengi</Label>
+                          <div className="flex gap-2">
+                            <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
+                            <Input value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
                           </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label>Arka Plan Dokusu Resmi (Mantarımsı transparan doku) URL</Label>
-                      <div className="flex gap-2">
-                        <Input value={siteSettings.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setSiteSettings(s => ({ ...s, backgroundImage: e.target.value }))} />
-                        <div className="flex-shrink-0">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={uploadingSiteImage}
-                            onClick={() => document.getElementById('site-bg-upload')?.click()}
-                          >
-                            {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                          </Button>
-                          <input
-                            id="site-bg-upload"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleSiteImageUpload}
-                            className="hidden"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2 pt-4 pb-2">
-                      <Checkbox
-                        id="noBorder"
-                        checked={siteSettings.noBorder}
-                        onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, noBorder: !!checked }))}
-                      />
-                      <label
-                        htmlFor="noBorder"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
-                        Çerçeve Yok
-                      </label>
-                    </div>
-
-                    <div className={`grid grid-cols-2 gap-4 ${siteSettings.noBorder ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <div className="space-y-2">
-                        <Label>Dış Çerçeve (Sağ) Rengi</Label>
-                        <div className="flex gap-2">
-                          <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
-                          <Input value={siteSettings.borderColor} onChange={e => setSiteSettings(s => ({ ...s, borderColor: e.target.value }))} />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Üst ve Sol Çerçeve Rengi</Label>
-                        <div className="flex gap-2">
-                          <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
-                          <Input value={siteSettings.borderTopColor} onChange={e => setSiteSettings(s => ({ ...s, borderTopColor: e.target.value }))} />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Alt Çerçeve Rengi</Label>
-                        <div className="flex gap-2">
-                          <Input type="color" className="w-12 p-1 h-10 cursor-pointer" value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
-                          <Input value={siteSettings.borderBottomColor} onChange={e => setSiteSettings(s => ({ ...s, borderBottomColor: e.target.value }))} />
                         </div>
                       </div>
                     </div>
