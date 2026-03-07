@@ -1349,7 +1349,6 @@ export default function AdminPage() {
       label: 'Site Görünümü',
       icon: Palette,
       children: [
-        { id: 'settings', label: 'Site Görseli', icon: Settings },
         { id: 'about', label: 'Hakkımızda', icon: Info },
         { id: 'contact', label: 'İletişim', icon: Phone },
         { id: 'terms', label: 'Kullanım Koşulları', icon: FileText },
@@ -1405,134 +1404,11 @@ export default function AdminPage() {
     { value: 'SILVER', label: 'Gümüş', image: '/pushpins/silver.png' },
   ]
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white flex flex-col">
-        <div className="p-4 border-b border-gray-700">
-          <h1 className="text-xl font-bold">📌 Panoda Şehir</h1>
-          <p className="text-sm text-gray-400">Admin Paneli</p>
-        </div>
 
-        <nav className="flex-1 p-4 space-y-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon
-            const isExpanded = expandedMenus.has(item.id)
-            const hasChildren = item.children && item.children.length > 0
-
-            return (
-              <div key={item.id} className="space-y-1">
-                {hasChildren ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        const newExpanded = new Set(expandedMenus)
-                        if (isExpanded) newExpanded.delete(item.id)
-                        else newExpanded.add(item.id)
-                        setExpandedMenus(newExpanded)
-                      }}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-gray-300 hover:bg-gray-800`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="w-5 h-5" />
-                        <span>{item.label}</span>
-                      </div>
-                      {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </button>
-                    {isExpanded && (
-                      <div className="ml-4 pl-4 border-l border-gray-700 space-y-1">
-                        {item.children?.map((child) => {
-                          const ChildIcon = child.icon
-                          return (
-                            <button
-                              key={child.id}
-                              onClick={() => setActiveSection(child.id as any)}
-                              className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${activeSection === child.id
-                                ? 'bg-blue-600 text-white'
-                                : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                                }`}
-                            >
-                              <ChildIcon className="w-4 h-4" />
-                              {child.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setActiveSection(item.id as any)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeSection === item.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-800'
-                      }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {item.label}
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-gray-700">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800"
-            onClick={() => router.push('/')}
-          >
-            <Home className="w-5 h-5 mr-3" />
-            Ana Sayfaya Dön
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
-        {/* Dashboard */}
-        {activeSection === 'dashboard' && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="text-gray-500 mb-2">Toplam Kullanıcı</div>
-                <div className="text-3xl font-bold">{stats.users}</div>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="text-gray-500 mb-2">Toplam Duvar</div>
-                <div className="text-3xl font-bold">{stats.walls}</div>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="text-gray-500 mb-2">Onay Bekleyenler</div>
-                <div className="text-3xl font-bold text-yellow-600">{stats.pendingPostits}</div>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="text-gray-500 mb-2">Onaylı Post-itler</div>
-                <div className="text-3xl font-bold text-green-600">{stats.postits}</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Site Settings */}
-        {activeSection === 'settings' && (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Site Görünümü Ayarları</h2>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={loadData} disabled={savingSettings}>
-                  İptal
-                </Button>
-                <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
-                  {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Kaydet
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+  const renderSiteGorseli = () => {
+    return (
+      <div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6 bg-white p-6 rounded-lg shadow border">
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Post-it Pano Görünümü (Mantar Pano)</h3>
@@ -2075,9 +1951,121 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-gray-900 text-white flex flex-col">
+        <div className="p-4 border-b border-gray-700">
+          <h1 className="text-xl font-bold">📌 Panoda Şehir</h1>
+          <p className="text-sm text-gray-400">Admin Paneli</p>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-1">
+          {menuItems.map((item) => {
+            const Icon = item.icon
+            const isExpanded = expandedMenus.has(item.id)
+            const hasChildren = item.children && item.children.length > 0
+
+            return (
+              <div key={item.id} className="space-y-1">
+                {hasChildren ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        const newExpanded = new Set(expandedMenus)
+                        if (isExpanded) newExpanded.delete(item.id)
+                        else newExpanded.add(item.id)
+                        setExpandedMenus(newExpanded)
+                      }}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors text-gray-300 hover:bg-gray-800`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-5 h-5" />
+                        <span>{item.label}</span>
+                      </div>
+                      {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
+                    {isExpanded && (
+                      <div className="ml-4 pl-4 border-l border-gray-700 space-y-1">
+                        {item.children?.map((child) => {
+                          const ChildIcon = child.icon
+                          return (
+                            <button
+                              key={child.id}
+                              onClick={() => setActiveSection(child.id as any)}
+                              className={`w-full flex items-center gap-3 px-4 py-2 text-sm rounded-lg transition-colors ${activeSection === child.id
+                                ? 'bg-blue-600 text-white'
+                                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                                }`}
+                            >
+                              <ChildIcon className="w-4 h-4" />
+                              {child.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setActiveSection(item.id as any)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeSection === item.id
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-800'
+                      }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.label}
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-gray-700">
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800"
+            onClick={() => router.push('/')}
+          >
+            <Home className="w-5 h-5 mr-3" />
+            Ana Sayfaya Dön
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-8 overflow-auto">
+        {/* Dashboard */}
+        {activeSection === 'dashboard' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="text-gray-500 mb-2">Toplam Kullanıcı</div>
+                <div className="text-3xl font-bold">{stats.users}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="text-gray-500 mb-2">Toplam Duvar</div>
+                <div className="text-3xl font-bold">{stats.walls}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="text-gray-500 mb-2">Onay Bekleyenler</div>
+                <div className="text-3xl font-bold text-yellow-600">{stats.pendingPostits}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="text-gray-500 mb-2">Onaylı Post-itler</div>
+                <div className="text-3xl font-bold text-green-600">{stats.postits}</div>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* Info Pages Placeholder */}
+                {/* Info Pages Placeholder */}
         {['about', 'contact', 'terms', 'privacy', 'cookies', 'help', 'kvkk'].includes(activeSection) && (
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-6">
@@ -4270,9 +4258,17 @@ export default function AdminPage() {
               </Select>
             </div>
 
-            <div className="space-y-4 border-t pt-4">
+            
+            {wallForm.name === 'Ana Duvar' ? (
+              <div className="space-y-4 border-t pt-4 mt-4">
+                <h4 className="font-bold text-lg text-blue-600 mb-2">Ana Duvar Özel Site Başlık & Görünüm Ayarları</h4>
+                {renderSiteGorseli()}
+              </div>
+            ) : (
+              <div className="space-y-4 border-t pt-4">
               <h4 className="font-semibold text-sm flex items-center gap-2">
                 <Palette className="w-4 h-4" /> Duvar Başlık Görünümü (Hero)
+      
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -4406,6 +4402,8 @@ export default function AdminPage() {
               </div>
             </div>
 
+
+            )}
             {/* Calendar Areas Section */}
             <div className="space-y-4 pt-4 border-t">
               <div className="flex items-center justify-between">
