@@ -1660,12 +1660,12 @@ export default function AdminPage() {
                               type="button"
                               variant="outline"
                               disabled={uploadingSiteBackgroundImage}
-                              onClick={() => document.getElementById('site-bg-upload')?.click()}
+                              onClick={() => document.getElementById('site-global-bg-upload')?.click()}
                             >
                               {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                             </Button>
                             <input
-                              id="site-bg-upload"
+                              id="site-global-bg-upload"
                               type="file"
                               accept="image/*"
                               onChange={handleSiteBackgroundImageUpload}
