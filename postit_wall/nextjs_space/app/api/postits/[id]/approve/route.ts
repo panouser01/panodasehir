@@ -41,11 +41,11 @@ export async function PATCH(
     const userId = (session.user as any).id
 
     // Check permissions - wall manager can manage posts in their walls
-    if (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER') {
+    if (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER' && userRole !== 'WALL_USER') {
       return NextResponse.json({ error: 'Bu işlemi yapmaya yetkiniz yok' }, { status: 403 })
     }
 
-    if (userRole === 'WALL_MANAGER') {
+    if (userRole === 'WALL_MANAGER' || userRole === 'WALL_USER') {
       const allCategories = await prisma.category.findMany({
         select: { id: true, parentId: true, wallManagers: { select: { id: true } } }
       })

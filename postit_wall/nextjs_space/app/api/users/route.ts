@@ -131,9 +131,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (userRole === 'WALL_MANAGER') {
-      // Wall manager cannot create admin/super_admin or other roles normally (force USER)
-      if (role && role !== 'USER') {
-        return NextResponse.json({ error: 'Sadece normal kullanıcı oluşturabilirsiniz' }, { status: 403 })
+      // Wall manager cannot create admin/super_admin or other roles normally (force USER or WALL_USER)
+      if (role && role !== 'USER' && role !== 'WALL_USER') {
+        return NextResponse.json({ error: 'Sadece yetkiniz olan bir kullanıcı tipi oluşturabilirsiniz' }, { status: 403 })
       }
 
       const allCategories = await prisma.category.findMany({
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
         email,
         name,
         password: hashedPassword,
-        role: userRole === 'WALL_MANAGER' ? 'USER' : (role || 'USER'),
+        role: userRole === 'WALL_MANAGER' ? (role === 'WALL_USER' ? 'WALL_USER' : 'USER') : (role || 'USER'),
         userGroups: userGroupIds && userGroupIds.length > 0 ? {
           connect: userGroupIds.map((id: string) => ({ id }))
         } : undefined

@@ -185,7 +185,7 @@ export function Navbar() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {(userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER') && (
+                  {(userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER' || userRole === 'WALL_USER') && (
                     <DropdownMenuItem onClick={() => router.push('/admin')}>
                       <Settings className="mr-2 h-4 w-4" />
                       <span>{userRole === 'SUPER_ADMIN' ? 'Admin Panel' : 'Yönetici Panel'}</span>

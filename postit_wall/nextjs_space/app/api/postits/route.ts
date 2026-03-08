@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     })
 
     const isAdmin = (session?.user as any)?.role === 'SUPER_ADMIN'
-    const isWallManager = (session?.user as any)?.role === 'WALL_MANAGER'
+    const isWallManager = (session?.user as any)?.role === 'WALL_MANAGER' || (session?.user as any)?.role === 'WALL_USER'
     const userId = (session?.user as any)?.id
     const where: any = {}
 

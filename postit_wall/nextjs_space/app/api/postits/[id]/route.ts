@@ -55,11 +55,11 @@ export async function PATCH(
     }
 
     // Only super admin or wall manager can edit posts
-    if (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER') {
+    if (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER' && userRole !== 'WALL_USER') {
       return NextResponse.json({ error: 'Bu işlemi yapmaya yetkiniz yok' }, { status: 403 })
     }
 
-    if (userRole === 'WALL_MANAGER') {
+    if (userRole === 'WALL_MANAGER' || userRole === 'WALL_USER') {
       // Find all categories they manage including children
       const allCategories = await prisma.category.findMany({
         select: { id: true, parentId: true, wallManagers: { select: { id: true } } }
@@ -198,14 +198,14 @@ export async function DELETE(
     const userId = (session.user as any).id
 
     // Check permissions
-    if (postit.userId !== userId && userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER') {
+    if (postit.userId !== userId && userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER' && userRole !== 'WALL_USER') {
       return NextResponse.json(
         { error: 'Bu işlemi yapmaya yetkiniz yok' },
         { status: 403 }
       )
     }
 
-    if (postit.userId !== userId && userRole === 'WALL_MANAGER') {
+    if (postit.userId !== userId && (userRole === 'WALL_MANAGER' || userRole === 'WALL_USER')) {
       const allCategories = await prisma.category.findMany({
         select: { id: true, parentId: true, wallManagers: { select: { id: true } } }
       })

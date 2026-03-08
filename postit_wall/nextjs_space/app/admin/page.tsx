@@ -234,7 +234,7 @@ export default function AdminPage() {
 
     if (status === 'authenticated' && !dataLoaded.current) {
       const role = (session?.user as any)?.role
-      if (role !== 'SUPER_ADMIN' && role !== 'WALL_MANAGER') {
+      if (role !== 'SUPER_ADMIN' && role !== 'WALL_MANAGER' && role !== 'WALL_USER') {
         toast.error('Bu sayfaya erişim yetkiniz yok')
         router.push('/')
         return
@@ -288,7 +288,7 @@ export default function AdminPage() {
       const userRole = (session?.user as any)?.role
       const currentUserId = (session?.user as any)?.id
 
-      if (userRole === 'WALL_MANAGER') {
+      if (userRole === 'WALL_MANAGER' || userRole === 'WALL_USER') {
         const managedIds = new Set<string>()
         allWalls.forEach((cat: any) => {
           if (cat.wallManagers?.some((m: any) => m.id === currentUserId)) {
@@ -1572,10 +1572,13 @@ export default function AdminPage() {
     if (role === 'WALL_MANAGER') {
       return ['dashboard', 'walls', 'postits', 'users'].includes(item.id)
     }
+    if (role === 'WALL_USER') {
+      return ['dashboard', 'postits'].includes(item.id)
+    }
     return false
   })
 
-  const wallManagers = users.filter(u => u.role === 'WALL_MANAGER' || u.role === 'SUPER_ADMIN')
+  const wallManagers = users.filter(u => ['WALL_MANAGER', 'SUPER_ADMIN', 'WALL_USER'].includes(u.role))
   const colors = [
     { value: 'YELLOW', label: 'Sarı', bg: 'bg-yellow-300' },
     { value: 'PINK', label: 'Pembe', bg: 'bg-pink-300' },
@@ -5160,7 +5163,6 @@ export default function AdminPage() {
               <Select
                 value={userForm.role}
                 onValueChange={(value) => setUserForm({ ...userForm, role: value })}
-                disabled={role === 'WALL_MANAGER'}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -5168,7 +5170,7 @@ export default function AdminPage() {
                 <SelectContent>
                   {roles.length > 0 ? (
                     roles
-                      .filter(r => role === 'SUPER_ADMIN' || r.name === 'USER')
+                      .filter(r => role === 'SUPER_ADMIN' || r.name === 'USER' || r.name === 'WALL_USER')
                       .map((r) => (
                         <SelectItem key={r.id} value={r.name}>
                           <div className="flex flex-col items-start py-1">
@@ -5184,6 +5186,9 @@ export default function AdminPage() {
                   ) : (
                     <>
                       <SelectItem value="USER">Standart Kullanıcı</SelectItem>
+                      {(role === 'SUPER_ADMIN' || role === 'WALL_MANAGER') && (
+                        <SelectItem value="WALL_USER">Duvar Kullanıcısı</SelectItem>
+                      )}
                       {role === 'SUPER_ADMIN' && (
                         <>
                           <SelectItem value="WALL_MANAGER">Duvar Yöneticisi</SelectItem>

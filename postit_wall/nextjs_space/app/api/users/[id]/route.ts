@@ -62,8 +62,8 @@ export async function PATCH(
 
     if (userRole === 'WALL_MANAGER') {
       // Wall manager cannot elevate privileges
-      if (role && role !== 'USER') {
-        return NextResponse.json({ error: 'Rol değiştirme yetkiniz yok' }, { status: 403 })
+      if (role && role !== 'USER' && role !== 'WALL_USER') {
+        return NextResponse.json({ error: 'Sadece yetkiniz olan rolleri atayabilirsiniz' }, { status: 403 })
       }
 
       // Check if they have access to the target user

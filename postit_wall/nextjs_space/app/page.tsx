@@ -255,7 +255,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const sliderLinks = (activeSlider?.links as string[]) || []
 
   const userRole = (session?.user as any)?.role
-  const canDelete = userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER'
+  const canDelete = userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER' || userRole === 'WALL_USER'
 
   // Calendar JSX
   const calendarLeaf = (
