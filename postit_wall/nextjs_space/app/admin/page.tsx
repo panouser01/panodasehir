@@ -119,49 +119,11 @@ export default function AdminPage() {
 
   // Form states
   const [locationForm, setLocationForm] = useState({ type: 'CITY', name: '', cityId: '' })
-  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'USER', userGroupId: '' })
+  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'USER', userGroupIds: [] as string[] })
   const [wallForm, setWallForm] = useState({
-    name: '',
-    description: '',
-    wallManagerId: '',
-    userGroupId: '',
-    parentId: '',
-    cityId: '',
-    districtId: '',
-    heroSubtitle: '',
-    heroTitleFont: 'sans-serif',
-    heroTitleColor: '#ffffff',
-    heroTitleSize: '5xl',
-    heroSubtitleFont: 'sans-serif',
-    heroSubtitleColor: '#ffffff',
-    heroSubtitleSize: 'xl',
-    heroGradientFrom: '#facc15',
-    heroGradientVia: '#f472b6',
-    heroGradientTo: '#a855f7',
-    backgroundColor: '',
-    backgroundImage: '',
-    borderColor: '',
-    borderTopColor: '',
-    borderBottomColor: '',
-    isGradient: false,
-    gradientFrom: '#facc15',
-    gradientVia: '#f472b6',
-    gradientTo: '#a855f7',
-    isWallTransparent: false,
-    noBorder: false,
-    heroAlignment: 'left',
-    heroBackgroundImage: '',
-    navMenuBgColor: '',
-    navMenuFont: 'sans-serif',
-    navMenuTextColor: '',
-    navMenuFontSize: 14,
-    navMenuMainBold: true,
-    siteBackgroundColor: '',
-    siteBackgroundImage: '',
-    siteGradientFrom: '',
-    siteGradientVia: '',
-    siteGradientTo: '',
-    siteIsGradient: false,
+    name: '', description: '', wallManagerIds: [] as string[], userGroupId: '',
+    parentId: '', cityId: '', districtId: '', heroSubtitle: '', heroTitleFont: 'sans-serif', heroTitleColor: '#ffffff', heroTitleSize: '5xl', heroSubtitleFont: 'sans-serif', heroSubtitleColor: '#ffffff', heroSubtitleSize: 'xl', heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7',
+    backgroundColor: '', backgroundImage: '', borderColor: '', borderTopColor: '', borderBottomColor: '', isGradient: false, gradientFrom: '#facc15', gradientVia: '#f472b6', gradientTo: '#a855f7', isWallTransparent: false, noBorder: false, heroAlignment: 'left', heroBackgroundImage: '', navMenuBgColor: '', navMenuFont: 'sans-serif', navMenuTextColor: '', navMenuFontSize: 14, navMenuMainBold: true, siteBackgroundColor: '', siteBackgroundImage: '', siteGradientFrom: '', siteGradientVia: '', siteGradientTo: '', siteIsGradient: false,
     calendarEntries: [] as any[]
   })
   const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
@@ -180,6 +142,7 @@ export default function AdminPage() {
   // Wall search and hierarchy states
   const [wallSearch, setWallSearch] = useState('')
   const [expandedWalls, setExpandedWalls] = useState<Set<string>>(new Set())
+  const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set())
   const [showMovePostsModal, setShowMovePostsModal] = useState(false)
   const [parentWallForSubcategory, setParentWallForSubcategory] = useState<any>(null)
   const [selectedPostsToMove, setSelectedPostsToMove] = useState<string[]>([])
@@ -328,7 +291,7 @@ export default function AdminPage() {
       if (userRole === 'WALL_MANAGER') {
         const managedIds = new Set<string>()
         allWalls.forEach((cat: any) => {
-          if (cat.wallManagerId === currentUserId) {
+          if (cat.wallManagers?.some((m: any) => m.id === currentUserId)) {
             managedIds.add(cat.id)
           }
         })
@@ -404,7 +367,7 @@ export default function AdminPage() {
       }
       setShowUserModal(false)
       setEditingItem(null)
-      setUserForm({ name: '', email: '', password: '', role: 'USER', userGroupId: '' })
+      setUserForm({ name: '', email: '', password: '', role: 'USER', userGroupIds: [] })
       loadData()
     } catch (error: any) {
       toast.error(error.message || 'Kullanıcı kaydedilemedi')
@@ -429,7 +392,7 @@ export default function AdminPage() {
       const payload: any = {
         name: wallForm.name,
         description: wallForm.description,
-        wallManagerId: wallForm.wallManagerId || null,
+        wallManagerIds: wallForm.wallManagerIds,
         userGroupId: wallForm.userGroupId || null,
         parentId: wallForm.parentId || null,
         cityId: wallForm.cityId || null,
@@ -874,7 +837,7 @@ export default function AdminPage() {
 
   const openEditUser = (user: any) => {
     setEditingItem(user)
-    setUserForm({ name: user.name, email: user.email, password: '', role: user.role, userGroupId: user.userGroupId || '' })
+    setUserForm({ name: user.name, email: user.email, password: '', role: user.role, userGroupIds: user.userGroups?.map((g: any) => g.id) || [] })
     setShowUserModal(true)
   }
 
@@ -883,7 +846,7 @@ export default function AdminPage() {
     setWallForm({
       name: wall.name,
       description: wall.description || '',
-      wallManagerId: wall.wallManagerId || '',
+      wallManagerIds: wall.wallManagers?.map((m: any) => m.id) || [],
       userGroupId: wall.userGroupId || '',
       parentId: wall.parentId || '',
       cityId: wall.cityId || '',
@@ -966,7 +929,7 @@ export default function AdminPage() {
     setWallForm({
       name: '',
       description: '',
-      wallManagerId: '',
+      wallManagerIds: [],
       userGroupId: '',
       parentId: parentWall.id,
       cityId: '',
@@ -1058,7 +1021,7 @@ export default function AdminPage() {
 
   const openAddUser = () => {
     setEditingItem(null)
-    setUserForm({ name: '', email: '', password: '', role: 'USER', userGroupId: '' })
+    setUserForm({ name: '', email: '', password: '', role: 'USER', userGroupIds: [] })
     setShowUserModal(true)
   }
 
@@ -1068,7 +1031,7 @@ export default function AdminPage() {
     setWallForm({
       name: '',
       description: '',
-      wallManagerId: '',
+      wallManagerIds: [],
       userGroupId: '',
       parentId: '',
       cityId: '',
@@ -1119,6 +1082,7 @@ export default function AdminPage() {
       heroGradientFrom: '#facc15',
       heroGradientVia: '#f472b6',
       heroGradientTo: '#a855f7',
+      isTransparent: false,
       isActive: true
     })
     setSelectedPostsToMove([])
@@ -1606,7 +1570,7 @@ export default function AdminPage() {
   ].filter(item => {
     if (role === 'SUPER_ADMIN') return true
     if (role === 'WALL_MANAGER') {
-      return ['dashboard', 'walls', 'postits'].includes(item.id)
+      return ['dashboard', 'walls', 'postits', 'users'].includes(item.id)
     }
     return false
   })
@@ -1661,13 +1625,13 @@ export default function AdminPage() {
           </Button>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           <Table>
-            <TableHeader className="bg-gray-50/50">
-              <TableRow>
-                <TableHead className="font-bold text-gray-700 py-4 pl-6">Sıra / Resimler</TableHead>
-                <TableHead className="font-bold text-gray-700">Durum</TableHead>
-                <TableHead className="font-bold text-gray-700 text-right pr-6">İşlemler</TableHead>
+            <TableHeader className="bg-gray-900">
+              <TableRow className="border-gray-800 hover:bg-gray-900">
+                <TableHead className="font-semibold text-gray-300 py-4 pl-6">Sıra / Resimler</TableHead>
+                <TableHead className="font-semibold text-gray-300">Durum</TableHead>
+                <TableHead className="font-semibold text-gray-300 text-right pr-6">İşlemler</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -2971,7 +2935,7 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="h-screen bg-gray-100 flex overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-900 text-white flex flex-col">
         <div className="p-4 border-b border-gray-700">
@@ -2982,7 +2946,7 @@ export default function AdminPage() {
           <p className="text-sm text-gray-400">Admin Paneli</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isExpanded = expandedMenus.has(item.id)
@@ -3058,1560 +3022,1623 @@ export default function AdminPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
-        {/* Dashboard */}
-        {activeSection === 'dashboard' && (
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="text-gray-500 mb-2">Toplam Kullanıcı</div>
-                  <div className="text-3xl font-bold">{stats.users}</div>
+      <main className="flex-1 overflow-y-auto relative bg-gray-50/50">
+        <div className="p-8 pb-32 min-h-full">
+          {/* Dashboard */}
+          {activeSection === 'dashboard' && (
+            <div className="space-y-8">
+              <div>
+                <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                  <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
                 </div>
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="text-gray-500 mb-2">Toplam Duvar</div>
-                  <div className="text-3xl font-bold">{stats.walls}</div>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="text-gray-500 mb-2">Onay Bekleyenler</div>
-                  <div className="text-3xl font-bold text-yellow-600">{stats.pendingPostits}</div>
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="text-gray-500 mb-2">Onaylı Post-itler</div>
-                  <div className="text-3xl font-bold text-green-600">{stats.postits}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col min-h-[400px]">
-              <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                <h3 className="font-semibold text-gray-700">Tüm Kategoriler (Ana Sayfa) Önizlemesi</h3>
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
-                    onClick={() => setShowPreview(!showPreview)}
-                  >
-                    {showPreview ? 'Önizlemeyi Kapat' : 'Önizlemeyi Yükle'}
-                  </Button>
-                  <a href="/" target="_blank" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
-                    Yeni Sekmede Aç <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
-              <div className="flex-1 w-full bg-gray-50 p-4 min-h-[500px]">
-                {showPreview ? (
-                  <div className="w-full h-[600px] border border-gray-300 rounded overflow-hidden shadow-inner bg-white">
-                    <iframe src="/?preview=1" className="w-full h-full border-none" title="Ana Sayfa Önizleme" />
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-xl p-6 text-white border border-gray-700 relative overflow-hidden group">
+                    <div className="absolute -right-6 -top-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                      <Users className="w-32 h-32" />
+                    </div>
+                    <div className="relative z-10">
+                      <div className="text-gray-400 font-medium mb-1 text-sm uppercase tracking-wider">Toplam Kullanıcı</div>
+                      <div className="text-4xl font-bold">{stats.users}</div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="w-full h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-white text-gray-400">
-                    <LayoutGrid className="w-12 h-12 mb-3 opacity-20" />
-                    <p className="text-sm">Önizlemeyi görmek için yukarıdaki butona tıklayın.</p>
-                    <p className="text-xs mt-1">(Aynı anda hem admin hem ana sayfa açıkken oluşabilecek takılmaları önlemek için varsayılan olarak kapalıdır.)</p>
+                  <div className="bg-gradient-to-br from-blue-900 to-blue-800 rounded-2xl shadow-xl p-6 text-white border border-blue-700 relative overflow-hidden group">
+                    <div className="absolute -right-6 -top-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                      <LayoutGrid className="w-32 h-32" />
+                    </div>
+                    <div className="relative z-10">
+                      <div className="text-blue-200 font-medium mb-1 text-sm uppercase tracking-wider">Toplam Duvar</div>
+                      <div className="text-4xl font-bold">{stats.walls}</div>
+                    </div>
                   </div>
-                )}
+                  <div className="bg-gradient-to-br from-amber-600 to-amber-500 rounded-2xl shadow-xl p-6 text-white border border-amber-500 relative overflow-hidden group">
+                    <div className="absolute -right-6 -top-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                      <StickyNote className="w-32 h-32" />
+                    </div>
+                    <div className="relative z-10">
+                      <div className="text-amber-100 font-medium mb-1 text-sm uppercase tracking-wider">Onay Bekleyenler</div>
+                      <div className="text-4xl font-bold">{stats.pendingPostits}</div>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-emerald-600 to-emerald-500 rounded-2xl shadow-xl p-6 text-white border border-emerald-500 relative overflow-hidden group">
+                    <div className="absolute -right-6 -top-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                      <StickyNote className="w-32 h-32" />
+                    </div>
+                    <div className="relative z-10">
+                      <div className="text-emerald-100 font-medium mb-1 text-sm uppercase tracking-wider">Onaylı Post-itler</div>
+                      <div className="text-4xl font-bold">{stats.postits}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col min-h-[400px]">
+                <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-700">Tüm Kategoriler (Ana Sayfa) Önizlemesi</h3>
+                  <div className="flex items-center gap-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                      onClick={() => setShowPreview(!showPreview)}
+                    >
+                      {showPreview ? 'Önizlemeyi Kapat' : 'Önizlemeyi Yükle'}
+                    </Button>
+                    <a href="/" target="_blank" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
+                      Yeni Sekmede Aç <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+                <div className="flex-1 w-full bg-gray-50 p-4 min-h-[500px]">
+                  {showPreview ? (
+                    <div className="w-full h-[600px] border border-gray-300 rounded overflow-hidden shadow-inner bg-white">
+                      <iframe src="/?preview=1" className="w-full h-full border-none" title="Ana Sayfa Önizleme" />
+                    </div>
+                  ) : (
+                    <div className="w-full h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-white text-gray-400">
+                      <LayoutGrid className="w-12 h-12 mb-3 opacity-20" />
+                      <p className="text-sm">Önizlemeyi görmek için yukarıdaki butona tıklayın.</p>
+                      <p className="text-xs mt-1">(Aynı anda hem admin hem ana sayfa açıkken oluşabilecek takılmaları önlemek için varsayılan olarak kapalıdır.)</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Info Pages Placeholder */}
-        {['about', 'contact', 'terms', 'privacy', 'cookies', 'help', 'kvkk'].includes(activeSection) && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">
-                {activeSection === 'about' && 'Hakkımızda Sayfası Yönetimi'}
-                {activeSection === 'contact' && 'İletişim Sayfası Yönetimi'}
-                {activeSection === 'terms' && 'Kullanım Koşulları Yönetimi'}
-                {activeSection === 'privacy' && 'Gizlilik Politikası Yönetimi'}
-                {activeSection === 'cookies' && 'Çerez Politikası Yönetimi'}
-                {activeSection === 'help' && 'Yardım Merkezi Yönetimi'}
-                {activeSection === 'kvkk' && 'KVKK Metni Yönetimi'}
-              </h2>
-              <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
-                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Değişiklikleri Kaydet
-              </Button>
-            </div>
+          {/* Info Pages Placeholder */}
+          {['about', 'contact', 'terms', 'privacy', 'cookies', 'help', 'kvkk'].includes(activeSection) && (
+            <div className="space-y-6">
+              <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                <h2 className="text-2xl font-bold">
+                  {activeSection === 'about' && 'Hakkımızda Sayfası Yönetimi'}
+                  {activeSection === 'contact' && 'İletişim Sayfası Yönetimi'}
+                  {activeSection === 'terms' && 'Kullanım Koşulları Yönetimi'}
+                  {activeSection === 'privacy' && 'Gizlilik Politikası Yönetimi'}
+                  {activeSection === 'cookies' && 'Çerez Politikası Yönetimi'}
+                  {activeSection === 'help' && 'Yardım Merkezi Yönetimi'}
+                  {activeSection === 'kvkk' && 'KVKK Metni Yönetimi'}
+                </h2>
+                <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
+                  {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Değişiklikleri Kaydet
+                </Button>
+              </div>
 
-            <div className="bg-white p-6 rounded-lg shadow border">
-              <Label className="text-lg font-semibold block mb-4">İçerik Editörü</Label>
-              <RichEditor
-                key={activeSection}
-                placeholder="Sayfa içeriğini buraya zengin metin olarak girebilirsiniz..."
-                value={(siteSettings as any)[
-                  activeSection === 'about' ? 'aboutContent' :
-                    activeSection === 'contact' ? 'contactContent' :
-                      activeSection === 'terms' ? 'termsContent' :
-                        activeSection === 'privacy' ? 'privacyContent' :
-                          activeSection === 'cookies' ? 'cookiesContent' :
-                            activeSection === 'help' ? 'helpContent' :
-                              activeSection === 'kvkk' ? 'kvkkContent' : 'aboutContent'
-                ] || ''}
-                onChange={(value) => {
-                  const field =
+              <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                <Label className="text-lg font-semibold block mb-4">İçerik Editörü</Label>
+                <RichEditor
+                  key={activeSection}
+                  placeholder="Sayfa içeriğini buraya zengin metin olarak girebilirsiniz..."
+                  value={(siteSettings as any)[
                     activeSection === 'about' ? 'aboutContent' :
                       activeSection === 'contact' ? 'contactContent' :
                         activeSection === 'terms' ? 'termsContent' :
                           activeSection === 'privacy' ? 'privacyContent' :
                             activeSection === 'cookies' ? 'cookiesContent' :
                               activeSection === 'help' ? 'helpContent' :
-                                activeSection === 'kvkk' ? 'kvkkContent' : 'aboutContent';
-                  setSiteSettings(prev => ({ ...prev, [field]: value }));
-                }}
-              />
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
-                <strong>İpucu:</strong> Buraya yazdığınız metinler sitedeki ilgili linklere tıklandığında popup (modal) içerisinde görüntülenecektir.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Popular Categories Management */}
-        {activeSection === 'popularCategories' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Popüler Kategorileri Yönet</h2>
-              <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
-                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Düzeni Kaydet
-              </Button>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow border">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Kategori Linkleri</h3>
-                  <p className="text-sm text-gray-500">Footer'da "Popüler Kategoriler" sütununda görünecek linkler.</p>
-                </div>
-                <Button
-                  onClick={() => {
-                    const links = [...(siteSettings.popularLinks || [])];
-                    links.push({ label: 'Yeni Kategori', href: '/kategori/yeni' });
-                    setSiteSettings({ ...siteSettings, popularLinks: links });
+                                activeSection === 'kvkk' ? 'kvkkContent' : 'aboutContent'
+                  ] || ''}
+                  onChange={(value) => {
+                    const field =
+                      activeSection === 'about' ? 'aboutContent' :
+                        activeSection === 'contact' ? 'contactContent' :
+                          activeSection === 'terms' ? 'termsContent' :
+                            activeSection === 'privacy' ? 'privacyContent' :
+                              activeSection === 'cookies' ? 'cookiesContent' :
+                                activeSection === 'help' ? 'helpContent' :
+                                  activeSection === 'kvkk' ? 'kvkkContent' : 'aboutContent';
+                    setSiteSettings(prev => ({ ...prev, [field]: value }));
                   }}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ekle
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {(!siteSettings.popularLinks || siteSettings.popularLinks.length === 0) ? (
-                  <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-lg">
-                    Henüz bir link eklenmemiş. "Ekle" butonunu kullanarak yeni linkler tanımlayabilirsiniz.
-                  </div>
-                ) : (
-                  siteSettings.popularLinks.map((link, idx) => (
-                    <div key={idx} className="flex gap-4 items-end bg-gray-50 p-4 rounded-lg border">
-                      <div className="flex-1 space-y-2">
-                        <Label>Görünen Ad</Label>
-                        <Input
-                          value={link.label}
-                          onChange={(e) => {
-                            const links = [...(siteSettings.popularLinks || [])];
-                            links[idx].label = e.target.value;
-                            setSiteSettings({ ...siteSettings, popularLinks: links });
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <Label>Link Adresi (Href)</Label>
-                        <Input
-                          value={link.href}
-                          onChange={(e) => {
-                            const links = [...(siteSettings.popularLinks || [])];
-                            links[idx].href = e.target.value;
-                            setSiteSettings({ ...siteSettings, popularLinks: links });
-                          }}
-                          placeholder="/kategori/ornek"
-                        />
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => {
-                          const links = [...(siteSettings.popularLinks || [])];
-                          links.splice(idx, 1);
-                          setSiteSettings({ ...siteSettings, popularLinks: links });
-                        }}
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Discover Management */}
-        {activeSection === 'discover' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Keşfet Bölümünü Yönet</h2>
-              <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
-                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Düzeni Kaydet
-              </Button>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow border">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Keşfet Linkleri</h3>
-                  <p className="text-sm text-gray-500">Footer'da "Keşfet" sütununda görünecek linkler.</p>
+                />
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+                  <strong>İpucu:</strong> Buraya yazdığınız metinler sitedeki ilgili linklere tıklandığında popup (modal) içerisinde görüntülenecektir.
                 </div>
-                <Button
-                  onClick={() => {
-                    const links = [...(siteSettings.discoverLinks || [])];
-                    links.push({ label: 'Yeni Link', href: '#' });
-                    setSiteSettings({ ...siteSettings, discoverLinks: links });
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ekle
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {(!siteSettings.discoverLinks || siteSettings.discoverLinks.length === 0) ? (
-                  <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-lg">
-                    Henüz bir link eklenmemiş. "Ekle" butonunu kullanarak yeni linkler tanımlayabilirsiniz.
-                  </div>
-                ) : (
-                  siteSettings.discoverLinks.map((link, idx) => (
-                    <div key={idx} className="flex gap-4 items-end bg-gray-50 p-4 rounded-lg border">
-                      <div className="flex-1 space-y-2">
-                        <Label>Görünen Ad</Label>
-                        <Input
-                          value={link.label}
-                          onChange={(e) => {
-                            const links = [...(siteSettings.discoverLinks || [])];
-                            links[idx].label = e.target.value;
-                            setSiteSettings({ ...siteSettings, discoverLinks: links });
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <Label>Link Adresi (Href)</Label>
-                        <Input
-                          value={link.href}
-                          onChange={(e) => {
-                            const links = [...(siteSettings.discoverLinks || [])];
-                            links[idx].href = e.target.value;
-                            setSiteSettings({ ...siteSettings, discoverLinks: links });
-                          }}
-                        />
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => {
-                          const links = [...(siteSettings.discoverLinks || [])];
-                          links.splice(idx, 1);
-                          setSiteSettings({ ...siteSettings, discoverLinks: links });
-                        }}
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
-                    </div>
-                  ))
-                )}
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Social Media Management */}
-        {activeSection === 'socialMedia' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Sosyal Medya Hesaplarını Yönet</h2>
-              <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
-                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Ayarları Kaydet
-              </Button>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow border">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Hesaplar</h3>
-                  <p className="text-sm text-gray-500">Footer'da görüntülenecek sosyal medya ikonları ve linkleri.</p>
-                </div>
-                <Button
-                  onClick={() => {
-                    const links = [...(siteSettings.socialLinks || [])];
-                    links.push({ platform: 'Instagram', icon: 'Instagram', url: 'https://instagram.com/panodasehir' });
-                    setSiteSettings({ ...siteSettings, socialLinks: links });
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Ekle
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {(!siteSettings.socialLinks || siteSettings.socialLinks.length === 0) ? (
-                  <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-lg">
-                    Henüz bir hesap eklenmemiş. "Ekle" butonunu kullanarak bağlantılarınızı ekleyebilirsiniz.
-                  </div>
-                ) : (
-                  siteSettings.socialLinks.map((link, idx) => (
-                    <div key={idx} className="flex flex-col md:flex-row gap-4 items-end bg-gray-50 p-4 rounded-lg border">
-                      <div className="w-40 space-y-2">
-                        <Label>Platform</Label>
-                        <Input
-                          value={link.platform}
-                          onChange={(e) => {
-                            const links = [...(siteSettings.socialLinks || [])];
-                            links[idx].platform = e.target.value;
-                            setSiteSettings({ ...siteSettings, socialLinks: links });
-                          }}
-                          placeholder="Instagram"
-                        />
-                      </div>
-                      <div className="w-48 space-y-2">
-                        <Label>İkon (Lucide)</Label>
-                        <Select
-                          value={link.icon}
-                          onValueChange={(val) => {
-                            const links = [...(siteSettings.socialLinks || [])];
-                            links[idx].icon = val;
-                            setSiteSettings({ ...siteSettings, socialLinks: links });
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="İkon Seçin" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Instagram">Instagram</SelectItem>
-                            <SelectItem value="Facebook">Facebook</SelectItem>
-                            <SelectItem value="Twitter">Twitter/X</SelectItem>
-                            <SelectItem value="Linkedin">LinkedIn</SelectItem>
-                            <SelectItem value="Youtube">Youtube</SelectItem>
-                            <SelectItem value="Github">Github</SelectItem>
-                            <SelectItem value="Share2">Paylaş</SelectItem>
-                            <SelectItem value="Mail">E-Posta</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex-1 space-y-2 w-full">
-                        <Label>Hesap Linki (URL)</Label>
-                        <Input
-                          value={link.url}
-                          onChange={(e) => {
-                            const links = [...(siteSettings.socialLinks || [])];
-                            links[idx].url = e.target.value;
-                            setSiteSettings({ ...siteSettings, socialLinks: links });
-                          }}
-                          placeholder="https://..."
-                        />
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => {
-                          const links = [...(siteSettings.socialLinks || [])];
-                          links.splice(idx, 1);
-                          setSiteSettings({ ...siteSettings, socialLinks: links });
-                        }}
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Calendar Settings */}
-        {activeSection === 'calendar' && (
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Takvim Ayarları</h2>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={loadData} disabled={savingSettings}>
-                  İptal
-                </Button>
+          {/* Popular Categories Management */}
+          {activeSection === 'popularCategories' && (
+            <div className="space-y-6">
+              <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                <h2 className="text-2xl font-bold">Popüler Kategorileri Yönet</h2>
                 <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
                   {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Kaydet
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6 bg-white p-6 rounded-lg shadow border">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Görünüm ve Konum</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2 pt-2 pb-2">
-                      <Checkbox
-                        id="calendarShow"
-                        checked={siteSettings.calendarShow}
-                        onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, calendarShow: !!checked }))}
-                      />
-                      <Label htmlFor="calendarShow" className="cursor-pointer font-semibold">Takvimi Göster</Label>
-                    </div>
-
-                    {siteSettings.calendarShow && (
-                      <>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Sayfadaki Konumu</Label>
-                            <Select
-                              value={siteSettings.calendarPosition || 'right'}
-                              onValueChange={(value) => setSiteSettings({ ...siteSettings, calendarPosition: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="left">Mantar Pano Solu</SelectItem>
-                                <SelectItem value="right">Mantar Pano Sağı</SelectItem>
-                                <SelectItem value="top-left">Sayfa Sol Üst (Sabit)</SelectItem>
-                                <SelectItem value="top-right">Sayfa Sağ Üst (Sabit)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Boyut</Label>
-                            <Select
-                              value={siteSettings.calendarSize || 'medium'}
-                              onValueChange={(value) => setSiteSettings({ ...siteSettings, calendarSize: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="small">Küçük</SelectItem>
-                                <SelectItem value="medium">Orta</SelectItem>
-                                <SelectItem value="large">Büyük</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Takvim Başlık Rengi</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              type="color"
-                              className="w-12 p-1 h-10 cursor-pointer"
-                              value={siteSettings.calendarColor || '#dc2626'}
-                              onChange={e => setSiteSettings(s => ({ ...s, calendarColor: e.target.value }))}
-                            />
-                            <Input
-                              value={siteSettings.calendarColor || '#dc2626'}
-                              onChange={e => setSiteSettings(s => ({ ...s, calendarColor: e.target.value }))}
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <Label className="block mb-2 text-sm text-gray-700">Canlı Önizleme (Temsili)</Label>
-                <div className="w-full bg-gray-200 rounded-lg p-4 relative border-2 border-gray-300 overflow-hidden" style={{ minHeight: '350px' }}>
-                  {/* Pano Alanı */}
-                  <div className={`mt-16 bg-white h-48 rounded shadow border-dashed border-2 border-gray-300 flex items-center justify-center text-gray-400 transition-all ${siteSettings.calendarPosition === 'left' ? 'ml-auto w-3/4' :
-                    siteSettings.calendarPosition === 'right' ? 'mr-auto w-3/4' : 'w-full'
-                    }`}>
-                    Pano Alanı
-                  </div>
-
-                  {/* Calendar Render */}
-                  {siteSettings.calendarShow && (
-                    <div className={`transition-all duration-500 z-10 ${siteSettings.calendarPosition === 'top-left' ? 'absolute top-4 left-4' :
-                      siteSettings.calendarPosition === 'top-right' ? 'absolute top-4 right-4' :
-                        siteSettings.calendarPosition === 'left' ? 'absolute top-20 left-4' :
-                          'absolute top-20 right-4'
-                      }`}>
-                      <div className={`border-2 border-red-500 rounded p-2 bg-white shadow-lg transition-transform ${siteSettings.calendarSize === 'large' ? 'scale-110' : siteSettings.calendarSize === 'small' ? 'scale-75' : 'scale-100'}`}>
-                        <div className="bg-red-600 h-2 w-full mb-1"></div>
-                        <div className="text-center font-bold text-lg">27</div>
-                        <div className="text-[10px] text-center">Cuma</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 bg-white p-6 rounded-lg shadow border">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-lg font-semibold">Takvim Başlıkları</h3>
-                  <p className="text-sm text-gray-500">Takvimde görünecek kategori başlıklarını buradan yönetebilirsiniz.</p>
-                </div>
-                <Button onClick={openAddCalendarCategory} size="sm" className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Yeni Başlık Ekle
+                  Düzeni Kaydet
                 </Button>
               </div>
 
-              <div className="border rounded-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-20">Sıra</TableHead>
-                      <TableHead>Başlık Adı</TableHead>
-                      <TableHead className="w-32">Durum</TableHead>
-                      <TableHead className="w-24 text-right">İşlemler</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {calendarCategories.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                          Henüz hiçbir başlık eklenmemiş.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      calendarCategories.map((cat) => (
-                        <TableRow key={cat.id}>
-                          <TableCell>{cat.order}</TableCell>
-                          <TableCell className="font-medium">{cat.name}</TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                              {cat.isActive ? 'Aktif' : 'Pasif'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => openEditCalendarCategory(cat)} className="h-8 w-8 p-0">
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleDeleteCalendarCategory(cat.id)} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Calendar Category Modal */}
-        <Dialog open={showCalendarCategoryModal} onOpenChange={setShowCalendarCategoryModal}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingItem ? 'Başlığı Düzenle' : 'Yeni Başlık Ekle'}</DialogTitle>
-              <DialogDescription>
-                Takvimde kullanılacak kategori başlığını buraya girin.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="catName">Başlık Adı</Label>
-                <Input
-                  id="catName"
-                  placeholder="Örn: Tatil, Toplantı, Doğum Günü"
-                  value={calendarCategoryForm.name}
-                  onChange={(e) => setCalendarCategoryForm({ ...calendarCategoryForm, name: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="catOrder">Görüntüleme Sırası</Label>
-                  <Input
-                    id="catOrder"
-                    type="number"
-                    value={calendarCategoryForm.order}
-                    onChange={(e) => setCalendarCategoryForm({ ...calendarCategoryForm, order: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="flex items-center space-x-2 pt-8">
-                  <Checkbox
-                    id="catActive"
-                    checked={calendarCategoryForm.isActive}
-                    onCheckedChange={(checked) => setCalendarCategoryForm({ ...calendarCategoryForm, isActive: !!checked })}
-                  />
-                  <Label htmlFor="catActive" className="cursor-pointer font-medium">Aktif</Label>
-                </div>
-              </div>
-
-              {/* Global Calendar Entries Section */}
-              <div className="space-y-4 pt-4 border-t">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Label className="text-base font-semibold">Takvim Metinleri (Global)</Label>
-                    <Input
-                      type="date"
-                      className="w-auto h-8 text-sm"
-                      value={selectedGlobalCalendarDate}
-                      onChange={(e) => setSelectedGlobalCalendarDate(e.target.value)}
-                    />
+              <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Kategori Linkleri</h3>
+                    <p className="text-sm text-gray-500">Footer'da "Popüler Kategoriler" sütununda görünecek linkler.</p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddGlobalCalendarEntry} className="gap-1">
-                    <Plus className="w-3 h-3" /> Ekle
+                  <Button
+                    onClick={() => {
+                      const links = [...(siteSettings.popularLinks || [])];
+                      links.push({ label: 'Yeni Kategori', href: '/kategori/yeni' });
+                      setSiteSettings({ ...siteSettings, popularLinks: links });
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ekle
                   </Button>
                 </div>
 
                 <div className="space-y-4">
-                  {calendarCategoryForm.globalEntries && calendarCategoryForm.globalEntries.map((entry: any, index: number) => {
-                    const entryDateStr = entry.date ? (typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]) : '';
-                    if (entryDateStr !== selectedGlobalCalendarDate) return null;
-
-                    return (
-                      <div key={index} className="p-3 border rounded-md bg-gray-50 relative group">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveGlobalCalendarEntry(index)}
-                          className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-
-                        <div className="space-y-1">
-                          <Label className="text-xs">Metin</Label>
-                          <Textarea
-                            className="text-xs min-h-[60px]"
-                            placeholder="Bu başlık için seçili tarihte gösterilecek metin..."
-                            value={entry.content || ''}
-                            onChange={(e) => handleGlobalCalendarEntryChange(index, 'content', e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {(!calendarCategoryForm.globalEntries || calendarCategoryForm.globalEntries.filter((e: any) => {
-                    const eDateStr = e.date ? (typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0]) : '';
-                    return eDateStr === selectedGlobalCalendarDate;
-                  }).length === 0) && (
-                      <p className="text-xs text-gray-500 text-center py-2">Bu tarih için henüz metin eklenmedi.</p>
-                    )}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCalendarCategoryModal(false)}>
-                Vazgeç
-              </Button>
-              <Button onClick={handleSaveCalendarCategory} disabled={savingSettings}>
-                {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {editingItem ? 'Güncelle' : 'Ekle'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Walls Section */}
-        {activeSection === 'walls' && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Duvar Yönetimi</h2>
-              <Button onClick={openAddWall} className="gap-2">
-                <Plus className="w-4 h-4" />
-                Yeni Ana Duvar
-              </Button>
-            </div>
-
-            {/* Search Input */}
-            <div className="mb-4">
-              <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Duvar ara..."
-                  value={wallSearch}
-                  onChange={(e) => setWallSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            {/* Hierarchical Walls Display */}
-            <div className="space-y-4">
-              {(() => {
-                // Get root categories
-                let rootWalls = walls.filter(w => !w.parentId)
-                const currentUserId = userId || (session?.user as any)?.id
-                const managedCats = new Set<string>()
-                walls.forEach(w => {
-                  if (w.wallManagerId === currentUserId) {
-                    managedCats.add(w.id)
-                  }
-                })
-                // If they manage a child but not the parent, the child acts as a root
-                if (role === 'WALL_MANAGER') {
-                  rootWalls = walls.filter(w =>
-                    (w.wallManagerId === currentUserId) &&
-                    (!w.parentId || !managedCats.has(w.parentId))
-                  )
-                }
-
-                // Filter by search (recursive)
-                const matchesSearch = (wall: any, searchTerm: string): boolean => {
-                  if (!searchTerm.trim()) return true
-                  const searchLower = searchTerm.toLowerCase()
-                  if (
-                    wall.name?.toLowerCase().includes(searchLower) ||
-                    wall.description?.toLowerCase().includes(searchLower) ||
-                    wall.wallManager?.name?.toLowerCase().includes(searchLower)
-                  ) {
-                    return true
-                  }
-                  if (wall.children?.some((c: any) => matchesSearch(c, searchTerm))) {
-                    return true
-                  }
-                  return false
-                }
-
-                const filterWalls = (wallList: any[], searchTerm: string): any[] => {
-                  if (!searchTerm.trim()) return wallList
-                  return wallList.filter(w => matchesSearch(w, searchTerm))
-                }
-
-                const filteredRootWalls = filterWalls(rootWalls, wallSearch).sort((a, b) => {
-                  if (a.name === 'Ana Duvar') return -1;
-                  if (b.name === 'Ana Duvar') return 1;
-                  return a.name.localeCompare(b.name);
-                });
-
-                const toggleWall = (wallId: string) => {
-                  setExpandedWalls((prev) => {
-                    const newSet = new Set(prev)
-                    if (newSet.has(wallId)) {
-                      newSet.delete(wallId)
-                    } else {
-                      newSet.add(wallId)
-                    }
-                    return newSet
-                  })
-                }
-
-                // Recursive function to get total posts including all children
-                const getTotalPosts = (wall: any): number => {
-                  let total = wall._count?.postits ?? 0
-                  if (wall.children) {
-                    wall.children.forEach((child: any) => {
-                      total += getTotalPosts(child)
-                    })
-                  }
-                  return total
-                }
-
-                // Recursive function to count all subcategories
-                const countAllChildren = (wall: any): number => {
-                  let count = wall.children?.length ?? 0
-                  if (wall.children) {
-                    wall.children.forEach((child: any) => {
-                      count += countAllChildren(child)
-                    })
-                  }
-                  return count
-                }
-
-                // Recursive render function for walls
-                const renderWall = (wall: any, level: number = 0) => {
-                  const isExpanded = expandedWalls.has(wall.id)
-                  const hasChildren = wall.children && wall.children.length > 0
-                  const totalPosts = getTotalPosts(wall)
-                  const totalSubcategories = countAllChildren(wall)
-                  const isRoot = level === 0
-                  const indent = level * 24
-
-                  return (
-                    <div key={wall.id} className={isRoot ? 'bg-white rounded-lg shadow-md overflow-hidden' : ''}>
-                      {/* Wall Row */}
-                      <div
-                        className={`flex items-center justify-between p-3 hover:bg-gray-50 ${!isRoot ? 'border-l-2 border-gray-200' : ''}`}
-                        style={{ paddingLeft: isRoot ? 16 : indent + 16 }}
-                      >
-                        <button
-                          onClick={() => toggleWall(wall.id)}
-                          className="flex items-center gap-2 flex-1 text-left"
-                        >
-                          {hasChildren ? (
-                            isExpanded ? (
-                              <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                            )
-                          ) : (
-                            <div className="w-4 h-4 flex-shrink-0" />
-                          )}
-                          <div className="min-w-0">
-                            <span className={`font-medium ${isRoot ? 'text-lg' : 'text-base'}`}>
-                              {!isRoot && '↳ '}{wall.name}
-                            </span>
-                            {wall.description && (
-                              <p className="text-xs text-gray-500 truncate">{wall.description}</p>
-                            )}
-                            {(wall.city || wall.district) && (
-                              <p className="text-xs text-blue-500 mt-0.5 mt-0.5 opacity-80 flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
-                                {wall.city?.name} {wall.district ? `/ ${wall.district.name}` : ''}
-                              </p>
-                            )}
-                          </div>
-                        </button>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {wall.wallManager && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 hidden md:inline">
-                              {wall.wallManager.name}
-                            </span>
-                          )}
-                          <span className="text-xs text-gray-500">{totalPosts} not</span>
-                          {hasChildren && (
-                            <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">
-                              {totalSubcategories} alt
-                            </span>
-                          )}
-                          <div className="flex gap-0.5">
-                            <Button variant="ghost" size="sm" onClick={() => openAddSubcategory(wall)} title="Alt Kategori Ekle" className="h-7 w-7 p-0">
-                              <Plus className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => openEditWall(wall)} title="Düzenle" className="h-7 w-7 p-0">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            {wall.name !== 'Ana Duvar' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteWall(wall.id)}
-                                className="hover:bg-red-100 hover:text-red-600 h-7 w-7 p-0"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Children (Recursive) */}
-                      {isExpanded && hasChildren && (
-                        <div className={isRoot ? 'border-t bg-gray-50' : 'bg-gray-50/50'}>
-                          {wall.children.map((child: any) => renderWall(child, level + 1))}
-                        </div>
-                      )}
-
-                      {/* Show message if expanded but no children */}
-                      {isExpanded && !hasChildren && (
-                        <div
-                          className="py-2 text-center text-gray-500 text-xs bg-gray-50"
-                          style={{ paddingLeft: indent + 40 }}
-                        >
-                          Alt kategori yok. <button onClick={() => openAddSubcategory(wall)} className="text-blue-600 hover:underline">Ekle</button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                }
-
-                if (filteredRootWalls.length === 0) {
-                  return (
-                    <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
-                      {wallSearch ? 'Arama sonucu bulunamadı' : 'Henüz duvar yok'}
-                    </div>
-                  )
-                }
-
-                return filteredRootWalls.map((wall) => renderWall(wall, 0))
-              })()}
-            </div>
-          </div>
-        )
-        }
-
-        {/* Locations Section */}
-        {
-          activeSection === 'locations' && (
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">İl İlçe Tanımlama</h2>
-                <div className="flex gap-2">
-                  <Button onClick={() => openAddLocation('CITY')} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                    <Plus className="w-4 h-4" />
-                    Yeni İl Ekle
-                  </Button>
-                  <Button onClick={() => openAddLocation('DISTRICT')} className="gap-2 bg-green-600 hover:bg-green-700 text-white">
-                    <Plus className="w-4 h-4" />
-                    Yeni İlçe Ekle
-                  </Button>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md overflow-hidden p-4">
-                {/* Location list grouped by City */}
-                <div className="space-y-4">
-                  {cities.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      Henüz hiç il tanımlanmamış.
+                  {(!siteSettings.popularLinks || siteSettings.popularLinks.length === 0) ? (
+                    <div className="p-8 text-center text-gray-500 bg-gray-50/50 border-2 border-dashed border-gray-300 rounded-xl">
+                      Henüz bir link eklenmemiş. "Ekle" butonunu kullanarak yeni linkler tanımlayabilirsiniz.
                     </div>
                   ) : (
-                    cities.map((city) => (
-                      <div key={city.id} className="border rounded-lg overflow-hidden">
-                        <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-lg">{city.name}</h3>
-                            <span className="text-sm bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">
-                              {(city._count?.districts) || 0} ilçe
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => openEditLocation(city, 'CITY')} className="h-8 w-8 p-0">
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteLocation(city.id, 'CITY')} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                    siteSettings.popularLinks.map((link, idx) => (
+                      <div key={idx} className="flex gap-4 items-end bg-gray-50/80 p-5 rounded-xl border border-gray-200 shadow-sm">
+                        <div className="flex-1 space-y-2">
+                          <Label>Görünen Ad</Label>
+                          <Input
+                            value={link.label}
+                            onChange={(e) => {
+                              const links = [...(siteSettings.popularLinks || [])];
+                              links[idx].label = e.target.value;
+                              setSiteSettings({ ...siteSettings, popularLinks: links });
+                            }}
+                          />
                         </div>
-                        <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                          {districts.filter(d => d.cityId === city.id).map(district => (
-                            <div key={district.id} className="bg-white border rounded p-2 flex items-center justify-between group hover:border-blue-300">
-                              <span className="text-sm">{district.name}</span>
-                              <div className="flex bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => openEditLocation(district, 'DISTRICT')} className="text-gray-500 hover:text-blue-600 p-1">
-                                  <Pencil className="w-3 h-3" />
-                                </button>
-                                <button onClick={() => handleDeleteLocation(district.id, 'DISTRICT')} className="text-gray-500 hover:text-red-600 p-1">
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                          <button
-                            onClick={() => openAddLocation('DISTRICT', city.id)}
-                            className="bg-gray-50 border border-dashed rounded p-2 flex items-center justify-center text-sm text-gray-500 hover:text-green-600 hover:border-green-300 hover:bg-green-50"
-                          >
-                            <Plus className="w-4 h-4 mr-1" /> İlçe Ekle
-                          </button>
+                        <div className="flex-1 space-y-2">
+                          <Label>Link Adresi (Href)</Label>
+                          <Input
+                            value={link.href}
+                            onChange={(e) => {
+                              const links = [...(siteSettings.popularLinks || [])];
+                              links[idx].href = e.target.value;
+                              setSiteSettings({ ...siteSettings, popularLinks: links });
+                            }}
+                            placeholder="/kategori/ornek"
+                          />
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => {
+                            const links = [...(siteSettings.popularLinks || [])];
+                            links.splice(idx, 1);
+                            setSiteSettings({ ...siteSettings, popularLinks: links });
+                          }}
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </Button>
                       </div>
                     ))
                   )}
                 </div>
               </div>
             </div>
-          )
-        }
+          )}
 
-        {/* Sliders Section */}
-        {
-          activeSection === 'sliders' && (
+          {/* Discover Management */}
+          {activeSection === 'discover' && (
+            <div className="space-y-6">
+              <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                <h2 className="text-2xl font-bold">Keşfet Bölümünü Yönet</h2>
+                <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
+                  {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Düzeni Kaydet
+                </Button>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Keşfet Linkleri</h3>
+                    <p className="text-sm text-gray-500">Footer'da "Keşfet" sütununda görünecek linkler.</p>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      const links = [...(siteSettings.discoverLinks || [])];
+                      links.push({ label: 'Yeni Link', href: '#' });
+                      setSiteSettings({ ...siteSettings, discoverLinks: links });
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ekle
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {(!siteSettings.discoverLinks || siteSettings.discoverLinks.length === 0) ? (
+                    <div className="p-8 text-center text-gray-500 bg-gray-50/50 border-2 border-dashed border-gray-300 rounded-xl">
+                      Henüz bir link eklenmemiş. "Ekle" butonunu kullanarak yeni linkler tanımlayabilirsiniz.
+                    </div>
+                  ) : (
+                    siteSettings.discoverLinks.map((link, idx) => (
+                      <div key={idx} className="flex gap-4 items-end bg-gray-50/80 p-5 rounded-xl border border-gray-200 shadow-sm">
+                        <div className="flex-1 space-y-2">
+                          <Label>Görünen Ad</Label>
+                          <Input
+                            value={link.label}
+                            onChange={(e) => {
+                              const links = [...(siteSettings.discoverLinks || [])];
+                              links[idx].label = e.target.value;
+                              setSiteSettings({ ...siteSettings, discoverLinks: links });
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Label>Link Adresi (Href)</Label>
+                          <Input
+                            value={link.href}
+                            onChange={(e) => {
+                              const links = [...(siteSettings.discoverLinks || [])];
+                              links[idx].href = e.target.value;
+                              setSiteSettings({ ...siteSettings, discoverLinks: links });
+                            }}
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => {
+                            const links = [...(siteSettings.discoverLinks || [])];
+                            links.splice(idx, 1);
+                            setSiteSettings({ ...siteSettings, discoverLinks: links });
+                          }}
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Social Media Management */}
+          {activeSection === 'socialMedia' && (
+            <div className="space-y-6">
+              <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                <h2 className="text-2xl font-bold">Sosyal Medya Hesaplarını Yönet</h2>
+                <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
+                  {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Ayarları Kaydet
+                </Button>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Hesaplar</h3>
+                    <p className="text-sm text-gray-500">Footer'da görüntülenecek sosyal medya ikonları ve linkleri.</p>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      const links = [...(siteSettings.socialLinks || [])];
+                      links.push({ platform: 'Instagram', icon: 'Instagram', url: 'https://instagram.com/panodasehir' });
+                      setSiteSettings({ ...siteSettings, socialLinks: links });
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Ekle
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  {(!siteSettings.socialLinks || siteSettings.socialLinks.length === 0) ? (
+                    <div className="p-8 text-center text-gray-500 bg-gray-50/50 border-2 border-dashed border-gray-300 rounded-xl">
+                      Henüz bir hesap eklenmemiş. "Ekle" butonunu kullanarak bağlantılarınızı ekleyebilirsiniz.
+                    </div>
+                  ) : (
+                    siteSettings.socialLinks.map((link, idx) => (
+                      <div key={idx} className="flex flex-col md:flex-row gap-4 items-end bg-gray-50/80 p-5 rounded-xl border border-gray-200 shadow-sm">
+                        <div className="w-40 space-y-2">
+                          <Label>Platform</Label>
+                          <Input
+                            value={link.platform}
+                            onChange={(e) => {
+                              const links = [...(siteSettings.socialLinks || [])];
+                              links[idx].platform = e.target.value;
+                              setSiteSettings({ ...siteSettings, socialLinks: links });
+                            }}
+                            placeholder="Instagram"
+                          />
+                        </div>
+                        <div className="w-48 space-y-2">
+                          <Label>İkon (Lucide)</Label>
+                          <Select
+                            value={link.icon}
+                            onValueChange={(val) => {
+                              const links = [...(siteSettings.socialLinks || [])];
+                              links[idx].icon = val;
+                              setSiteSettings({ ...siteSettings, socialLinks: links });
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="İkon Seçin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Instagram">Instagram</SelectItem>
+                              <SelectItem value="Facebook">Facebook</SelectItem>
+                              <SelectItem value="Twitter">Twitter/X</SelectItem>
+                              <SelectItem value="Linkedin">LinkedIn</SelectItem>
+                              <SelectItem value="Youtube">Youtube</SelectItem>
+                              <SelectItem value="Github">Github</SelectItem>
+                              <SelectItem value="Share2">Paylaş</SelectItem>
+                              <SelectItem value="Mail">E-Posta</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex-1 space-y-2 w-full">
+                          <Label>Hesap Linki (URL)</Label>
+                          <Input
+                            value={link.url}
+                            onChange={(e) => {
+                              const links = [...(siteSettings.socialLinks || [])];
+                              links[idx].url = e.target.value;
+                              setSiteSettings({ ...siteSettings, socialLinks: links });
+                            }}
+                            placeholder="https://..."
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => {
+                            const links = [...(siteSettings.socialLinks || [])];
+                            links.splice(idx, 1);
+                            setSiteSettings({ ...siteSettings, socialLinks: links });
+                          }}
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Calendar Settings */}
+          {activeSection === 'calendar' && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold">Kategori Slayder Yönetimi</h2>
-                  <p className="text-sm text-gray-500">Kategori bazlı slayderlar artık ilgili kategorinin (duvarın) düzenleme sayfasından yönetilmektedir.</p>
+              <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                <h2 className="text-2xl font-bold">Takvim Ayarları</h2>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={loadData} disabled={savingSettings}>
+                    İptal
+                  </Button>
+                  <Button onClick={handleSaveSiteSettings} disabled={savingSettings}>
+                    {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Kaydet
+                  </Button>
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Kategori</TableHead>
-                      <TableHead>Resim Sayısı</TableHead>
-                      <TableHead>Durum</TableHead>
-                      <TableHead>İşlemler</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sliders.filter(s => s.categoryId).length > 0 ? (
-                      sliders.filter(s => s.categoryId).map((slider) => (
-                        <TableRow key={slider.id}>
-                          <TableCell className="font-medium">{slider.category?.name}</TableCell>
-                          <TableCell>{slider.images?.length || 0} resim</TableCell>
-                          <TableCell>
-                            <span className={`px-2 py-1 rounded-full text-xs ${slider.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                              {slider.isActive ? 'Aktif' : 'Pasif'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => openEditWall(slider.category)} title="Bu Duvarı Düzenle">
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteSlider(slider.id)}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                title="Slayderı Sil"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6 bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Görünüm ve Konum</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2 pt-2 pb-2">
+                        <Checkbox
+                          id="calendarShow"
+                          checked={siteSettings.calendarShow}
+                          onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, calendarShow: !!checked }))}
+                        />
+                        <Label htmlFor="calendarShow" className="cursor-pointer font-semibold">Takvimi Göster</Label>
+                      </div>
+
+                      {siteSettings.calendarShow && (
+                        <>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Sayfadaki Konumu</Label>
+                              <Select
+                                value={siteSettings.calendarPosition || 'right'}
+                                onValueChange={(value) => setSiteSettings({ ...siteSettings, calendarPosition: value })}
                               >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="left">Mantar Pano Solu</SelectItem>
+                                  <SelectItem value="right">Mantar Pano Sağı</SelectItem>
+                                  <SelectItem value="top-left">Sayfa Sol Üst (Sabit)</SelectItem>
+                                  <SelectItem value="top-right">Sayfa Sağ Üst (Sabit)</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                          {sliders.length > 0 ? 'Ana sayfa slayderları Ana Duvar ayarlarından yönetilmektedir.' : 'Henüz slayder eklenmemiş.'}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )
-        }
-
-        {/* Roles Section */}
-        {
-          activeSection === 'roles' && (
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Yetki Türü Tanımla</h2>
-                <Button onClick={openAddRole} className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Yeni Rol Ekle
-                </Button>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Rol Adı</TableHead>
-                      <TableHead>Açıklama</TableHead>
-                      <TableHead>İşlemler</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {roles.map((role) => (
-                      <TableRow key={role.id}>
-                        <TableCell className="font-medium">{role.name}</TableCell>
-                        <TableCell>{role.description}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditRole(role)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteRole(role.id)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="space-y-2">
+                              <Label>Boyut</Label>
+                              <Select
+                                value={siteSettings.calendarSize || 'medium'}
+                                onValueChange={(value) => setSiteSettings({ ...siteSettings, calendarSize: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="small">Küçük</SelectItem>
+                                  <SelectItem value="medium">Orta</SelectItem>
+                                  <SelectItem value="large">Büyük</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {roles.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-gray-500">
-                          Henüz hiç rol tanımlanmamış.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )
-        }
 
-        {/* User Groups Section */}
-        {
-          activeSection === 'groups' && (
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Kullanıcı Grupları</h2>
-                <Button onClick={openAddUserGroup} className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Yeni Grup
-                </Button>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Grup Adı</TableHead>
-                      <TableHead>Açıklama</TableHead>
-                      <TableHead>Kullanıcı Sayısı</TableHead>
-                      <TableHead>İşlemler</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {userGroups.length > 0 ? (
-                      userGroups.map((group) => (
-                        <TableRow key={group.id}>
-                          <TableCell className="font-medium">{group.name}</TableCell>
-                          <TableCell>{group.description || '-'}</TableCell>
-                          <TableCell>
-                            <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                              {group._count?.users ?? 0} kullanıcı
-                            </span>
-                          </TableCell>
-                          <TableCell>
+                          <div className="space-y-2">
+                            <Label>Takvim Başlık Rengi</Label>
                             <div className="flex gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => openEditUserGroup(group)}>
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteUserGroup(group.id)}
-                                className="hover:bg-red-100 hover:text-red-600"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <Input
+                                type="color"
+                                className="w-12 p-1 h-10 cursor-pointer"
+                                value={siteSettings.calendarColor || '#dc2626'}
+                                onChange={e => setSiteSettings(s => ({ ...s, calendarColor: e.target.value }))}
+                              />
+                              <Input
+                                value={siteSettings.calendarColor || '#dc2626'}
+                                onChange={e => setSiteSettings(s => ({ ...s, calendarColor: e.target.value }))}
+                              />
                             </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="block mb-2 text-sm text-gray-700">Canlı Önizleme (Temsili)</Label>
+                  <div className="w-full bg-gray-200 rounded-lg p-4 relative border-2 border-gray-300 overflow-hidden" style={{ minHeight: '350px' }}>
+                    {/* Pano Alanı */}
+                    <div className={`mt-16 bg-white h-48 rounded shadow border-dashed border-2 border-gray-300 flex items-center justify-center text-gray-400 transition-all ${siteSettings.calendarPosition === 'left' ? 'ml-auto w-3/4' :
+                      siteSettings.calendarPosition === 'right' ? 'mr-auto w-3/4' : 'w-full'
+                      }`}>
+                      Pano Alanı
+                    </div>
+
+                    {/* Calendar Render */}
+                    {siteSettings.calendarShow && (
+                      <div className={`transition-all duration-500 z-10 ${siteSettings.calendarPosition === 'top-left' ? 'absolute top-4 left-4' :
+                        siteSettings.calendarPosition === 'top-right' ? 'absolute top-4 right-4' :
+                          siteSettings.calendarPosition === 'left' ? 'absolute top-20 left-4' :
+                            'absolute top-20 right-4'
+                        }`}>
+                        <div className={`border-2 border-red-500 rounded p-2 bg-white shadow-lg transition-transform ${siteSettings.calendarSize === 'large' ? 'scale-110' : siteSettings.calendarSize === 'small' ? 'scale-75' : 'scale-100'}`}>
+                          <div className="bg-red-600 h-2 w-full mb-1"></div>
+                          <div className="text-center font-bold text-lg">27</div>
+                          <div className="text-[10px] text-center">Cuma</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold">Takvim Başlıkları</h3>
+                    <p className="text-sm text-gray-500">Takvimde görünecek kategori başlıklarını buradan yönetebilirsiniz.</p>
+                  </div>
+                  <Button onClick={openAddCalendarCategory} size="sm" className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Yeni Başlık Ekle
+                  </Button>
+                </div>
+
+                <div className="shadow-lg border rounded-2xl overflow-hidden bg-white">
+                  <Table>
+                    <TableHeader className="bg-gray-900">
+                      <TableRow className="border-gray-800 hover:bg-gray-900">
+                        <TableHead className="w-20 text-gray-300 font-semibold py-4 pl-6">Sıra</TableHead>
+                        <TableHead className="text-gray-300 font-semibold">Başlık Adı</TableHead>
+                        <TableHead className="w-32 text-gray-300 font-semibold">Durum</TableHead>
+                        <TableHead className="w-24 text-right text-gray-300 font-semibold pr-6">İşlemler</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {calendarCategories.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                            Henüz hiçbir başlık eklenmemiş.
                           </TableCell>
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                          Henüz hiç grup tanımlanmamış.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : (
+                        calendarCategories.map((cat) => (
+                          <TableRow key={cat.id}>
+                            <TableCell>{cat.order}</TableCell>
+                            <TableCell className="font-medium">{cat.name}</TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${cat.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                {cat.isActive ? 'Aktif' : 'Pasif'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="sm" onClick={() => openEditCalendarCategory(cat)} className="h-8 w-8 p-0">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleDeleteCalendarCategory(cat.id)} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
-          )
-        }
+          )}
 
-        {/* Users Section */}
-        {
-          activeSection === 'users' && (
+          {/* Calendar Category Modal */}
+          <Dialog open={showCalendarCategoryModal} onOpenChange={setShowCalendarCategoryModal}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingItem ? 'Başlığı Düzenle' : 'Yeni Başlık Ekle'}</DialogTitle>
+                <DialogDescription>
+                  Takvimde kullanılacak kategori başlığını buraya girin.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="catName">Başlık Adı</Label>
+                  <Input
+                    id="catName"
+                    placeholder="Örn: Tatil, Toplantı, Doğum Günü"
+                    value={calendarCategoryForm.name}
+                    onChange={(e) => setCalendarCategoryForm({ ...calendarCategoryForm, name: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="catOrder">Görüntüleme Sırası</Label>
+                    <Input
+                      id="catOrder"
+                      type="number"
+                      value={calendarCategoryForm.order}
+                      onChange={(e) => setCalendarCategoryForm({ ...calendarCategoryForm, order: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2 pt-8">
+                    <Checkbox
+                      id="catActive"
+                      checked={calendarCategoryForm.isActive}
+                      onCheckedChange={(checked) => setCalendarCategoryForm({ ...calendarCategoryForm, isActive: !!checked })}
+                    />
+                    <Label htmlFor="catActive" className="cursor-pointer font-medium">Aktif</Label>
+                  </div>
+                </div>
+
+                {/* Global Calendar Entries Section */}
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Label className="text-base font-semibold">Takvim Metinleri (Global)</Label>
+                      <Input
+                        type="date"
+                        className="w-auto h-8 text-sm"
+                        value={selectedGlobalCalendarDate}
+                        onChange={(e) => setSelectedGlobalCalendarDate(e.target.value)}
+                      />
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={handleAddGlobalCalendarEntry} className="gap-1">
+                      <Plus className="w-3 h-3" /> Ekle
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {calendarCategoryForm.globalEntries && calendarCategoryForm.globalEntries.map((entry: any, index: number) => {
+                      const entryDateStr = entry.date ? (typeof entry.date === 'string' ? entry.date.split('T')[0] : new Date(entry.date).toISOString().split('T')[0]) : '';
+                      if (entryDateStr !== selectedGlobalCalendarDate) return null;
+
+                      return (
+                        <div key={index} className="p-3 border rounded-md bg-gray-50 relative group">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveGlobalCalendarEntry(index)}
+                            className="absolute top-1 right-1 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs">Metin</Label>
+                            <Textarea
+                              className="text-xs min-h-[60px]"
+                              placeholder="Bu başlık için seçili tarihte gösterilecek metin..."
+                              value={entry.content || ''}
+                              onChange={(e) => handleGlobalCalendarEntryChange(index, 'content', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {(!calendarCategoryForm.globalEntries || calendarCategoryForm.globalEntries.filter((e: any) => {
+                      const eDateStr = e.date ? (typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0]) : '';
+                      return eDateStr === selectedGlobalCalendarDate;
+                    }).length === 0) && (
+                        <p className="text-xs text-gray-500 text-center py-2">Bu tarih için henüz metin eklenmedi.</p>
+                      )}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowCalendarCategoryModal(false)}>
+                  Vazgeç
+                </Button>
+                <Button onClick={handleSaveCalendarCategory} disabled={savingSettings}>
+                  {savingSettings && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {editingItem ? 'Güncelle' : 'Ekle'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Walls Section */}
+          {activeSection === 'walls' && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Kullanıcı Yönetimi</h2>
-                <Button onClick={openAddUser} className="gap-2">
+              <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                <h2 className="text-2xl font-bold">Duvar Yönetimi</h2>
+                <Button onClick={openAddWall} className="gap-2">
                   <Plus className="w-4 h-4" />
-                  Yeni Kullanıcı
+                  Yeni Ana Duvar
                 </Button>
               </div>
 
-              <div className="mb-6">
+              {/* Search Input */}
+              <div className="mb-4">
                 <div className="relative max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
-                    placeholder="İsim veya email ile ara..."
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
+                    placeholder="Duvar ara..."
+                    value={wallSearch}
+                    onChange={(e) => setWallSearch(e.target.value)}
                     className="pl-10"
                   />
                 </div>
               </div>
 
-              <div className="space-y-4">
-                {/* Group users by Role */}
-                {(() => {
-                  // Filter users first
-                  const filteredUsers = users.filter(user =>
-                    user.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
-                    user.email?.toLowerCase().includes(userSearch.toLowerCase())
-                  )
-
-                  // Get unique roles from users list + predefined ones to ensure order
-                  const usersByRole: Record<string, any[]> = {}
-                  filteredUsers.forEach(u => {
-                    const r = u.role || 'USER'
-                    if (!usersByRole[r]) usersByRole[r] = []
-                    usersByRole[r].push(u)
-                  })
-
-                  const sortedRoles = Object.keys(usersByRole).sort()
-
-                  if (filteredUsers.length === 0) {
-                    return (
-                      <div className="text-center py-8 text-gray-500 bg-white rounded-lg shadow-md">
-                        Arama sonucu bulunamadı.
-                      </div>
-                    )
-                  }
-
-                  return sortedRoles.map(roleName => (
-                    <div key={roleName} className="bg-white rounded-lg shadow-md overflow-hidden">
-                      <button
-                        className="w-full px-6 py-4 flex items-center justify-between bg-gray-50 border-b hover:bg-gray-100 transition-colors"
-                        onClick={() => {
-                          const el = document.getElementById(`role-content-${roleName}`)
-                          if (el) el.classList.toggle('hidden')
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${roleName === 'SUPER_ADMIN' ? 'bg-red-100 text-red-700' :
-                            roleName === 'WALL_MANAGER' ? 'bg-blue-100 text-blue-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                            {roleName}
-                          </span>
-                          <span className="text-sm text-gray-500">({usersByRole[roleName].length} kullanıcı)</span>
-                        </div>
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
-                      </button>
-
-                      <div id={`role-content-${roleName}`} className="hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Ad</TableHead>
-                              <TableHead>Email</TableHead>
-                              <TableHead>Yönettiği Duvarlar</TableHead>
-                              <TableHead>Not Sayısı</TableHead>
-                              <TableHead>İşlemler</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {usersByRole[roleName].map((user) => {
-                              const managedWalls = walls.filter(w => w.wallManagerId === user.id)
-                              return (
-                                <TableRow key={user.id}>
-                                  <TableCell className="font-medium">{user.name}</TableCell>
-                                  <TableCell>{user.email}</TableCell>
-                                  <TableCell>
-                                    {managedWalls.length > 0 ? (
-                                      <div className="flex flex-wrap gap-1">
-                                        {managedWalls.map(w => (
-                                          <span key={w.id} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">
-                                            {w.name}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <span className="text-gray-400">-</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>{user._count?.postits ?? 0}</TableCell>
-                                  <TableCell>
-                                    <div className="flex gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openEditUser(user)}
-                                        className="h-8 w-8 p-0"
-                                      >
-                                        <Pencil className="w-4 h-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeleteUser(user.id)}
-                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              )
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  ))
-                })()}
-              </div>
-            </div>
-          )
-        }
-
-        {/* Post-its Section */}
-        {
-          activeSection === 'postits' && (
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Not Yönetimi</h2>
-              </div>
-
-              {/* Search and Filter */}
-              <div className="mb-4 flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Not ara (içerik, kullanıcı veya kategori)..."
-                    value={postitSearch}
-                    onChange={(e) => setPostitSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-md border shadow-sm">
-                  <Label className="font-semibold text-gray-700 mr-2">Durum:</Label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="postitStatusFilter"
-                      value="pending"
-                      checked={postitStatusFilter === 'pending'}
-                      onChange={(e) => setPostitStatusFilter(e.target.value as any)}
-                      className="accent-yellow-500"
-                    />
-                    <span className="text-sm">Beklemede</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="postitStatusFilter"
-                      value="all"
-                      checked={postitStatusFilter === 'all'}
-                      onChange={(e) => setPostitStatusFilter(e.target.value as any)}
-                      className="accent-gray-900"
-                    />
-                    <span className="text-sm">Tümü</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="postitStatusFilter"
-                      value="published"
-                      checked={postitStatusFilter === 'published'}
-                      onChange={(e) => setPostitStatusFilter(e.target.value as any)}
-                      className="accent-green-600"
-                    />
-                    <span className="text-sm">Yayında</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="postitStatusFilter"
-                      value="unpublished"
-                      checked={postitStatusFilter === 'unpublished'}
-                      onChange={(e) => setPostitStatusFilter(e.target.value as any)}
-                      className="accent-red-600"
-                    />
-                    <span className="text-sm">Yayında Değil</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Grouped by Category */}
+              {/* Hierarchical Walls Display */}
               <div className="space-y-4">
                 {(() => {
-                  // Filter postits by search and status
-                  const filteredPostits = postits.filter((postit) => {
-                    const statusMatch =
-                      postitStatusFilter === 'all' ? true :
-                        postitStatusFilter === 'published' ? postit.isPublished :
-                          postitStatusFilter === 'unpublished' ? !postit.isPublished :
-                            postitStatusFilter === 'pending' ? !postit.isApproved : true;
-
-                    if (!statusMatch) return false;
-
-                    if (!postitSearch.trim()) return true
-                    const searchLower = postitSearch.toLowerCase()
-                    return (
-                      postit.content?.toLowerCase().includes(searchLower) ||
-                      postit.user?.name?.toLowerCase().includes(searchLower) ||
-                      postit.category?.name?.toLowerCase().includes(searchLower)
-                    )
-                  })
-
-                  // Group by category
-                  // Build category hierarchy paths
-                  const categoryPathMap: Record<string, string> = {}
-                  const buildPathMap = (cats: any[], parentPath = '') => {
-                    cats.forEach(c => {
-                      const path = parentPath ? `${parentPath} > ${c.name}` : c.name
-                      categoryPathMap[c.id] = path
-                      if (c.children?.length) {
-                        buildPathMap(c.children, path)
-                      }
-                    })
-                  }
-                  buildPathMap(walls)
-
-                  // Group by hierarchical category
-                  const groupedPostits: Record<string, { categoryName: string; categoryId: string; postits: any[] }> = {}
-
-                  filteredPostits.forEach((postit) => {
-                    const catId = postit.categoryId || 'uncategorized'
-                    const catName = categoryPathMap[catId] || postit.category?.name || 'Kategorisiz'
-                    if (!groupedPostits[catId]) {
-                      groupedPostits[catId] = { categoryName: catName, categoryId: catId, postits: [] }
+                  // Get root categories
+                  let rootWalls = walls.filter(w => !w.parentId)
+                  const currentUserId = userId || (session?.user as any)?.id
+                  const managedCats = new Set<string>()
+                  walls.forEach(w => {
+                    if (w.wallManagers?.some((m: any) => m.id === currentUserId)) {
+                      managedCats.add(w.id)
                     }
-                    groupedPostits[catId].postits.push(postit)
                   })
+                  // If they manage a child but not the parent, the child acts as a root
+                  if (role === 'WALL_MANAGER') {
+                    rootWalls = walls.filter(w =>
+                      (w.wallManagers?.some((m: any) => m.id === currentUserId)) &&
+                      (!w.parentId || !managedCats.has(w.parentId))
+                    )
+                  }
 
-                  const sortedGroups = Object.values(groupedPostits).sort((a, b) =>
-                    a.categoryName.localeCompare(b.categoryName, 'tr')
-                  )
+                  // Filter by search (recursive)
+                  const matchesSearch = (wall: any, searchTerm: string): boolean => {
+                    if (!searchTerm.trim()) return true
+                    const searchLower = searchTerm.toLowerCase()
+                    if (
+                      wall.name?.toLowerCase().includes(searchLower) ||
+                      wall.description?.toLowerCase().includes(searchLower) ||
+                      wall.wallManagers?.some((m: any) => m.name?.toLowerCase().includes(searchLower))
+                    ) {
+                      return true
+                    }
+                    if (wall.children?.some((c: any) => matchesSearch(c, searchTerm))) {
+                      return true
+                    }
+                    return false
+                  }
 
-                  const toggleCategory = (catId: string) => {
-                    setExpandedCategories((prev) => {
+                  const filterWalls = (wallList: any[], searchTerm: string): any[] => {
+                    if (!searchTerm.trim()) return wallList
+                    return wallList.filter(w => matchesSearch(w, searchTerm))
+                  }
+
+                  const filteredRootWalls = filterWalls(rootWalls, wallSearch).sort((a, b) => {
+                    if (a.name === 'Ana Duvar') return -1;
+                    if (b.name === 'Ana Duvar') return 1;
+                    return a.name.localeCompare(b.name);
+                  });
+
+                  const toggleWall = (wallId: string) => {
+                    setExpandedWalls((prev) => {
                       const newSet = new Set(prev)
-                      if (newSet.has(catId)) {
-                        newSet.delete(catId)
+                      if (newSet.has(wallId)) {
+                        newSet.delete(wallId)
                       } else {
-                        newSet.add(catId)
+                        newSet.add(wallId)
                       }
                       return newSet
                     })
                   }
 
-                  if (filteredPostits.length === 0) {
+                  // Recursive function to get total posts including all children
+                  const getTotalPosts = (wall: any): number => {
+                    let total = wall._count?.postits ?? 0
+                    if (wall.children) {
+                      wall.children.forEach((child: any) => {
+                        total += getTotalPosts(child)
+                      })
+                    }
+                    return total
+                  }
+
+                  // Recursive function to count all subcategories
+                  const countAllChildren = (wall: any): number => {
+                    let count = wall.children?.length ?? 0
+                    if (wall.children) {
+                      wall.children.forEach((child: any) => {
+                        count += countAllChildren(child)
+                      })
+                    }
+                    return count
+                  }
+
+                  // Recursive render function for walls
+                  const renderWall = (wall: any, level: number = 0) => {
+                    const isExpanded = expandedWalls.has(wall.id)
+                    const hasChildren = wall.children && wall.children.length > 0
+                    const totalPosts = getTotalPosts(wall)
+                    const totalSubcategories = countAllChildren(wall)
+                    const isRoot = level === 0
+                    const indent = level * 24
+
                     return (
-                      <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
-                        {postitSearch ? 'Arama sonucu bulunamadı' : 'Henüz not yok'}
+                      <div key={wall.id} className={isRoot ? 'bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden mb-3' : ''}>
+                        <div
+                          className={`flex items-center justify-between p-3 hover:bg-blue-50/50 transition-colors ${!isRoot ? 'border-l-[3px] border-blue-100 ml-1 mt-1' : 'bg-gray-50 border-b border-gray-100'}`}
+                          style={{ paddingLeft: isRoot ? 16 : indent + 16 }}
+                        >
+                          <button
+                            onClick={() => toggleWall(wall.id)}
+                            className="flex items-center gap-2 flex-1 text-left"
+                          >
+                            {hasChildren ? (
+                              isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                              )
+                            ) : (
+                              <div className="w-4 h-4 flex-shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <span className={`font-medium ${isRoot ? 'text-lg' : 'text-base'}`}>
+                                {!isRoot && '↳ '}{wall.name}
+                              </span>
+                              {wall.description && (
+                                <p className="text-xs text-gray-500 truncate">{wall.description}</p>
+                              )}
+                              {(wall.city || wall.district) && (
+                                <p className="text-xs text-blue-500 mt-0.5 mt-0.5 opacity-80 flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {wall.city?.name} {wall.district ? `/ ${wall.district.name}` : ''}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {wall.wallManager && (
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 hidden md:inline">
+                                {wall.wallManager.name}
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-500">{totalPosts} not</span>
+                            {hasChildren && (
+                              <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">
+                                {totalSubcategories} alt
+                              </span>
+                            )}
+                            <div className="flex gap-0.5">
+                              <Button variant="ghost" size="sm" onClick={() => openAddSubcategory(wall)} title="Alt Kategori Ekle" className="h-7 w-7 p-0">
+                                <Plus className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => openEditWall(wall)} title="Düzenle" className="h-7 w-7 p-0">
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              {wall.name !== 'Ana Duvar' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteWall(wall.id)}
+                                  className="hover:bg-red-100 hover:text-red-600 h-7 w-7 p-0"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Children (Recursive) */}
+                        {isExpanded && hasChildren && (
+                          <div className={isRoot ? 'border-t bg-gray-50' : 'bg-gray-50/50'}>
+                            {wall.children.map((child: any) => renderWall(child, level + 1))}
+                          </div>
+                        )}
+
+                        {/* Show message if expanded but no children */}
+                        {isExpanded && !hasChildren && (
+                          <div
+                            className="py-2 text-center text-gray-500 text-xs bg-gray-50"
+                            style={{ paddingLeft: indent + 40 }}
+                          >
+                            Alt kategori yok. <button onClick={() => openAddSubcategory(wall)} className="text-blue-600 hover:underline">Ekle</button>
+                          </div>
+                        )}
                       </div>
                     )
                   }
 
-                  return sortedGroups.map((group) => {
-                    const isExpanded = expandedCategories.has(group.categoryId)
-                    const approvedCount = group.postits.filter(p => p.isApproved).length
-                    const pendingCount = group.postits.filter(p => !p.isApproved).length
-
+                  if (filteredRootWalls.length === 0) {
                     return (
-                      <div key={group.categoryId} className="bg-white rounded-lg shadow-md overflow-hidden">
-                        {/* Category Header */}
-                        <button
-                          onClick={() => toggleCategory(group.categoryId)}
-                          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            {isExpanded ? (
-                              <ChevronDown className="w-5 h-5 text-gray-500" />
-                            ) : (
-                              <ChevronRight className="w-5 h-5 text-gray-500" />
-                            )}
-                            <span className="font-semibold text-lg">{group.categoryName}</span>
-                            <span className="text-sm text-gray-500">({group.postits.length} not)</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {approvedCount > 0 && (
-                              <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
-                                {approvedCount} yayında
-                              </span>
-                            )}
-                            {pendingCount > 0 && (
-                              <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700">
-                                {pendingCount} beklemede
-                              </span>
-                            )}
-                          </div>
-                        </button>
-
-                        {/* Postits Table */}
-                        {isExpanded && (
-                          <Table className="table-fixed w-full">
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-[25%]">İçerik</TableHead>
-                                <TableHead className="w-[15%]">Kullanıcı</TableHead>
-                                <TableHead className="w-[10%]">Renk</TableHead>
-                                <TableHead className="w-[10%] text-center">Beğeni</TableHead>
-                                <TableHead className="w-[10%] text-center">Onaylı</TableHead>
-                                <TableHead className="w-[10%] text-center">Yayında</TableHead>
-                                <TableHead className="w-[10%]">Kayıt</TableHead>
-                                <TableHead className="w-[10%]">Bitiş</TableHead>
-                                <TableHead className="w-[10%]">İşlemler</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {group.postits.map((postit) => (
-                                <TableRow key={postit.id}>
-                                  <TableCell className="max-w-xs">
-                                    <p className="truncate">{postit.content}</p>
-                                    {postit.imageUrl && (
-                                      <span className="text-xs text-blue-600">[Resim var]</span>
-                                    )}
-                                    {postit.link && (
-                                      <span className="text-xs text-green-600 ml-1">[Link var]</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>{postit.user?.name ?? '-'}</TableCell>
-                                  <TableCell>
-                                    <span
-                                      className={`inline-block w-6 h-6 rounded ${postit.color === 'YELLOW'
-                                        ? 'bg-yellow-300'
-                                        : postit.color === 'PINK'
-                                          ? 'bg-pink-300'
-                                          : postit.color === 'BLUE'
-                                            ? 'bg-blue-300'
-                                            : postit.color === 'GREEN'
-                                              ? 'bg-green-300'
-                                              : postit.color === 'ORANGE'
-                                                ? 'bg-orange-300'
-                                                : 'bg-purple-300'
-                                        }`}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-center font-bold text-gray-700">
-                                    {(postit as any)?._count?.likes || 0}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Checkbox
-                                      checked={postit.isApproved}
-                                      onCheckedChange={(checked) => handleToggleStatus(postit.id, 'isApproved', checked as boolean)}
-                                      className="mx-auto"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <Checkbox
-                                      checked={postit.isPublished}
-                                      onCheckedChange={(checked) => handleToggleStatus(postit.id, 'isPublished', checked as boolean)}
-                                      disabled={new Date(postit.expiresAt) < new Date()}
-                                      className="mx-auto"
-                                    />
-                                  </TableCell>
-                                  <TableCell>{new Date(postit.createdAt).toLocaleDateString('tr-TR')}</TableCell>
-                                  <TableCell>{new Date(postit.expiresAt).toLocaleDateString('tr-TR')}</TableCell>
-                                  <TableCell>
-                                    <div className="flex gap-2">
-                                      <Button variant="ghost" size="sm" onClick={() => openEditPostit(postit)}>
-                                        <Pencil className="w-4 h-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeletePostit(postit.id)}
-                                        className="hover:bg-red-100 hover:text-red-600"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        )}
+                      <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
+                        {wallSearch ? 'Arama sonucu bulunamadı' : 'Henüz duvar yok'}
                       </div>
                     )
-                  })
+                  }
+
+                  return filteredRootWalls.map((wall) => renderWall(wall, 0))
                 })()}
               </div>
             </div>
           )
-        }
+          }
+
+          {/* Locations Section */}
+          {
+            activeSection === 'locations' && (
+              <div>
+                <div className="sticky top-0 z-30 bg-gray-50 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm -mx-8 -mt-8 px-8">
+                  <h2 className="text-2xl font-bold text-gray-800">İl İlçe Tanımlama</h2>
+                  <div className="flex gap-2">
+                    <Button onClick={() => openAddLocation('CITY')} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+                      <Plus className="w-4 h-4" />
+                      Yeni İl Ekle
+                    </Button>
+                    <Button onClick={() => openAddLocation('DISTRICT')} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+                      <Plus className="w-4 h-4" />
+                      Yeni İlçe Ekle
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden p-6">
+                  {/* Location list grouped by City */}
+                  <div className="space-y-6">
+                    {cities.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        Henüz hiç il tanımlanmamış.
+                      </div>
+                    ) : (
+                      cities.map((city) => {
+                        const isExpanded = expandedCities.has(city.id)
+                        return (
+                          <div key={city.id} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                            <div
+                              className="bg-gradient-to-r from-gray-900 to-gray-800 text-white px-5 py-4 flex items-center justify-between border-b border-gray-800 cursor-pointer hover:from-gray-800 hover:to-gray-700 transition-colors"
+                              onClick={() => {
+                                setExpandedCities(prev => {
+                                  const newSet = new Set(prev)
+                                  if (newSet.has(city.id)) newSet.delete(city.id)
+                                  else newSet.add(city.id)
+                                  return newSet
+                                })
+                              }}
+                            >
+                              <div className="flex items-center gap-3">
+                                {isExpanded ? (
+                                  <ChevronDown className="w-5 h-5 text-gray-300" />
+                                ) : (
+                                  <ChevronRight className="w-5 h-5 text-gray-300" />
+                                )}
+                                <h3 className="font-semibold text-lg">{city.name}</h3>
+                                <span className="text-xs bg-gray-700/50 text-gray-300 px-2.5 py-1 rounded-full border border-gray-600">
+                                  {(city._count?.districts) || 0} ilçe
+                                </span>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); openEditLocation(city, 'CITY'); }}
+                                  className="h-8 w-8 p-0 text-gray-400 hover:text-white hover:bg-white/10"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteLocation(city.id, 'CITY'); }}
+                                  className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            {isExpanded && (
+                              <div className="p-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 bg-gray-50/50">
+                                {districts.filter(d => d.cityId === city.id).map(district => (
+                                  <div key={district.id} className="bg-white border rounded-lg p-2.5 flex items-center justify-between group hover:border-blue-300 hover:shadow-sm transition-all">
+                                    <span className="text-sm font-medium text-gray-700">{district.name}</span>
+                                    <div className="flex bg-white rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <button onClick={(e) => { e.stopPropagation(); openEditLocation(district, 'DISTRICT'); }} className="text-gray-400 hover:text-blue-600 p-1">
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button onClick={(e) => { e.stopPropagation(); handleDeleteLocation(district.id, 'DISTRICT'); }} className="text-gray-400 hover:text-red-600 p-1">
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          {/* Sliders Section */}
+          {
+            activeSection === 'sliders' && (
+              <div>
+                <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-start justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                  <div>
+                    <h2 className="text-2xl font-bold">Kategori Slayder Yönetimi</h2>
+                    <p className="text-sm text-gray-500">Kategori bazlı slayderlar artık ilgili kategorinin (duvarın) düzenleme sayfasından yönetilmektedir.</p>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gray-900">
+                      <TableRow className="border-gray-800 hover:bg-gray-900">
+                        <TableHead className="text-gray-300 font-semibold py-4 pl-6">Kategori</TableHead>
+                        <TableHead className="text-gray-300 font-semibold">Resim Sayısı</TableHead>
+                        <TableHead className="text-gray-300 font-semibold">Durum</TableHead>
+                        <TableHead className="text-gray-300 font-semibold pr-6">İşlemler</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sliders.filter(s => s.categoryId).length > 0 ? (
+                        sliders.filter(s => s.categoryId).map((slider) => (
+                          <TableRow key={slider.id}>
+                            <TableCell className="font-medium">{slider.category?.name}</TableCell>
+                            <TableCell>{slider.images?.length || 0} resim</TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded-full text-xs ${slider.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {slider.isActive ? 'Aktif' : 'Pasif'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => openEditWall(slider.category)} title="Bu Duvarı Düzenle">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteSlider(slider.id)}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  title="Slayderı Sil"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                            {sliders.length > 0 ? 'Ana sayfa slayderları Ana Duvar ayarlarından yönetilmektedir.' : 'Henüz slayder eklenmemiş.'}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )
+          }
+
+          {/* Roles Section */}
+          {
+            activeSection === 'roles' && (
+              <div>
+                <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                  <h2 className="text-2xl font-bold">Yetki Türü Tanımla</h2>
+                  <Button onClick={openAddRole} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Yeni Rol Ekle
+                  </Button>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gray-900">
+                      <TableRow className="border-gray-800 hover:bg-gray-900">
+                        <TableHead className="text-gray-300 font-semibold py-4 pl-6">Rol Adı</TableHead>
+                        <TableHead className="text-gray-300 font-semibold">Açıklama</TableHead>
+                        <TableHead className="text-gray-300 font-semibold pr-6">İşlemler</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {roles.map((role) => (
+                        <TableRow key={role.id}>
+                          <TableCell className="font-medium">{role.name}</TableCell>
+                          <TableCell>{role.description}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditRole(role)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteRole(role.id)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {roles.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-8 text-gray-500">
+                            Henüz hiç rol tanımlanmamış.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )
+          }
+
+          {/* User Groups Section */}
+          {
+            activeSection === 'groups' && (
+              <div>
+                <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                  <h2 className="text-2xl font-bold">Kullanıcı Grupları</h2>
+                  <Button onClick={openAddUserGroup} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Yeni Grup
+                  </Button>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gray-900">
+                      <TableRow className="border-gray-800 hover:bg-gray-900">
+                        <TableHead className="text-gray-300 font-semibold py-4 pl-6">Grup Adı</TableHead>
+                        <TableHead className="text-gray-300 font-semibold">Açıklama</TableHead>
+                        <TableHead className="text-gray-300 font-semibold">Kullanıcı Sayısı</TableHead>
+                        <TableHead className="text-gray-300 font-semibold pr-6">İşlemler</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userGroups.length > 0 ? (
+                        userGroups.map((group) => (
+                          <TableRow key={group.id}>
+                            <TableCell className="font-medium">{group.name}</TableCell>
+                            <TableCell>{group.description || '-'}</TableCell>
+                            <TableCell>
+                              <span className="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                {group._count?.users ?? 0} kullanıcı
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => openEditUserGroup(group)}>
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteUserGroup(group.id)}
+                                  className="hover:bg-red-100 hover:text-red-600"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                            Henüz hiç grup tanımlanmamış.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )
+          }
+
+          {/* Users Section */}
+          {
+            activeSection === 'users' && (
+              <div>
+                <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                  <h2 className="text-2xl font-bold">Kullanıcı Yönetimi</h2>
+                  <Button onClick={openAddUser} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Yeni Kullanıcı
+                  </Button>
+                </div>
+
+                <div className="mb-6">
+                  <div className="relative max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      placeholder="İsim veya email ile ara..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Group users by Role */}
+                  {(() => {
+                    // Filter users first
+                    const filteredUsers = users.filter(user =>
+                      user.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
+                      user.email?.toLowerCase().includes(userSearch.toLowerCase())
+                    )
+
+                    // Get unique roles from users list + predefined ones to ensure order
+                    const usersByRole: Record<string, any[]> = {}
+                    filteredUsers.forEach(u => {
+                      const r = u.role || 'USER'
+                      if (!usersByRole[r]) usersByRole[r] = []
+                      usersByRole[r].push(u)
+                    })
+
+                    const sortedRoles = Object.keys(usersByRole).sort()
+
+                    if (filteredUsers.length === 0) {
+                      return (
+                        <div className="text-center py-8 text-gray-500 bg-white rounded-lg shadow-md">
+                          Arama sonucu bulunamadı.
+                        </div>
+                      )
+                    }
+
+                    return sortedRoles.map(roleName => (
+                      <div key={roleName} className="bg-white rounded-lg shadow-md overflow-hidden">
+                        <button
+                          className="w-full px-6 py-4 flex items-center justify-between bg-gray-50 border-b hover:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            const el = document.getElementById(`role-content-${roleName}`)
+                            if (el) el.classList.toggle('hidden')
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${roleName === 'SUPER_ADMIN' ? 'bg-red-100 text-red-700' :
+                              roleName === 'WALL_MANAGER' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-700'
+                              }`}>
+                              {roleName}
+                            </span>
+                            <span className="text-sm text-gray-500">({usersByRole[roleName].length} kullanıcı)</span>
+                          </div>
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        </button>
+
+                        <div id={`role-content-${roleName}`} className="hidden">
+                          <Table>
+                            <TableHeader className="bg-gray-800">
+                              <TableRow className="border-gray-700 hover:bg-gray-800">
+                                <TableHead className="text-gray-200 font-semibold py-3 pl-6">Ad</TableHead>
+                                <TableHead className="text-gray-200 font-semibold py-3">Email</TableHead>
+                                <TableHead className="text-gray-200 font-semibold py-3">Yönetici Yetkileri</TableHead>
+                                <TableHead className="text-gray-200 font-semibold py-3">Grup Üyelikleri</TableHead>
+                                <TableHead className="text-gray-200 font-semibold py-3">Not Sayısı</TableHead>
+                                <TableHead className="text-gray-200 font-semibold py-3 pr-6">İşlemler</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {usersByRole[roleName].map((user) => {
+                                const managedWalls = walls.filter(w => w.wallManagers?.some((m: any) => m.id === user.id))
+                                const isWallManagerUser = role === 'WALL_MANAGER';
+
+                                return (
+                                  <TableRow key={user.id}>
+                                    <TableCell className="font-medium">{user.name}</TableCell>
+                                    <TableCell>{user.email}</TableCell>
+                                    <TableCell>
+                                      {managedWalls.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                          {managedWalls.map(w => (
+                                            <span key={w.id} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] rounded">
+                                              {w.name}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-400">-</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      {user.userGroups && user.userGroups.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                          {user.userGroups.map((g: any) => (
+                                            <span key={g.id} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] rounded">
+                                              {g.name}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-400">-</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>{user._count?.postits ?? 0}</TableCell>
+                                    <TableCell>
+                                      <div className="flex gap-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => openEditUser(user)}
+                                          className="h-8 w-8 p-0"
+                                        >
+                                          <Pencil className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleDeleteUser(user.id)}
+                                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    ))
+                  })()}
+                </div>
+              </div>
+            )
+          }
+
+          {/* Post-its Section */}
+          {
+            activeSection === 'postits' && (
+              <div>
+                <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                  <h2 className="text-2xl font-bold">Not Yönetimi</h2>
+                </div>
+
+                {/* Search and Filter */}
+                <div className="mb-4 flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      placeholder="Not ara (içerik, kullanıcı veya kategori)..."
+                      value={postitSearch}
+                      onChange={(e) => setPostitSearch(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-md border shadow-sm">
+                    <Label className="font-semibold text-gray-700 mr-2">Durum:</Label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="postitStatusFilter"
+                        value="pending"
+                        checked={postitStatusFilter === 'pending'}
+                        onChange={(e) => setPostitStatusFilter(e.target.value as any)}
+                        className="accent-yellow-500"
+                      />
+                      <span className="text-sm">Beklemede</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="postitStatusFilter"
+                        value="all"
+                        checked={postitStatusFilter === 'all'}
+                        onChange={(e) => setPostitStatusFilter(e.target.value as any)}
+                        className="accent-gray-900"
+                      />
+                      <span className="text-sm">Tümü</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="postitStatusFilter"
+                        value="published"
+                        checked={postitStatusFilter === 'published'}
+                        onChange={(e) => setPostitStatusFilter(e.target.value as any)}
+                        className="accent-green-600"
+                      />
+                      <span className="text-sm">Yayında</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="postitStatusFilter"
+                        value="unpublished"
+                        checked={postitStatusFilter === 'unpublished'}
+                        onChange={(e) => setPostitStatusFilter(e.target.value as any)}
+                        className="accent-red-600"
+                      />
+                      <span className="text-sm">Yayında Değil</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Grouped by Category */}
+                <div className="space-y-4">
+                  {(() => {
+                    // Filter postits by search and status
+                    const filteredPostits = postits.filter((postit) => {
+                      const statusMatch =
+                        postitStatusFilter === 'all' ? true :
+                          postitStatusFilter === 'published' ? postit.isPublished :
+                            postitStatusFilter === 'unpublished' ? !postit.isPublished :
+                              postitStatusFilter === 'pending' ? !postit.isApproved : true;
+
+                      if (!statusMatch) return false;
+
+                      if (!postitSearch.trim()) return true
+                      const searchLower = postitSearch.toLowerCase()
+                      return (
+                        postit.content?.toLowerCase().includes(searchLower) ||
+                        postit.user?.name?.toLowerCase().includes(searchLower) ||
+                        postit.category?.name?.toLowerCase().includes(searchLower)
+                      )
+                    })
+
+                    // Group by category
+                    // Build category hierarchy paths
+                    const categoryPathMap: Record<string, string> = {}
+                    const buildPathMap = (cats: any[], parentPath = '') => {
+                      cats.forEach(c => {
+                        const path = parentPath ? `${parentPath} > ${c.name}` : c.name
+                        categoryPathMap[c.id] = path
+                        if (c.children?.length) {
+                          buildPathMap(c.children, path)
+                        }
+                      })
+                    }
+                    buildPathMap(walls)
+
+                    // Group by hierarchical category
+                    const groupedPostits: Record<string, { categoryName: string; categoryId: string; postits: any[] }> = {}
+
+                    filteredPostits.forEach((postit) => {
+                      const catId = postit.categoryId || 'uncategorized'
+                      const catName = categoryPathMap[catId] || postit.category?.name || 'Kategorisiz'
+                      if (!groupedPostits[catId]) {
+                        groupedPostits[catId] = { categoryName: catName, categoryId: catId, postits: [] }
+                      }
+                      groupedPostits[catId].postits.push(postit)
+                    })
+
+                    const sortedGroups = Object.values(groupedPostits).sort((a, b) =>
+                      a.categoryName.localeCompare(b.categoryName, 'tr')
+                    )
+
+                    const toggleCategory = (catId: string) => {
+                      setExpandedCategories((prev) => {
+                        const newSet = new Set(prev)
+                        if (newSet.has(catId)) {
+                          newSet.delete(catId)
+                        } else {
+                          newSet.add(catId)
+                        }
+                        return newSet
+                      })
+                    }
+
+                    if (filteredPostits.length === 0) {
+                      return (
+                        <div className="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
+                          {postitSearch ? 'Arama sonucu bulunamadı' : 'Henüz not yok'}
+                        </div>
+                      )
+                    }
+
+                    return sortedGroups.map((group) => {
+                      const isExpanded = expandedCategories.has(group.categoryId)
+                      const approvedCount = group.postits.filter(p => p.isApproved).length
+                      const pendingCount = group.postits.filter(p => !p.isApproved).length
+
+                      return (
+                        <div key={group.categoryId} className="bg-white rounded-lg shadow-md overflow-hidden">
+                          {/* Category Header */}
+                          <button
+                            onClick={() => toggleCategory(group.categoryId)}
+                            className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              {isExpanded ? (
+                                <ChevronDown className="w-5 h-5 text-gray-500" />
+                              ) : (
+                                <ChevronRight className="w-5 h-5 text-gray-500" />
+                              )}
+                              <span className="font-semibold text-lg">{group.categoryName}</span>
+                              <span className="text-sm text-gray-500">({group.postits.length} not)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {approvedCount > 0 && (
+                                <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
+                                  {approvedCount} yayında
+                                </span>
+                              )}
+                              {pendingCount > 0 && (
+                                <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700">
+                                  {pendingCount} beklemede
+                                </span>
+                              )}
+                            </div>
+                          </button>
+
+                          {/* Postits Table */}
+                          {isExpanded && (
+                            <Table className="table-fixed w-full">
+                              <TableHeader className="bg-gray-800">
+                                <TableRow className="border-gray-700 hover:bg-gray-800">
+                                  <TableHead className="w-[25%] text-gray-200 font-semibold py-3 pl-4">İçerik</TableHead>
+                                  <TableHead className="w-[15%] text-gray-200 font-semibold py-3">Kullanıcı</TableHead>
+                                  <TableHead className="w-[10%] text-gray-200 font-semibold py-3">Renk</TableHead>
+                                  <TableHead className="w-[10%] text-center text-gray-200 font-semibold py-3">Beğeni</TableHead>
+                                  <TableHead className="w-[10%] text-center text-gray-200 font-semibold py-3">Onaylı</TableHead>
+                                  <TableHead className="w-[10%] text-center text-gray-200 font-semibold py-3">Yayında</TableHead>
+                                  <TableHead className="w-[10%] text-gray-200 font-semibold py-3">Kayıt</TableHead>
+                                  <TableHead className="w-[10%] text-gray-200 font-semibold py-3">Bitiş</TableHead>
+                                  <TableHead className="w-[10%] text-gray-200 font-semibold py-3 pr-4">İşlemler</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {group.postits.map((postit) => (
+                                  <TableRow key={postit.id}>
+                                    <TableCell className="max-w-xs">
+                                      <p className="truncate">{postit.content}</p>
+                                      {postit.imageUrl && (
+                                        <span className="text-xs text-blue-600">[Resim var]</span>
+                                      )}
+                                      {postit.link && (
+                                        <span className="text-xs text-green-600 ml-1">[Link var]</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>{postit.user?.name ?? '-'}</TableCell>
+                                    <TableCell>
+                                      <span
+                                        className={`inline-block w-6 h-6 rounded ${postit.color === 'YELLOW'
+                                          ? 'bg-yellow-300'
+                                          : postit.color === 'PINK'
+                                            ? 'bg-pink-300'
+                                            : postit.color === 'BLUE'
+                                              ? 'bg-blue-300'
+                                              : postit.color === 'GREEN'
+                                                ? 'bg-green-300'
+                                                : postit.color === 'ORANGE'
+                                                  ? 'bg-orange-300'
+                                                  : 'bg-purple-300'
+                                          }`}
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-center font-bold text-gray-700">
+                                      {(postit as any)?._count?.likes || 0}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Checkbox
+                                        checked={postit.isApproved}
+                                        onCheckedChange={(checked) => handleToggleStatus(postit.id, 'isApproved', checked as boolean)}
+                                        className="mx-auto"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Checkbox
+                                        checked={postit.isPublished}
+                                        onCheckedChange={(checked) => handleToggleStatus(postit.id, 'isPublished', checked as boolean)}
+                                        disabled={new Date(postit.expiresAt) < new Date()}
+                                        className="mx-auto"
+                                      />
+                                    </TableCell>
+                                    <TableCell>{new Date(postit.createdAt).toLocaleDateString('tr-TR')}</TableCell>
+                                    <TableCell>{new Date(postit.expiresAt).toLocaleDateString('tr-TR')}</TableCell>
+                                    <TableCell>
+                                      <div className="flex gap-2">
+                                        <Button variant="ghost" size="sm" onClick={() => openEditPostit(postit)}>
+                                          <Pencil className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleDeletePostit(postit.id)}
+                                          className="hover:bg-red-100 hover:text-red-600"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          )}
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              </div>
+            )
+          }
+        </div>
       </main>
 
       {/* Appearance Settings Modal */}
@@ -5162,31 +5189,32 @@ export default function AdminPage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Kullanıcı Grubu</Label>
-              <Select
-                value={userForm.userGroupId || 'none'}
-                onValueChange={(value) => setUserForm({ ...userForm, userGroupId: value === 'none' ? '' : value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Grup seçiniz" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Grup Yok</SelectItem>
-                  {userGroups.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      <div className="flex flex-col items-start py-1">
-                        <span className="font-medium">{group.name}</span>
-                        {group.description && (
-                          <span className="text-xs text-muted-foreground text-left max-w-[300px] whitespace-normal">
-                            {group.description}
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <Label>Kullanıcı Grupları</Label>
+              <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto p-3 border rounded-md bg-white">
+                {userGroups.map((group) => (
+                  <div key={group.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded-md border border-transparent hover:border-gray-200 transition-colors">
+                    <Checkbox
+                      id={`user-group-${group.id}`}
+                      checked={(userForm.userGroupIds || []).includes(group.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setUserForm({ ...userForm, userGroupIds: [...(userForm.userGroupIds || []), group.id] })
+                        } else {
+                          setUserForm({ ...userForm, userGroupIds: (userForm.userGroupIds || []).filter(id => id !== group.id) })
+                        }
+                      }}
+                    />
+                    <label htmlFor={`user-group-${group.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 py-1">
+                      <div className="font-semibold text-gray-800">{group.name}</div>
+                      {group.description && <div className="text-xs text-gray-500 mt-1">{group.description}</div>}
+                    </label>
+                  </div>
+                ))}
+                {userGroups.length === 0 && (
+                  <div className="text-sm text-gray-500 text-center py-4">Kayıtlı grup bulunamadı.</div>
+                )}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -5294,22 +5322,32 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Yönetici</Label>
-                    <Select
-                      value={wallForm.wallManagerId}
-                      onValueChange={(value) => setWallForm({ ...wallForm, wallManagerId: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Yönetici seçin" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value=" ">Yönetici Yok</SelectItem>
-                        {wallManagers.map((manager) => (
-                          <SelectItem key={manager.id} value={manager.id}>
-                            {manager.name} ({manager.role === 'SUPER_ADMIN' ? 'Süper Admin' : 'Yönetici'})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
+                      {wallManagers.map((manager) => (
+                        <div key={manager.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`manager-${manager.id}`}
+                            checked={wallForm.wallManagerIds.includes(manager.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setWallForm({ ...wallForm, wallManagerIds: [...wallForm.wallManagerIds, manager.id] })
+                              } else {
+                                setWallForm({ ...wallForm, wallManagerIds: wallForm.wallManagerIds.filter(id => id !== manager.id) })
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`manager-${manager.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {manager.name} <span className="text-xs text-gray-500">({manager.role === 'SUPER_ADMIN' ? 'Süper Admin' : 'Yönetici'})</span>
+                          </label>
+                        </div>
+                      ))}
+                      {wallManagers.length === 0 && (
+                        <p className="text-sm text-gray-500 text-center py-2">Henüz duvar yöneticisi bulunmuyor.</p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -5479,259 +5517,352 @@ export default function AdminPage() {
       </Dialog >
 
       <Dialog open={showPostitModal} onOpenChange={setShowPostitModal}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Not Düzenle</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>İçerik</Label>
-              <Textarea
-                value={postitForm.content}
-                onChange={(e) => setPostitForm({ ...postitForm, content: e.target.value })}
-                maxLength={500}
-                rows={4}
-              />
-              <p className="text-xs text-gray-500 text-right mt-1">
-                {postitForm.content.length}/500
-              </p>
-            </div>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0 border-0 bg-transparent rounded-2xl shadow-2xl">
+          <div className="bg-white h-full flex flex-col sm:flex-row">
 
-            <div>
-              <Label>Resimler (Maks. 5)</Label>
-              {postitForm.imageUrls.length > 0 && (
-                <div className="grid grid-cols-5 gap-2 mt-2 mb-2">
-                  {postitForm.imageUrls.map((url, index) => (
-                    <div key={index} className="relative group aspect-square rounded overflow-hidden border border-gray-200">
-                      <img src={url} alt={`Resim ${index + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePostitImage(index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* LEFT COLUMN - CONTENT & SETTINGS */}
+            <div className="flex-1 p-6 md:p-8 overflow-y-auto bg-gray-50/50">
+              <div className="mb-6">
+                <DialogTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-500 flex items-center gap-2">
+                  <Pencil className="w-6 h-6 text-yellow-500" />
+                  Not Düzenle
+                </DialogTitle>
+                <DialogDescription className="text-gray-500 mt-1">
+                  Mevcut duyuruyu güncelleyin veya onay durumunu değiştirin.
+                </DialogDescription>
+              </div>
 
-              {postitForm.imageUrls.length < 5 && (
-                <div className="flex items-center gap-2 mt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full h-20 border-dashed border-2 flex flex-col gap-1 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-                    onClick={() => document.getElementById('admin-edit-image-upload')?.click()}
-                    disabled={uploadingPostitImage}
+              <div className="space-y-6">
+                {/* Category */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="category" className="text-sm font-semibold text-gray-700">Kategori (Duvar) *</Label>
+                  <Select
+                    value={postitForm.categoryId}
+                    onValueChange={(value) => setPostitForm({ ...postitForm, categoryId: value })}
                   >
-                    {uploadingPostitImage ? (
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    ) : (
-                      <ImageIcon className="w-6 h-6" />
-                    )}
-                    <span>Resim Ekle ({postitForm.imageUrls.length}/5)</span>
-                  </Button>
-                  <Input
-                    id="admin-edit-image-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePostitImageUpload}
-                    disabled={uploadingPostitImage}
-                    className="hidden"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div>
-              <Label>Kategori</Label>
-              <Select
-                value={postitForm.categoryId}
-                onValueChange={(value) => setPostitForm({ ...postitForm, categoryId: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Kategori seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* Flatten categories for dropdown */}
-                  {(() => {
-                    const flatten = (cats: any[], depth = 0): any[] => {
-                      return cats.reduce((acc, cat) => {
-                        acc.push({ ...cat, depth })
-                        if (cat.children) {
-                          acc.push(...flatten(cat.children, depth + 1))
+                    <SelectTrigger className="bg-white border-gray-200 shadow-sm focus:ring-yellow-400">
+                      <SelectValue placeholder="Kategori seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const flatten = (cats: any[], depth = 0): any[] => {
+                          return cats.reduce((acc, cat) => {
+                            acc.push({ ...cat, depth })
+                            if (cat.children) {
+                              acc.push(...flatten(cat.children, depth + 1))
+                            }
+                            return acc
+                          }, [])
                         }
-                        return acc
-                      }, [])
-                    }
-                    const buildHierarchy = (items: any[]) => {
-                      const rootItems = items.filter(i => !i.parentId)
-                      const findChildren = (parent: any) => {
-                        const children = items.filter(i => i.parentId === parent.id)
-                        parent.children = children
-                        children.forEach(findChildren)
-                      }
-                      rootItems.forEach(findChildren)
-                      return rootItems
-                    }
-                    const hierarchy = buildHierarchy(JSON.parse(JSON.stringify(walls)))
-                    const flatOptions = flatten(hierarchy)
+                        const buildHierarchy = (items: any[]) => {
+                          const rootItems = items.filter(i => !i.parentId)
+                          const findChildren = (parent: any) => {
+                            const children = items.filter(i => i.parentId === parent.id)
+                            parent.children = children
+                            children.forEach(findChildren)
+                          }
+                          rootItems.forEach(findChildren)
+                          return rootItems
+                        }
+                        const hierarchy = buildHierarchy(JSON.parse(JSON.stringify(walls)))
+                        const flatOptions = flatten(hierarchy)
 
-                    return flatOptions.map((w: any) => (
-                      <SelectItem key={w.id} value={w.id}>
-                        <span style={{ paddingLeft: `${w.depth * 12}px` }}>
-                          {w.depth > 0 && '↳ '}{w.name}
-                        </span>
-                      </SelectItem>
-                    ))
-                  })()}
-                </SelectContent>
-              </Select>
-            </div>
+                        return flatOptions.map((w: any) => (
+                          <SelectItem key={w.id} value={w.id}>
+                            <span style={{ paddingLeft: `${w.depth * 12}px` }}>
+                              {w.depth > 0 && '↳ '}{w.name}
+                            </span>
+                          </SelectItem>
+                        ))
+                      })()}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div>
-              <Label>Renk</Label>
-              <div className="grid grid-cols-6 gap-2 mt-2">
-                {colors.map((color) => (
-                  <button
-                    key={color.value}
-                    type="button"
-                    className={`w-full aspect-square rounded-lg ${color.bg} border-2 transition-all ${postitForm.color === color.value
-                      ? 'border-gray-800 scale-110'
-                      : 'border-transparent hover:scale-105'
-                      }`}
-                    onClick={() => setPostitForm({ ...postitForm, color: color.value })}
-                    title={color.label}
+                {/* Content */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="content" className="text-sm font-semibold text-gray-700">İçerik *</Label>
+                  <Textarea
+                    id="content"
+                    value={postitForm.content}
+                    onChange={(e) => setPostitForm({ ...postitForm, content: e.target.value })}
+                    placeholder="Aklınızdakileri buraya dökün..."
+                    className="bg-white border-gray-200 shadow-sm focus:ring-yellow-400 resize-none rounded-xl"
+                    rows={4}
+                    maxLength={500}
+                    required
                   />
-                ))}
+                  <div className="flex justify-end p-1">
+                    <span className={`text-xs ${postitForm.content.length > 450 ? 'text-orange-500 font-bold' : 'text-gray-400'}`}>
+                      {postitForm.content.length}/500
+                    </span>
+                  </div>
+                </div>
+
+                {/* Expiration */}
+                <div className="grid grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="expires" className="text-xs font-semibold text-gray-500">Gösterim Süresi *</Label>
+                    <Select
+                      value={postitForm.expiresInDays}
+                      onValueChange={(value) => {
+                        const daysMap: { [key: string]: number } = {
+                          '1': 1, '3': 3, '7': 7, '30': 30
+                        }
+                        const newForm = { ...postitForm, expiresInDays: value }
+                        if (value !== 'custom') {
+                          const days = daysMap[value] || 1
+                          newForm.expiresAtDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                        }
+                        setPostitForm(newForm)
+                      }}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Süre seçin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 Gün</SelectItem>
+                        <SelectItem value="3">3 Gün</SelectItem>
+                        <SelectItem value="7">1 Hafta</SelectItem>
+                        <SelectItem value="30">1 Ay</SelectItem>
+                        <SelectItem value="custom">Tarihine kadar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-gray-500">Bitiş Tarihi</Label>
+                    <Input
+                      type="date"
+                      min={new Date().toISOString().split('T')[0]}
+                      value={postitForm.expiresAtDate}
+                      onChange={(e) => setPostitForm({ ...postitForm, expiresAtDate: e.target.value })}
+                      required
+                      readOnly={postitForm.expiresInDays !== 'custom'}
+                      className={`h-9 ${postitForm.expiresInDays !== 'custom' ? 'bg-gray-50 cursor-not-allowed text-gray-500' : ''}`}
+                    />
+                  </div>
+                </div>
+
+                {/* Link */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="link" className="text-sm font-semibold text-gray-700">Bağlantı URL (Opsiyonel)</Label>
+                  <Input
+                    id="link"
+                    type="url"
+                    value={postitForm.link}
+                    onChange={(e) => setPostitForm({ ...postitForm, link: e.target.value })}
+                    className="bg-white border-gray-200 shadow-sm focus:ring-yellow-400"
+                    placeholder="https://example.com"
+                  />
+                </div>
+
+                {/* Publish & Approve settings for Admins */}
+                <div className="grid grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="isApproved"
+                      checked={postitForm.isApproved}
+                      onCheckedChange={(checked) => setPostitForm({ ...postitForm, isApproved: checked === true })}
+                    />
+                    <label htmlFor="isApproved" className="text-sm font-semibold text-gray-700 cursor-pointer">
+                      Onaylı
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="isPublished"
+                      checked={postitForm.isPublished}
+                      onCheckedChange={(checked) => setPostitForm({ ...postitForm, isPublished: checked === true })}
+                    />
+                    <label htmlFor="isPublished" className="text-sm font-semibold text-gray-700 cursor-pointer">
+                      Yayında
+                    </label>
+                  </div>
+                </div>
+
+                {/* Images */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-gray-500" />
+                      Resimler
+                    </Label>
+                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{postitForm.imageUrls.length}/5</span>
+                  </div>
+
+                  {postitForm.imageUrls.length > 0 && (
+                    <div className="grid grid-cols-5 gap-2 mt-2 mb-2">
+                      {postitForm.imageUrls.map((url, index) => (
+                        <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 shadow-sm transform transition duration-300 hover:scale-105">
+                          <img src={url} alt={`Resim ${index + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePostitImage(index)}
+                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <div className="bg-red-500 text-white rounded-full p-1 shadow-lg border border-red-600">
+                              <X className="w-3 h-3" />
+                            </div>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {postitForm.imageUrls.length < 5 && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-16 border-dashed border-2 flex flex-col gap-1 items-center justify-center text-gray-500 bg-gray-50 hover:text-gray-800 hover:bg-gray-100 hover:border-gray-400 rounded-lg transition-colors border-gray-200"
+                        onClick={() => document.getElementById('admin-edit-image-upload')?.click()}
+                        disabled={uploadingPostitImage}
+                      >
+                        {uploadingPostitImage ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4" />
+                        )}
+                        <span className="text-xs font-medium">Bırakın veya Seçin</span>
+                      </Button>
+                      <Input
+                        id="admin-edit-image-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePostitImageUpload}
+                        disabled={uploadingPostitImage}
+                        className="hidden"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div>
-              <Label>Yazı Tipi</Label>
-              <div className="grid grid-cols-5 gap-2 mt-2">
-                {fonts.map((f) => (
-                  <button
-                    key={f.value}
-                    type="button"
-                    onClick={() =>
-                      setPostitForm({ ...postitForm, font: f.value })
-                    }
-                    className={`h-12 rounded border-2 bg-white flex items-center justify-center ${postitForm.font === f.value
-                      ? 'border-gray-800 ring-2 ring-gray-800'
-                      : 'border-gray-300'
-                      } hover:border-gray-600 transition ${f.class} text-sm`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* RIGHT COLUMN - PREVIEW & APPEARANCE */}
+            <div className="w-full sm:w-[380px] bg-white border-l border-gray-100 p-6 md:p-8 overflow-y-auto flex flex-col justify-between">
+              <div className="space-y-8">
+                {/* Preview Block */}
+                <div>
+                  <Label className="text-sm font-bold text-gray-800 tracking-wide uppercase mb-3 block">Önizleme</Label>
+                  <div className="p-8 rounded-2xl bg-[#E8E8E8] shadow-inner flex items-center justify-center border border-gray-200 pattern-isometric pattern-gray-200 pattern-size-4">
+                    <div className={`
+                      w-44 h-44 relative shadow-2xl transform rotate-2 hover:rotate-0 transition-all duration-300
+                      flex flex-col items-center justify-center p-4 text-center group
+                      ${colors.find(c => c.value === postitForm.color)?.bg || 'bg-yellow-200'}
+                    `}>
+                      <div className="absolute top-0 bottom-0 left-0 border-l-[3px] border-black/5 mix-blend-multiply pointer-events-none" />
 
-            <div>
-              <Label>İğne</Label>
-              <div className="grid grid-cols-6 gap-2 mt-2">
-                {pushpinOptions.map((pin) => (
-                  <button
-                    key={pin.value}
-                    type="button"
-                    className={`w-full aspect-square rounded-lg border-2 p-1 transition-all bg-gray-100 ${postitForm.pushpin === pin.value
-                      ? 'border-gray-800 scale-110'
-                      : 'border-transparent hover:scale-105'
-                      }`}
-                    onClick={() => setPostitForm({ ...postitForm, pushpin: pin.value })}
-                    title={pin.label}
-                  >
-                    <Image src={pin.image} alt={pin.label} width={32} height={32} className="w-full h-full object-contain" />
-                  </button>
-                ))}
-              </div>
-            </div>
+                      {postitForm.pushpin && (
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10 w-8 h-8 drop-shadow-lg group-hover:-translate-y-1 transition-transform">
+                          <img src={pushpinOptions.find(p => p.value === postitForm.pushpin)?.image || '/pushpins/red.png'} alt="pin" className="w-full h-full object-contain" />
+                        </div>
+                      )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="expires">Süre</Label>
-                <Select
-                  value={postitForm.expiresInDays}
-                  onValueChange={(value) => {
-                    const daysMap: { [key: string]: number } = {
-                      '1': 1,
-                      '3': 3,
-                      '7': 7,
-                      '30': 30
-                    }
-                    const newForm = { ...postitForm, expiresInDays: value }
-                    if (value !== 'custom') {
-                      const days = daysMap[value] || 1
-                      newForm.expiresAtDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-                    }
-                    setPostitForm(newForm)
-                  }}
+                      <p className={`
+                        text-sm opacity-80 overflow-hidden leading-relaxed
+                        ${fonts.find(f => f.value === postitForm.font)?.class || 'font-handwriting'}
+                      `}
+                        style={{
+                          WebkitLineClamp: 5,
+                          display: '-webkit-box',
+                          WebkitBoxOrient: 'vertical',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        {postitForm.content || 'Aklınızdaki harika fikri buraya yazın...'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Color */}
+                <div>
+                  <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Kağıt Rengi</Label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {colors.map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => setPostitForm({ ...postitForm, color: color.value })}
+                        className={`
+                          ${color.bg} border-2 aspect-square rounded-full transition-all transform hover:scale-110 shadow-sm
+                          ${postitForm.color === color.value ? 'border-gray-800 ring-2 ring-gray-800 ring-offset-2 scale-110' : 'border-transparent'}
+                        `}
+                        title={color.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Font */}
+                <div>
+                  <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Yazı Karakteri</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {fonts.map((font) => (
+                      <button
+                        key={font.value}
+                        type="button"
+                        onClick={() => setPostitForm({ ...postitForm, font: font.value })}
+                        className={`
+                          h-9 rounded-lg border flex items-center justify-center transition-all bg-white
+                          ${postitForm.font === font.value ? 'border-gray-800 ring-1 ring-gray-800 bg-gray-50 font-bold shadow-sm' : 'border-gray-200 text-gray-600 hover:border-gray-400'}
+                          ${font.class} text-sm
+                        `}
+                      >
+                        {font.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pin */}
+                <div>
+                  <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">İğne Modeli</Label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {pushpinOptions.map((pin) => (
+                      <button
+                        key={pin.value}
+                        type="button"
+                        onClick={() => setPostitForm({ ...postitForm, pushpin: pin.value })}
+                        className={`
+                          aspect-square rounded-xl bg-gray-50 border flex items-center justify-center transition-all group hover:bg-white hover:shadow-sm
+                          ${postitForm.pushpin === pin.value ? 'border-gray-800 ring-1 ring-gray-800 bg-white shadow-sm' : 'border-gray-100'}
+                        `}
+                        title={pin.label}
+                      >
+                        <img
+                          src={pin.image}
+                          alt={pin.label}
+                          className={`w-6 h-6 object-contain filter transition-transform group-hover:scale-110 ${postitForm.pushpin === pin.value ? 'drop-shadow-md' : 'drop-shadow-sm'}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-8 pt-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-white">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowPostitModal(false)}
+                  className="text-gray-500 hover:text-gray-800 font-medium"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Süre seçin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 Gün</SelectItem>
-                    <SelectItem value="3">3 Gün</SelectItem>
-                    <SelectItem value="7">1 Hafta</SelectItem>
-                    <SelectItem value="30">1 Ay</SelectItem>
-                    <SelectItem value="custom">Tarihine kadar</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Son Görüntüleme Tarihi</Label>
-                <Input
-                  type="date"
-                  min={new Date().toISOString().split('T')[0]}
-                  value={postitForm.expiresAtDate}
-                  onChange={(e) => setPostitForm({ ...postitForm, expiresAtDate: e.target.value })}
-                  required
-                  readOnly={postitForm.expiresInDays !== 'custom'}
-                  className={postitForm.expiresInDays !== 'custom' ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>Link (Opsiyonel)</Label>
-              <Input
-                type="url"
-                value={postitForm.link}
-                onChange={(e) => setPostitForm({ ...postitForm, link: e.target.value })}
-                placeholder="https://..."
-              />
-            </div>
-
-            <div className="flex gap-6 mt-4">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="isApproved"
-                  checked={postitForm.isApproved}
-                  onCheckedChange={(checked) => setPostitForm({ ...postitForm, isApproved: checked === true })}
-                />
-                <Label htmlFor="isApproved">Onaylı</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="isPublished"
-                  checked={postitForm.isPublished}
-                  onCheckedChange={(checked) => setPostitForm({ ...postitForm, isPublished: checked === true })}
-                />
-                <Label htmlFor="isPublished">Yayında</Label>
+                  İptal Et
+                </Button>
+                <Button
+                  onClick={handleSavePostit}
+                  className="bg-gray-900 hover:bg-black text-white px-6 font-medium shadow-lg hover:shadow-xl transition-all"
+                >
+                  Kaydet
+                </Button>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPostitModal(false)}>
-              İptal
-            </Button>
-            <Button onClick={handleSavePostit}>Kaydet</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

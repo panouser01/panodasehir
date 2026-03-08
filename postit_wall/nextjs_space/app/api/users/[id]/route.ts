@@ -26,6 +26,7 @@ export async function GET(
         name: true,
         role: true,
         createdAt: true,
+        userGroups: { select: { id: true, name: true } },
         _count: { select: { postits: true } }
       }
     })
@@ -49,12 +50,73 @@ export async function PATCH(
   try {
     const session = await getServerSession(authOptions)
 
-    if ((session?.user as any)?.role !== 'SUPER_ADMIN') {
+    const userRole = (session?.user as any)?.role
+    const userId = (session?.user as any)?.id
+
+    if (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER') {
       return NextResponse.json({ error: 'Bu işlemi yapmaya yetkiniz yok' }, { status: 403 })
     }
 
     const body = await request.json()
-    const { name, email, role, password, userGroupId } = body
+    const { name, email, role, password, userGroupIds } = body
+
+    if (userRole === 'WALL_MANAGER') {
+      // Wall manager cannot elevate privileges
+      if (role && role !== 'USER') {
+        return NextResponse.json({ error: 'Rol değiştirme yetkiniz yok' }, { status: 403 })
+      }
+
+      // Check if they have access to the target user
+      const targetUser = await prisma.user.findUnique({
+        where: { id: params.id },
+        include: { userGroups: true, postits: true }
+      })
+
+      if (!targetUser) {
+        return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
+      }
+
+      const allCategories = await prisma.category.findMany({
+        select: { id: true, parentId: true, wallManagers: { select: { id: true } }, userGroupId: true }
+      })
+      const managedCats = new Set<string>()
+      const allowedGroupIds = new Set<string>()
+
+      allCategories.forEach(cat => {
+        if (cat.wallManagers?.some(m => m.id === userId)) {
+          managedCats.add(cat.id)
+          if (cat.userGroupId) allowedGroupIds.add(cat.userGroupId)
+        }
+      })
+
+      let added = true
+      while (added) {
+        added = false
+        allCategories.forEach(cat => {
+          if (cat.parentId && managedCats.has(cat.parentId) && !managedCats.has(cat.id)) {
+            managedCats.add(cat.id)
+            if (cat.userGroupId) allowedGroupIds.add(cat.userGroupId)
+            added = true
+          }
+        })
+      }
+
+      // Is target user inside allowedGroupIds or managedCats?
+      const inAllowedGroups = targetUser.userGroups.some(g => allowedGroupIds.has(g.id))
+      const hasPostsInManagedCats = targetUser.postits.some(p => managedCats.has(p.categoryId))
+
+      if (!inAllowedGroups && !hasPostsInManagedCats) {
+        return NextResponse.json({ error: 'Bu kullanıcıyı düzenleme yetkiniz yok' }, { status: 403 })
+      }
+
+      // Cannot assign to an unallowed group
+      if (userGroupIds && userGroupIds.length > 0) {
+        const hasUnallowedGroup = userGroupIds.some((id: string) => !allowedGroupIds.has(id))
+        if (hasUnallowedGroup) {
+          return NextResponse.json({ error: 'Sadece yönettiğiniz duvarlara ait gruplara kullanıcı ekleyebilirsiniz' }, { status: 403 })
+        }
+      }
+    }
 
     // Check if email is taken by another user
     if (email) {
@@ -75,7 +137,12 @@ export async function PATCH(
     if (email) updateData.email = email
     if (role) updateData.role = role
     if (password) updateData.password = await bcrypt.hash(password, 10)
-    if (userGroupId !== undefined) updateData.userGroupId = userGroupId
+
+    if (userGroupIds !== undefined) {
+      updateData.userGroups = {
+        set: Array.isArray(userGroupIds) ? userGroupIds.map((id: string) => ({ id })) : []
+      }
+    }
 
     const user = await prisma.user.update({
       where: { id: params.id },
@@ -85,8 +152,7 @@ export async function PATCH(
         email: true,
         name: true,
         role: true,
-        userGroupId: true,
-        userGroup: {
+        userGroups: {
           select: {
             id: true,
             name: true
@@ -111,8 +177,55 @@ export async function DELETE(
   try {
     const session = await getServerSession(authOptions)
 
-    if ((session?.user as any)?.role !== 'SUPER_ADMIN') {
+    const userRole = (session?.user as any)?.role
+    const userId = (session?.user as any)?.id
+
+    if (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER') {
       return NextResponse.json({ error: 'Bu işlemi yapmaya yetkiniz yok' }, { status: 403 })
+    }
+
+    if (userRole === 'WALL_MANAGER') {
+      // Check if they have access to the target user
+      const targetUser = await prisma.user.findUnique({
+        where: { id: params.id },
+        include: { userGroups: true, postits: true }
+      })
+
+      if (!targetUser) {
+        return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
+      }
+
+      const allCategories = await prisma.category.findMany({
+        select: { id: true, parentId: true, wallManagers: { select: { id: true } }, userGroupId: true }
+      })
+      const managedCats = new Set<string>()
+      const allowedGroupIds = new Set<string>()
+
+      allCategories.forEach(cat => {
+        if (cat.wallManagers?.some(m => m.id === userId)) {
+          managedCats.add(cat.id)
+          if (cat.userGroupId) allowedGroupIds.add(cat.userGroupId)
+        }
+      })
+
+      let added = true
+      while (added) {
+        added = false
+        allCategories.forEach(cat => {
+          if (cat.parentId && managedCats.has(cat.parentId) && !managedCats.has(cat.id)) {
+            managedCats.add(cat.id)
+            if (cat.userGroupId) allowedGroupIds.add(cat.userGroupId)
+            added = true
+          }
+        })
+      }
+
+      const inAllowedGroups = targetUser.userGroups.some(g => allowedGroupIds.has(g.id))
+      const hasPostsInManagedCats = targetUser.postits.some(p => managedCats.has(p.categoryId))
+
+      if (!inAllowedGroups && !hasPostsInManagedCats) {
+        return NextResponse.json({ error: 'Bu kullanıcıyı silme yetkiniz yok' }, { status: 403 })
+      }
     }
 
     // Don't allow deleting yourself
