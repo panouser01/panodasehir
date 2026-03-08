@@ -8,11 +8,48 @@ export async function GET(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions)
 
-        if (!session?.user || (session.user as any).role !== 'SUPER_ADMIN') {
+        const userRole = (session?.user as any)?.role
+        const userId = (session?.user as any)?.id
+
+        if (!session?.user || (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER')) {
             return NextResponse.json({ error: 'Yetkiniz yok' }, { status: 403 })
         }
 
+        let groupFilter = {}
+
+        if (userRole === 'WALL_MANAGER') {
+            const allCategories = await prisma.category.findMany({
+                select: { id: true, parentId: true, wallManagers: { select: { id: true } }, userGroupId: true }
+            })
+            const managedCats = new Set<string>()
+            const allowedGroupIds = new Set<string>()
+
+            allCategories.forEach(cat => {
+                if (cat.wallManagers?.some(m => m.id === userId)) {
+                    managedCats.add(cat.id)
+                    if (cat.userGroupId) allowedGroupIds.add(cat.userGroupId)
+                }
+            })
+
+            let added = true
+            while (added) {
+                added = false
+                allCategories.forEach(cat => {
+                    if (cat.parentId && managedCats.has(cat.parentId) && !managedCats.has(cat.id)) {
+                        managedCats.add(cat.id)
+                        if (cat.userGroupId) allowedGroupIds.add(cat.userGroupId)
+                        added = true
+                    }
+                })
+            }
+
+            groupFilter = {
+                id: { in: Array.from(allowedGroupIds) }
+            }
+        }
+
         const userGroups = await prisma.userGroup.findMany({
+            where: groupFilter,
             orderBy: { name: 'asc' },
             include: {
                 _count: {

@@ -5160,29 +5160,36 @@ export default function AdminPage() {
               <Select
                 value={userForm.role}
                 onValueChange={(value) => setUserForm({ ...userForm, role: value })}
+                disabled={role === 'WALL_MANAGER'}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.length > 0 ? (
-                    roles.map((role) => (
-                      <SelectItem key={role.id} value={role.name}>
-                        <div className="flex flex-col items-start py-1">
-                          <span className="font-medium">{role.name}</span>
-                          {role.description && (
-                            <span className="text-xs text-muted-foreground text-left max-w-[300px] whitespace-normal">
-                              {role.description}
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))
+                    roles
+                      .filter(r => role === 'SUPER_ADMIN' || r.name === 'USER')
+                      .map((r) => (
+                        <SelectItem key={r.id} value={r.name}>
+                          <div className="flex flex-col items-start py-1">
+                            <span className="font-medium">{r.name}</span>
+                            {r.description && (
+                              <span className="text-xs text-muted-foreground text-left max-w-[300px] whitespace-normal">
+                                {r.description}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))
                   ) : (
                     <>
                       <SelectItem value="USER">Standart Kullanıcı</SelectItem>
-                      <SelectItem value="WALL_MANAGER">Duvar Yöneticisi</SelectItem>
-                      <SelectItem value="SUPER_ADMIN">Süper Admin</SelectItem>
+                      {role === 'SUPER_ADMIN' && (
+                        <>
+                          <SelectItem value="WALL_MANAGER">Duvar Yöneticisi</SelectItem>
+                          <SelectItem value="SUPER_ADMIN">Süper Admin</SelectItem>
+                        </>
+                      )}
                     </>
                   )}
                 </SelectContent>
