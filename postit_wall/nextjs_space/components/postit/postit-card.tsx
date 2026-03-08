@@ -216,20 +216,19 @@ export function PostItCard({
           className="relative cursor-pointer"
         >
           {/* Pushpin */}
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+          <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-10">
             <Image
               src={pushpinImages[pushpin] ?? pushpinImages.RED}
               alt="Pin"
-              width={30}
-              height={30}
+              width={45}
+              height={45}
               className="drop-shadow-md"
             />
           </div>
 
-          {/* Post-it Card */}
           <div
             className={`${colorClasses[color] ?? colorClasses.YELLOW
-              } p-3 pt-5 rounded-sm shadow-md hover:shadow-lg transition-all duration-300 min-h-[120px] w-full h-full flex flex-col ${isLarge || displayImages.length > 0 ? 'max-w-[400px]' : 'max-w-[180px]'}`}
+              } p-5 pt-8 rounded-md shadow-md hover:shadow-xl transition-all duration-300 min-h-[180px] w-full h-full flex flex-col ${isLarge || displayImages.length > 0 ? 'max-w-[800px]' : 'max-w-[400px]'}`}
           >
             {/* Image Thumbnail (Automatic Slider if multiple) */}
             {displayImages.length > 0 && (
@@ -257,7 +256,7 @@ export function PostItCard({
                   </motion.div>
                 </AnimatePresence>
                 {hasMultipleImages && (
-                  <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full z-10 font-sans backdrop-blur-sm border border-white/20">
+                  <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full z-10 font-sans backdrop-blur-sm border border-white/20">
                     {currentImageIndex + 1} / {displayImages.length}
                   </div>
                 )}
@@ -265,7 +264,7 @@ export function PostItCard({
             )}
 
             {/* Content */}
-            <p className={`text-gray-800 text-sm mb-2 whitespace-pre-wrap break-words flex-grow ${fontClasses[font] ?? fontClasses.HANDWRITING}`}>
+            <p className={`text-gray-800 text-base mb-3 whitespace-pre-wrap break-words flex-grow ${fontClasses[font] ?? fontClasses.HANDWRITING}`}>
               {content}
             </p>
 
@@ -276,9 +275,9 @@ export function PostItCard({
                   href={link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm mb-3 underline"
+                  className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-base mb-4 underline"
                 >
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-4 h-4" />
                   <span className="break-all">Link</span>
                 </a>
               </div>
@@ -287,17 +286,17 @@ export function PostItCard({
             {/* Footer */}
             <div className="flex items-center justify-between pt-3 border-t border-gray-400/30 text-xs text-gray-600 mt-auto">
               <div>
-                <p className="font-semibold">{userName}</p>
-                <p className="text-gray-500">{categoryName}</p>
+                <p className="font-semibold text-xs">{userName}</p>
+                <p className="text-gray-500 text-[10px] leading-tight">{categoryName}</p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <div
                   onClick={handleLike}
                   className={`flex items-center gap-1 cursor-pointer transition-colors ${hasLiked ? 'text-red-500' : 'hover:text-red-500'}`}
                 >
-                  <Heart className={`w-4 h-4 ${hasLiked ? 'fill-red-500' : ''}`} />
-                  {likesCount > 0 && <span className="font-medium text-sm">{likesCount}</span>}
+                  <Heart className={`w-3.5 h-3.5 ${hasLiked ? 'fill-red-500' : ''}`} />
+                  {likesCount > 0 && <span className="font-medium text-xs">{likesCount}</span>}
                 </div>
 
                 {canDelete && (
@@ -307,9 +306,9 @@ export function PostItCard({
                       disabled={isDeleting}
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
+                      className="h-7 w-7 p-0 hover:bg-red-100 hover:text-red-600"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 )}

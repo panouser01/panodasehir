@@ -101,13 +101,13 @@ async function main() {
     let category = await prisma.category.findFirst({
       where: { name: cat.name, parentId: null }
     })
-    
+
     if (!category) {
       category = await prisma.category.create({
         data: {
           name: cat.name,
           description: cat.description,
-          wallManagerId: cat.managerId,
+          wallManagers: cat.managerId ? { connect: { id: cat.managerId } } : undefined,
           parentId: null,
         },
       })

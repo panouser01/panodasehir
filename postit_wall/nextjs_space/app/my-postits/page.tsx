@@ -68,7 +68,7 @@ const pushpinOptions = [
 export default function MyPostItsPage() {
   const { data: session, status } = useSession() || {}
   const userRole = (session?.user as any)?.role
-  const userGroupId = (session?.user as any)?.userGroupId
+  const userGroupIds = (session?.user as any)?.userGroupIds || []
   const router = useRouter()
   const [postits, setPostits] = useState<PostIt[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -506,207 +506,263 @@ export default function MyPostItsPage() {
 
       {/* Edit Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Post-it Düzenle</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0 border-0 bg-transparent rounded-2xl shadow-2xl">
+          <div className="bg-white h-full flex flex-col sm:flex-row">
 
-          <div className="space-y-4">
-            <div>
-              <Label>İçerik</Label>
-              <Textarea
-                value={editForm.content}
-                onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                maxLength={500}
-                rows={4}
-              />
-              <p className="text-xs text-gray-500 text-right mt-1">
-                {editForm.content.length}/500
-              </p>
-            </div>
+            {/* LEFT COLUMN - CONTENT & SETTINGS */}
+            <div className="flex-1 p-6 md:p-8 overflow-y-auto bg-gray-50/50">
+              <div className="mb-6 border-b pb-4">
+                <DialogTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-500 flex items-center gap-2">
+                  <Edit className="w-6 h-6 text-yellow-500" />
+                  Post-it Düzenle
+                </DialogTitle>
+                <p className="text-gray-500 mt-1 text-sm">
+                  Daha önce paylaştığınız notu buradan düzenleyebilir, renk, font ve diğer özelliklerini değiştirebilirsiniz.
+                </p>
+              </div>
 
-            <div>
-              <Label>Resimler (Maks. 5)</Label>
-              {editForm.imageUrls.length > 0 && (
-                <div className="grid grid-cols-5 gap-2 mt-2 mb-2">
-                  {editForm.imageUrls.map((url, index) => (
-                    <div key={index} className="relative group aspect-square rounded overflow-hidden border border-gray-200">
-                      <img src={url} alt={`Resim ${index + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index)}
-                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {editForm.imageUrls.length < 5 && (
-                <div className="flex items-center gap-2 mt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full h-20 border-dashed border-2 flex flex-col gap-1 items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-                    onClick={() => document.getElementById('edit-image-upload')?.click()}
-                    disabled={uploadingImage}
+              <div className="space-y-6">
+                {/* Category */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-gray-700">Kategori (Duvar) *</Label>
+                  <Select
+                    value={editForm.categoryId}
+                    onValueChange={(v) => setEditForm({ ...editForm, categoryId: v })}
                   >
-                    {uploadingImage ? (
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    ) : (
-                      <ImageIcon className="w-6 h-6" />
-                    )}
-                    <span>Resim Ekle ({editForm.imageUrls.length}/5)</span>
-                  </Button>
+                    <SelectTrigger className="bg-white border-gray-200 shadow-sm focus:ring-yellow-400">
+                      <SelectValue placeholder="Kategori seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {flatCategories.filter(cat => {
+                        if (cat.userGroupId) {
+                          if (userRole !== 'SUPER_ADMIN' && !userGroupIds?.includes(cat.userGroupId)) {
+                            return false
+                          }
+                        }
+                        return true
+                      }).map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          <span style={{ paddingLeft: `${cat.depth * 12}px` }}>
+                            {cat.depth > 0 && '↳ '}{cat.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Content */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-gray-700">İçerik *</Label>
+                  <Textarea
+                    value={editForm.content}
+                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                    placeholder="Aklınızdakileri buraya dökün..."
+                    className="bg-white border-gray-200 shadow-sm focus:ring-yellow-400 resize-none rounded-xl"
+                    rows={4}
+                    maxLength={500}
+                  />
+                  <div className="flex justify-end p-1">
+                    <span className={`text-xs ${editForm.content.length > 450 ? 'text-orange-500 font-bold' : 'text-gray-400'}`}>
+                      {editForm.content.length}/500
+                    </span>
+                  </div>
+                </div>
+
+                {/* Link */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-gray-700">Bağlantı URL (Opsiyonel)</Label>
                   <Input
-                    id="edit-image-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImage}
-                    className="hidden"
+                    type="url"
+                    value={editForm.link}
+                    onChange={(e) => setEditForm({ ...editForm, link: e.target.value })}
+                    className="bg-white border-gray-200 shadow-sm focus:ring-yellow-400"
+                    placeholder="https://..."
                   />
                 </div>
-              )}
-            </div>
 
-            <div>
-              <Label>Kategori</Label>
-              <Select
-                value={editForm.categoryId}
-                onValueChange={(v) => setEditForm({ ...editForm, categoryId: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Kategori seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {flatCategories.filter(cat => {
-                    // Filter out restricted categories
-                    if (cat.userGroupId) {
-                      if (userRole !== 'SUPER_ADMIN' && userGroupId !== cat.userGroupId) {
-                        return false
-                      }
-                    }
-                    return true
-                  }).map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      <span style={{ paddingLeft: `${cat.depth * 12}px` }}>
-                        {cat.depth > 0 && '↳ '}{cat.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                {/* Images */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-gray-500" />
+                      Resimler
+                    </Label>
+                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{editForm.imageUrls.length}/5</span>
+                  </div>
 
-            <div>
-              <Label>Renk</Label>
-              <div className="grid grid-cols-6 gap-2 mt-2">
-                {colorOptions.map((color) => (
-                  <button
-                    key={color.value}
-                    type="button"
-                    className={`w-full aspect-square rounded-lg ${color.bg} border-2 transition-all ${editForm.color === color.value
-                      ? 'border-gray-800 scale-110'
-                      : 'border-transparent hover:scale-105'
-                      }`}
-                    onClick={() => setEditForm({ ...editForm, color: color.value })}
-                    title={color.label}
-                  />
-                ))}
-              </div>
-            </div>
+                  {editForm.imageUrls.length > 0 && (
+                    <div className="grid grid-cols-5 gap-2 mt-2 mb-2">
+                      {editForm.imageUrls.map((url, index) => (
+                        <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 shadow-sm transform transition duration-300 hover:scale-105">
+                          <img src={url} alt={`Resim ${index + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <div className="bg-red-500 text-white rounded-full p-1 shadow-lg border border-red-600">
+                              <X className="w-3 h-3" />
+                            </div>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-            <div>
-              <Label>Yazı Tipi</Label>
-              <div className="grid grid-cols-5 gap-2 mt-2">
-                {fontOptions.map((font) => (
-                  <button
-                    key={font.value}
-                    type="button"
-                    onClick={() =>
-                      setEditForm({ ...editForm, font: font.value })
-                    }
-                    className={`h-12 rounded border-2 bg-white flex items-center justify-center ${editForm.font === font.value
-                      ? 'border-gray-800 ring-2 ring-gray-800'
-                      : 'border-gray-300'
-                      } hover:border-gray-600 transition ${font.class} text-sm`}
+                  {editForm.imageUrls.length < 5 && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-16 border-dashed border-2 flex flex-col gap-1 items-center justify-center text-gray-500 bg-gray-50 hover:text-gray-800 hover:bg-gray-100 hover:border-gray-400 rounded-lg transition-colors border-gray-200"
+                        onClick={() => document.getElementById('edit-image-upload')?.click()}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <ImageIcon className="w-4 h-4" />
+                        )}
+                        <span className="text-xs font-medium">Resim Seç veya Bırak</span>
+                      </Button>
+                      <Input
+                        id="edit-image-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                        className="hidden"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-6 border-t mt-8">
+                  <Button
+                    variant="outline"
+                    className="flex-1 rounded-xl"
+                    onClick={() => setShowEditModal(false)}
                   >
-                    {font.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label>İğne</Label>
-              <div className="grid grid-cols-6 gap-2 mt-2">
-                {pushpinOptions.map((pin) => (
-                  <button
-                    key={pin.value}
-                    type="button"
-                    className={`w-full aspect-square rounded-lg border-2 p-1 transition-all bg-gray-100 ${editForm.pushpin === pin.value
-                      ? 'border-gray-800 scale-110'
-                      : 'border-transparent hover:scale-105'
-                      }`}
-                    onClick={() => setEditForm({ ...editForm, pushpin: pin.value })}
-                    title={pin.label}
+                    Vazgeç
+                  </Button>
+                  <Button
+                    className="flex-1 rounded-xl bg-gray-900 hover:bg-gray-800"
+                    onClick={handleSaveEdit}
+                    disabled={saving}
                   >
-                    <Image src={pin.image} alt={pin.label} width={32} height={32} className="w-full h-full object-contain" />
-                  </button>
-                ))}
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Postu Kaydet
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <div>
-              <Label>Link (Opsiyonel)</Label>
-              <Input
-                type="url"
-                value={editForm.link}
-                onChange={(e) => setEditForm({ ...editForm, link: e.target.value })}
-                placeholder="https://..."
-              />
+            {/* RIGHT COLUMN - PREVIEW & APPEARANCE */}
+            <div className="w-full sm:w-[380px] bg-white border-l border-gray-100 p-6 md:p-8 overflow-y-auto flex flex-col justify-between">
+              <div className="space-y-8">
+                {/* Preview Block */}
+                <div>
+                  <Label className="text-sm font-bold text-gray-800 tracking-wide uppercase mb-3 block">Önizleme</Label>
+                  <div className="p-8 rounded-2xl bg-[#E8E8E8] shadow-inner flex items-center justify-center border border-gray-200 pattern-isometric pattern-gray-200 pattern-size-4">
+                    <div className={`
+                      w-44 h-44 relative shadow-2xl transform rotate-2 hover:rotate-0 transition-all duration-300
+                      flex flex-col items-center justify-center p-4 text-center group
+                      ${colorOptions.find(c => c.value === editForm.color)?.bg || 'bg-yellow-200'}
+                    `}>
+                      <div className="absolute top-0 bottom-0 left-0 border-l-[3px] border-black/5 mix-blend-multiply pointer-events-none" />
+
+                      {editForm.pushpin && (
+                        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10 w-8 h-8 drop-shadow-lg group-hover:-translate-y-1 transition-transform">
+                          <img src={pushpinOptions.find(p => p.value === editForm.pushpin)?.image || '/pushpins/red.png'} alt="pin" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+
+                      <p className={`
+                        text-sm opacity-80 overflow-hidden leading-relaxed
+                        ${fontOptions.find(f => f.value === editForm.font)?.class || 'font-handwriting'}
+                      `}
+                        style={{
+                          WebkitLineClamp: 5,
+                          display: '-webkit-box',
+                          WebkitBoxOrient: 'vertical',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        {editForm.content || 'Aklınızdaki harika fikri buraya yazın...'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Color */}
+                <div>
+                  <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Kağıt Rengi</Label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {colorOptions.map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, color: color.value })}
+                        className={`
+                          ${color.bg} border-2 aspect-square rounded-full transition-all transform hover:scale-110 shadow-sm
+                          ${editForm.color === color.value ? 'border-gray-800 ring-2 ring-gray-800 ring-offset-2 scale-110' : 'border-transparent'}
+                        `}
+                        title={color.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Font */}
+                <div>
+                  <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Yazı Karakteri</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {fontOptions.map((font) => (
+                      <button
+                        key={font.value}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, font: font.value })}
+                        className={`
+                          h-9 rounded-lg border flex items-center justify-center transition-all bg-white
+                          ${editForm.font === font.value ? 'border-gray-800 ring-1 ring-gray-800 bg-gray-50 font-bold shadow-sm' : 'border-gray-200 text-gray-600 hover:border-gray-400'}
+                          ${font.class} text-sm
+                        `}
+                      >
+                        {font.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pin */}
+                <div>
+                  <Label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">İğne Modeli</Label>
+                  <div className="grid grid-cols-6 gap-2">
+                    {pushpinOptions.map((pin) => (
+                      <button
+                        key={pin.value}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, pushpin: pin.value })}
+                        className={`
+                          aspect-square rounded-xl bg-gray-50 border flex items-center justify-center transition-all group hover:bg-white hover:shadow-sm
+                          ${editForm.pushpin === pin.value ? 'border-gray-800 ring-1 ring-gray-800 bg-white shadow-sm' : 'border-gray-100'}
+                        `}
+                        title={pin.label}
+                      >
+                        <img
+                          src={pin.image}
+                          alt={pin.label}
+                          className={`w-6 h-6 object-contain filter transition-transform group-hover:scale-110 ${editForm.pushpin === pin.value ? 'drop-shadow-md' : 'drop-shadow-sm'}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Yayınlanma Tarihi</Label>
-                <Input
-                  type="datetime-local"
-                  value={editForm.createdAt}
-                  onChange={(e) => setEditForm({ ...editForm, createdAt: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Bitiş Tarihi</Label>
-                <Input
-                  type="datetime-local"
-                  value={editForm.expiresAt}
-                  onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowEditModal(false)}
-              >
-                İptal
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleSaveEdit}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Kaydet
-              </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>

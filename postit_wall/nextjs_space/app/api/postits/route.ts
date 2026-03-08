@@ -42,11 +42,13 @@ export async function GET(request: NextRequest) {
       // Logic for SUPER_ADMIN or WALL_MANAGER looking at admin dashboard
       if (isWallManager) {
         // Find all categories they manage including children
-        const allCategories = await prisma.category.findMany()
+        const allCategories = await prisma.category.findMany({
+          select: { id: true, parentId: true, wallManagers: { select: { id: true } } }
+        })
         const managedIds = new Set<string>()
 
         allCategories.forEach(cat => {
-          if (cat.wallManagerId === userId) {
+          if (cat.wallManagers?.some((m: any) => m.id === userId)) {
             managedIds.add(cat.id)
           }
         })
@@ -172,14 +174,16 @@ export async function POST(request: NextRequest) {
     if (category?.userGroupId) {
       const user = await prisma.user.findUnique({
         where: { id: (session.user as any).id },
-        select: { userGroupId: true, role: true }
+        select: { userGroups: { select: { id: true } }, role: true }
       })
 
+      const userGroupIds = user?.userGroups?.map((g: any) => g.id) || []
+
       console.log('Category UserGroupId:', category.userGroupId)
-      console.log('User UserGroupId:', user?.userGroupId)
+      console.log('User UserGroupIds:', userGroupIds)
       console.log('User Role:', user?.role)
 
-      if (user?.role !== 'SUPER_ADMIN' && user?.userGroupId !== category.userGroupId) {
+      if (user?.role !== 'SUPER_ADMIN' && !userGroupIds.includes(category.userGroupId)) {
         return NextResponse.json(
           { error: 'Bu duvara sadece yetkili grup üyeleri yazabilir' },
           { status: 403 }

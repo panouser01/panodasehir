@@ -21,7 +21,6 @@ model User {
   taxId             String?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
-  userGroupId       String?
   cityId            String?
   districtId        String?
   accounts          Account[]
@@ -32,9 +31,8 @@ model User {
   sessions          Session[]
   city              City?        @relation(fields: [cityId], references: [id])
   district          District?    @relation(fields: [districtId], references: [id])
-  userGroup         UserGroup?   @relation(fields: [userGroupId], references: [id])
+  userGroups        UserGroup[]  @relation("UserToUserGroup")
 
-  @@index([userGroupId], map: "User_userGroupId_fkey")
   @@index([cityId])
   @@index([districtId])
 }
@@ -46,7 +44,7 @@ model UserGroup {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   assignedWalls Category[]
-  users         User[]
+  users         User[]     @relation("UserToUserGroup")
 }
 
 model Account {
@@ -90,7 +88,6 @@ model Category {
   id                  String              @id @default(cuid())
   name                String
   description         String?
-  wallManagerId       String?
   parentId            String?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
@@ -141,7 +138,7 @@ model Category {
   parent              Category?           @relation("CategoryHierarchy", fields: [parentId], references: [id])
   children            Category[]          @relation("CategoryHierarchy")
   assignedGroup       UserGroup?          @relation(fields: [userGroupId], references: [id])
-  wallManager         User?               @relation("WallManager", fields: [wallManagerId], references: [id])
+  wallManagers        User[]              @relation("WallManager")
   postits             PostIt[]
   slider              Slider?
   calendarEntries     WallCalendarEntry[]
@@ -149,7 +146,6 @@ model Category {
   @@unique([name, parentId])
   @@index([parentId], map: "Category_parentId_fkey")
   @@index([userGroupId], map: "Category_userGroupId_fkey")
-  @@index([wallManagerId], map: "Category_wallManagerId_fkey")
   @@index([cityId])
   @@index([districtId])
 }

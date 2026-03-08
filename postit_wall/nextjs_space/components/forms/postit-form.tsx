@@ -34,68 +34,24 @@ interface Category {
 
 interface PostItFormProps {
   categories: Category[]
-  userGroupId?: string | null
+  userGroupIds?: string[]
   userRole?: string | null
   defaultCategoryId?: string
 }
 
-export function PostItForm({ categories, userGroupId, userRole, defaultCategoryId }: PostItFormProps) {
+export function PostItForm({ categories, userGroupIds, userRole, defaultCategoryId }: PostItFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // Open modal if action=create is in URL
-  useEffect(() => {
-    if (searchParams?.get('action') === 'create') {
-      setOpen(true)
-      // Clean up the URL
-      const params = new URLSearchParams(searchParams.toString())
-      params.delete('action')
-      const newPath = window.location.pathname + (params.toString() ? `?${params.toString()}` : '')
-      window.history.replaceState(null, '', newPath)
-    }
-  }, [searchParams])
-
-  // Sync categoryId with defaultCategoryId when it changes (navigation)
-  useEffect(() => {
-    if (defaultCategoryId) {
-      setFormData(prev => ({ ...prev, categoryId: defaultCategoryId }))
-    }
-  }, [defaultCategoryId])
-
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen) {
-      // Find selected or default category
-      // Use the prop defaultCategoryId as the primary source of truth for the "current wall" context
-      const targetCatId = defaultCategoryId || formData.categoryId
-      const targetCat = categories.find(c => c.id === targetCatId)
-
-      // Permission check logic
-      console.log('Permission Check:', {
-        userRole,
-        userGroupId,
-        targetCatName: targetCat?.name,
-        targetCatUserGroupId: targetCat?.userGroupId
-      })
-      if (targetCat?.userGroupId) {
-        if (userRole !== 'SUPER_ADMIN' && userGroupId !== targetCat.userGroupId) {
-          toast.error('Bu duvara post-it ekleme yetkiniz yok (Grup Kısıtlaması)')
-          return
-        }
-      }
-
-      // Ensure the form data is correct before opening
-      setFormData(prev => ({
-        ...prev,
-        categoryId: defaultCategoryId || prev.categoryId,
-        expiresInDays: '1',
-        expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      }))
-    }
-    setOpen(isOpen)
-  }
-  const [uploadingImage, setUploadingImage] = useState(false)
+  // Find the first valid category for this user (for fallback)
+  const firstValidCategory = categories?.find(cat => {
+    if (cat.name === 'Ana Duvar') return false
+    if (!cat.userGroupId) return true
+    if (userRole === 'SUPER_ADMIN') return true
+    return userGroupIds?.includes(cat.userGroupId)
+  })?.id || ''
 
   const [formData, setFormData] = useState<{
     content: string
@@ -114,10 +70,65 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
     color: 'YELLOW',
     font: 'HANDWRITING',
     pushpin: 'RED',
-    categoryId: defaultCategoryId ?? categories?.find(c => c.name !== 'Ana Duvar')?.id ?? '',
+    categoryId: defaultCategoryId ?? firstValidCategory,
     expiresInDays: '1',
     expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   })
+
+  // Open modal if action=create is in URL
+  useEffect(() => {
+    if (searchParams?.get('action') === 'create') {
+      setOpen(true)
+      // Clean up the URL
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('action')
+      const newPath = window.location.pathname + (params.toString() ? `?${params.toString()}` : '')
+      window.history.replaceState(null, '', newPath)
+    }
+  }, [searchParams])
+
+  // Sync categoryId with defaultCategoryId when it changes (navigation)
+  useEffect(() => {
+    if (defaultCategoryId) {
+      // Allow fallback if user doesn't have permission for default
+      setFormData(prev => ({ ...prev, categoryId: defaultCategoryId }))
+    } else if (firstValidCategory) {
+      setFormData(prev => ({ ...prev, categoryId: firstValidCategory }))
+    }
+  }, [defaultCategoryId, firstValidCategory])
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      // Find selected or default category
+      // Use the prop defaultCategoryId as the primary source of truth for the "current wall" context
+      const targetCatId = defaultCategoryId || formData.categoryId || firstValidCategory
+      const targetCat = categories.find(c => c.id === targetCatId)
+
+      // Permission check logic
+      console.log('Permission Check:', {
+        userRole,
+        userGroupIds,
+        targetCatName: targetCat?.name,
+        targetCatUserGroupId: targetCat?.userGroupId
+      })
+      if (targetCat?.userGroupId) {
+        if (userRole !== 'SUPER_ADMIN' && !userGroupIds?.includes(targetCat.userGroupId)) {
+          toast.error('Bu duvara post-it ekleme yetkiniz yok (Grup Kısıtlaması).')
+          return
+        }
+      }
+
+      // Ensure the form data is correct before opening
+      setFormData(prev => ({
+        ...prev,
+        categoryId: targetCatId,
+        expiresInDays: '1',
+        expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      }))
+    }
+    setOpen(isOpen)
+  }
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const colors = [
     { value: 'YELLOW', label: 'Sarı', class: 'bg-yellow-200' },
@@ -255,7 +266,7 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
       </DialogTrigger>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden p-0 border-0 bg-transparent rounded-2xl shadow-2xl">
         <div className="bg-white h-full flex flex-col sm:flex-row">
-          
+
           {/* LEFT COLUMN - CONTENT & SETTINGS */}
           <div className="flex-1 p-6 md:p-8 overflow-y-auto bg-gray-50/50">
             <div className="mb-6">
@@ -286,7 +297,7 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
                       if (cat.name === 'Ana Duvar') return false // Hide Ana Duvar
                       if (!cat.userGroupId) return true // Public category
                       if (userRole === 'SUPER_ADMIN') return true // Super admin sees all
-                      return userGroupId === cat.userGroupId // User must belong to group
+                      return userGroupIds?.includes(cat.userGroupId) // User must belong to group
                     }).map((cat) => {
                       return (
                         <SelectItem key={cat.id} value={cat.id}>
@@ -455,23 +466,23 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
                     ${colors.find(c => c.value === formData.color)?.class || 'bg-yellow-200'}
                   `}>
                     <div className="absolute top-0 bottom-0 left-0 border-l-[3px] border-black/5 mix-blend-multiply pointer-events-none" />
-                    
+
                     {formData.pushpin && (
                       <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10 w-8 h-8 drop-shadow-lg group-hover:-translate-y-1 transition-transform">
                         <img src={pushpins.find(p => p.value === formData.pushpin)?.image || '/pushpins/red.png'} alt="pin" className="w-full h-full object-contain" />
                       </div>
                     )}
-                    
+
                     <p className={`
                       text-sm opacity-80 overflow-hidden leading-relaxed
                       ${fonts.find(f => f.value === formData.font)?.class || 'font-handwriting'}
                     `}
-                    style={{
-                      WebkitLineClamp: 5,
-                      display: '-webkit-box',
-                      WebkitBoxOrient: 'vertical',
-                      wordBreak: 'break-word'
-                    }}
+                      style={{
+                        WebkitLineClamp: 5,
+                        display: '-webkit-box',
+                        WebkitBoxOrient: 'vertical',
+                        wordBreak: 'break-word'
+                      }}
                     >
                       {formData.content || 'Aklınızdaki harika fikri buraya yazın...'}
                     </p>
@@ -556,8 +567,8 @@ export function PostItForm({ categories, userGroupId, userRole, defaultCategoryI
               >
                 İptal Et
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 form="postit-form"
                 disabled={loading}
                 className="bg-gray-900 hover:bg-black text-white px-6 font-medium shadow-lg hover:shadow-xl transition-all"

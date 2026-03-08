@@ -45,7 +45,7 @@ async function main() {
                     heroTitleSize: clean(record.heroTitleSize),
 
                     // Relations - Only WallManager for now, skipping parentId
-                    wallManagerId: clean(record.wallManagerId),
+                    wallManagers: clean(record.wallManagerId) ? { set: [{ id: clean(record.wallManagerId)! }] } : undefined,
 
                     updatedAt: clean(record.updatedAt) ? new Date(record.updatedAt) : new Date(),
                 },
@@ -69,7 +69,7 @@ async function main() {
                     heroTitleFont: clean(record.heroTitleFont),
                     heroTitleSize: clean(record.heroTitleSize),
 
-                    wallManagerId: clean(record.wallManagerId),
+                    wallManagers: clean(record.wallManagerId) ? { connect: { id: clean(record.wallManagerId)! } } : undefined,
 
                     createdAt: clean(record.createdAt) ? new Date(record.createdAt) : new Date(),
                     updatedAt: clean(record.updatedAt) ? new Date(record.updatedAt) : new Date(),

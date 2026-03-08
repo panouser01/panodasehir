@@ -26,6 +26,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          include: { userGroups: { select: { id: true } } }
         })
 
         if (!user) {
@@ -47,7 +48,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role,
-          userGroupId: user.userGroupId
+          userGroupIds: user.userGroups.map((ug: any) => ug.id)
         }
       },
     }),
@@ -83,18 +84,18 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.role = (user as any).role ?? 'USER'
-        token.userGroupId = (user as any).userGroupId
+        token.userGroupIds = (user as any).userGroupIds || []
       }
 
       // If we don't have user object (subsequent requests), fetch fresh data
-      if (!token.role || !token.userGroupId) {
+      if (!token.role || !token.userGroupIds) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { role: true, userGroupId: true }
+          select: { role: true, userGroups: { select: { id: true } } }
         })
         if (dbUser) {
           token.role = dbUser.role
-          token.userGroupId = dbUser.userGroupId
+          token.userGroupIds = dbUser.userGroups.map(ug => ug.id)
         }
       }
 
@@ -104,7 +105,7 @@ export const authOptions: NextAuthOptions = {
       if (session?.user) {
         (session.user as any).id = token?.id as string
         (session.user as any).role = token?.role as string
-        (session.user as any).userGroupId = token?.userGroupId as string | null
+        (session.user as any).userGroupIds = (token?.userGroupIds as string[]) || []
       }
       return session
     },

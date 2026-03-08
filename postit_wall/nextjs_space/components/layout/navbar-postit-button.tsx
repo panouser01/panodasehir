@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react'
 import { PostItForm } from '@/components/forms/postit-form'
 
 interface NavbarPostItButtonProps {
-    userGroupId?: string | null
+    userGroupIds?: string[]
     userRole?: string | null
     defaultCategoryId?: string
 }
 
-export function NavbarPostItButton({ userGroupId, userRole, defaultCategoryId }: NavbarPostItButtonProps) {
+export function NavbarPostItButton({ userGroupIds, userRole, defaultCategoryId }: NavbarPostItButtonProps) {
     const [categories, setCategories] = useState<any[]>([])
 
     useEffect(() => {
@@ -45,7 +45,7 @@ export function NavbarPostItButton({ userGroupId, userRole, defaultCategoryId }:
     return (
         <PostItForm
             categories={categories}
-            userGroupId={userGroupId}
+            userGroupIds={userGroupIds}
             userRole={userRole}
             defaultCategoryId={defaultCategoryId}
         />

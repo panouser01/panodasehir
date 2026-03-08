@@ -41,15 +41,39 @@ export async function PATCH(
     const userId = (session.user as any).id
 
     // Check permissions - wall manager can manage posts in their walls
-    const canManage = 
-      userRole === 'SUPER_ADMIN' ||
-      (userRole === 'WALL_MANAGER' && postit.category?.wallManagerId === userId)
+    if (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER') {
+      return NextResponse.json({ error: 'Bu işlemi yapmaya yetkiniz yok' }, { status: 403 })
+    }
 
-    if (!canManage) {
-      return NextResponse.json(
-        { error: 'Bu işlemi yapmaya yetkiniz yok' },
-        { status: 403 }
-      )
+    if (userRole === 'WALL_MANAGER') {
+      const allCategories = await prisma.category.findMany({
+        select: { id: true, parentId: true, wallManagers: { select: { id: true } } }
+      })
+      const managedIds = new Set<string>()
+
+      allCategories.forEach(cat => {
+        if (cat.wallManagers?.some((m: any) => m.id === userId)) {
+          managedIds.add(cat.id)
+        }
+      })
+
+      let added = true
+      while (added) {
+        added = false
+        allCategories.forEach(cat => {
+          if (cat.parentId && managedIds.has(cat.parentId) && !managedIds.has(cat.id)) {
+            managedIds.add(cat.id)
+            added = true
+          }
+        })
+      }
+
+      if (!managedIds.has(postit.categoryId)) {
+        return NextResponse.json(
+          { error: 'Bu işlemi yapmaya yetkiniz yok' },
+          { status: 403 }
+        )
+      }
     }
 
     // Build update data

@@ -158,7 +158,7 @@ export function Navbar() {
             </div>
             {session && (
               <NavbarPostItButton
-                userGroupId={(session?.user as any)?.userGroupId}
+                userGroupIds={(session?.user as any)?.userGroupIds}
                 userRole={userRole}
                 defaultCategoryId={searchParams?.get('category') || undefined}
               />

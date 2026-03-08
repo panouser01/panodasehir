@@ -14,10 +14,10 @@ async function canManageCategory(userId: string, userRole: string, categoryId: s
   async function checkHierarchy(catId: string): Promise<boolean> {
     const category = await prisma.category.findUnique({
       where: { id: catId },
-      select: { wallManagerId: true, parentId: true }
+      select: { wallManagers: { select: { id: true } }, parentId: true }
     })
     if (!category) return false
-    if (category.wallManagerId === userId) return true
+    if (category.wallManagers?.some((m: any) => m.id === userId)) return true
     if (category.parentId) return checkHierarchy(category.parentId)
     return false
   }
@@ -35,7 +35,7 @@ export async function GET(
       where: { id: params.id },
       include: {
         assignedGroup: true,
-        wallManager: {
+        wallManagers: {
           select: { id: true, name: true, email: true }
         },
         parent: {
@@ -43,7 +43,7 @@ export async function GET(
         },
         children: {
           include: {
-            wallManager: { select: { id: true, name: true, email: true } },
+            wallManagers: { select: { id: true, name: true, email: true } },
             city: { select: { id: true, name: true } },
             district: { select: { id: true, name: true } },
             _count: { select: { postits: true } }
@@ -93,7 +93,7 @@ export async function PATCH(
 
     const body = await request.json()
     const {
-      name, description, wallManagerId, userGroupId, movePostsTo,
+      name, description, wallManagerIds, userGroupId, movePostsTo,
       cityId, districtId,
       // Appearance fields
       heroBackgroundImage, heroSubtitle,
@@ -105,8 +105,8 @@ export async function PATCH(
       calendarEntries // Array of { calendarCategoryId, date, content }
     } = body
 
-    // Only super admin can change wallManagerId or userGroupId
-    if ((wallManagerId !== undefined || userGroupId !== undefined) && userRole !== 'SUPER_ADMIN') {
+    // Only super admin can change wallManagerIds or userGroupId
+    if ((wallManagerIds !== undefined || userGroupId !== undefined) && userRole !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Yönetici veya grup atamak için Super Admin yetkisi gerekli' }, { status: 403 })
     }
 
@@ -129,7 +129,9 @@ export async function PATCH(
     if (cityId !== undefined) updateData.cityId = cityId || null
     if (districtId !== undefined) updateData.districtId = districtId || null
     if (userRole === 'SUPER_ADMIN') {
-      if (wallManagerId !== undefined) updateData.wallManagerId = wallManagerId || null
+      if (wallManagerIds !== undefined) {
+        updateData.wallManagers = { set: Array.isArray(wallManagerIds) ? wallManagerIds.map((id: string) => ({ id })) : [] }
+      }
       if (userGroupId !== undefined) updateData.userGroupId = userGroupId || null
     }
 

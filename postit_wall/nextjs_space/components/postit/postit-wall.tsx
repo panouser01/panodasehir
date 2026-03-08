@@ -158,7 +158,7 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 grid-flow-dense gap-4 p-4 md:p-8 items-start">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 grid-flow-dense gap-6 p-4 md:p-8 items-start">
       {scatteredPostits?.map?.((postit) => {
         const hasImages = (postit.PostItImage && postit.PostItImage.length > 0) || !!postit.imageUrl;
         const isLongText = postit.content?.length > 150;

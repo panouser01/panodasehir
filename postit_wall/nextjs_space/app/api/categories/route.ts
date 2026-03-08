@@ -20,7 +20,7 @@ async function canManageCategory(userId: string, userRole: string, categoryId: s
   // Check if user is wall manager of this category or any parent
   let currentCat: any = category
   while (currentCat) {
-    if (currentCat.wallManagerId === userId) return true
+    if (currentCat.wallManagers?.some((m: any) => m.id === userId)) return true
     currentCat = currentCat.parent
   }
 
@@ -39,7 +39,7 @@ export async function GET() {
     const categories = await prisma.category.findMany({
       include: {
         assignedGroup: true,
-        wallManager: {
+        wallManagers: {
           select: { id: true, name: true, email: true }
         },
         parent: {
@@ -50,7 +50,7 @@ export async function GET() {
         children: {
           include: {
             assignedGroup: true,
-            wallManager: {
+            wallManagers: {
               select: { id: true, name: true, email: true }
             },
             _count: {
@@ -63,7 +63,7 @@ export async function GET() {
             children: {
               include: {
                 assignedGroup: true,
-                wallManager: {
+                wallManagers: {
                   select: { id: true, name: true, email: true }
                 },
                 _count: {
@@ -74,7 +74,7 @@ export async function GET() {
                 children: {
                   include: {
                     assignedGroup: true,
-                    wallManager: {
+                    wallManagers: {
                       select: { id: true, name: true, email: true }
                     },
                     _count: {
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
-      name, description, wallManagerId, userGroupId, parentId, movePostsToNew,
+      name, description, wallManagerIds, userGroupId, parentId, movePostsToNew,
       cityId, districtId,
       // Appearance fields
       heroBackgroundImage, heroSubtitle,
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description: description || null,
-        wallManagerId: wallManagerId || null,
+        wallManagers: wallManagerIds && wallManagerIds.length > 0 ? { connect: wallManagerIds.map((id: string) => ({ id })) } : undefined,
         userGroupId: userGroupId || null,
         parentId: parentId || null,
         cityId: cityId || null,
