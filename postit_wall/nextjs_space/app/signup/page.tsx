@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { PushpinLogo } from '@/components/ui/pushpin-logo'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
@@ -78,9 +79,12 @@ export default function SignupPage() {
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-              📌 Panoda Şehir
-            </h1>
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <PushpinLogo size={40} className="drop-shadow-md" />
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                Panoda Şehir
+              </h1>
+            </div>
             <p className="text-gray-600 mt-2">Yeni hesap oluşturun</p>
           </div>
 

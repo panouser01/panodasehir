@@ -1,7 +1,7 @@
 'use client'
 
 import { PostItCard } from './postit-card'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import toast from 'react-hot-toast'
 
 interface PostIt {
@@ -24,6 +24,8 @@ interface PostIt {
   }
   createdAt: Date | string
   PostItImage?: { url: string }[]
+  likesCount?: number
+  hasLiked?: boolean
 }
 
 interface PostItWallProps {
@@ -70,8 +72,13 @@ function stringSimilarity(s1: string, s2: string): number {
 
 export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItWallProps) {
   const [postits, setPostits] = useState<PostIt[]>(initialPostits)
+  const [isMounted, setIsMounted] = useState(false)
   const searchParams = useSearchParams()
   const searchQuery = searchParams?.get('q') || ''
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Update postits when initialPostits changes (e.g., category filter)
   useEffect(() => {
@@ -123,6 +130,12 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
     return false;
   })
 
+  // Randomized order for a scattered look, only on client to avoid hydration mismatch
+  const scatteredPostits = useMemo(() => {
+    if (!isMounted) return filteredPostits;
+    return [...filteredPostits].sort(() => Math.random() - 0.5);
+  }, [postits, searchQuery, isMounted]); // Re-shuffle when data, search or mounting changes
+
   if (filteredPostits?.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-center">
@@ -135,26 +148,34 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 p-8">
-      {filteredPostits?.map?.((postit) => (
-        <PostItCard
-          key={postit.id}
-          id={postit.id}
-          content={postit.content}
-          imageUrl={postit.imageUrl}
-          images={postit.PostItImage?.map(img => img.url) || []}
-          link={postit.link}
-          color={postit.color}
-          font={postit.font}
-          pushpin={postit.pushpin}
-          rotation={postit.rotation}
-          userName={postit?.user?.name ?? 'Anonim'}
-          categoryName={postit?.category?.name ?? 'Genel'}
-          createdAt={postit.createdAt instanceof Date ? postit.createdAt : new Date(postit.createdAt)}
-          canDelete={canDelete ?? false}
-          onDelete={handleDelete}
-        />
-      ))}
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 grid-flow-dense gap-4 p-4 md:p-8 items-start">
+      {scatteredPostits?.map?.((postit) => {
+        const hasImages = (postit.PostItImage && postit.PostItImage.length > 0) || !!postit.imageUrl;
+        return (
+          <div key={postit.id} className={hasImages ? "sm:col-span-2 lg:col-span-3" : ""}>
+            <PostItCard
+              id={postit.id}
+              content={postit.content}
+              imageUrl={postit.imageUrl}
+              images={postit.PostItImage?.map(img => img.url) || []}
+              link={postit.link}
+              color={postit.color}
+              font={postit.font}
+              pushpin={postit.pushpin}
+              rotation={postit.rotation}
+              userName={postit?.user?.name ?? 'Anonim'}
+              categoryName={postit?.category?.name ?? 'Genel'}
+              createdAt={postit.createdAt instanceof Date ? postit.createdAt : new Date(postit.createdAt)}
+              canDelete={canDelete ?? false}
+              onDelete={handleDelete}
+              initialLikesCount={postit.likesCount ?? 0}
+              initialHasLiked={postit.hasLiked ?? false}
+              currentUserId={currentUserId}
+              isLarge={hasImages}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 }

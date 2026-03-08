@@ -17,6 +17,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { NavbarPostItButton } from './navbar-postit-button'
 import { CategoryFilter } from './category-filter'
+import { PushpinLogo } from '../ui/pushpin-logo'
 
 export function Navbar() {
   const { data: session, status } = useSession()
@@ -120,9 +121,10 @@ export function Navbar() {
                 )}
               </PopoverContent>
             </Popover>
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2 group">
+              <PushpinLogo size={32} className="drop-shadow-sm transition-transform group-hover:rotate-12 duration-300" />
               <div className="text-2xl font-bold md:text-xl lg:text-2xl bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap">
-                📌 Panoda Şehir
+                Panoda Şehir
               </div>
             </Link>
           </div>

@@ -20,9 +20,9 @@ export async function POST(req: Request) {
         const session = await getServerSession(authOptions)
         if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const { name, order, globalEntries } = await req.json()
+        const { name, order, isActive, globalEntries } = await req.json()
         const category = await prisma.calendarCategory.create({
-            data: { name, order: order || 0, globalEntries: globalEntries || [] }
+            data: { name, order: order || 0, isActive: isActive !== undefined ? isActive : true, globalEntries: globalEntries || [] }
         })
         return NextResponse.json(category)
     } catch (error) {

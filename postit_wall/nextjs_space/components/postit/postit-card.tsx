@@ -2,9 +2,10 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { ExternalLink, Trash2 } from 'lucide-react'
+import { ExternalLink, Trash2, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 
 import {
   Dialog,
@@ -35,6 +36,10 @@ interface PostItCardProps {
   createdAt: Date
   canDelete?: boolean
   onDelete?: (id: string) => void
+  initialLikesCount?: number
+  initialHasLiked?: boolean
+  currentUserId?: string
+  isLarge?: boolean
 }
 
 const colorClasses: { [key: string]: string } = {
@@ -78,12 +83,57 @@ export function PostItCard({
   createdAt,
   canDelete,
   onDelete,
+  initialLikesCount = 0,
+  initialHasLiked = false,
+  currentUserId,
+  isLarge,
 }: PostItCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [likesCount, setLikesCount] = useState(initialLikesCount)
+  const [hasLiked, setHasLiked] = useState(initialHasLiked)
+  const [isLiking, setIsLiking] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [transitionEffect, setTransitionEffect] = useState<'flip-left' | 'flip-right' | 'fade'>('flip-left')
 
   const effects: ('flip-left' | 'flip-right' | 'fade')[] = ['flip-left', 'flip-right', 'fade']
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!currentUserId) {
+      toast.error('Beğenmek için giriş yapmalısınız')
+      return;
+    }
+    if (isLiking) return;
+
+    setIsLiking(true)
+    const previousHasLiked = hasLiked;
+    const previousLikesCount = likesCount;
+
+    // Optimistic update
+    setHasLiked(!hasLiked)
+    setLikesCount((prev) => hasLiked ? prev - 1 : prev + 1)
+
+    try {
+      const response = await fetch(`/api/postits/${id}/like`, {
+        method: 'POST',
+      })
+      if (!response.ok) {
+        throw new Error('Bir hata oluştu')
+      }
+      const data = await response.json()
+      setHasLiked(data.liked)
+      // Actual count might need a refetch, but we just stick to optimistic for now
+      // unless we want to query the exact count. 
+    } catch (error) {
+      console.error('Like error:', error)
+      toast.error('İşlem başarısız')
+      // Revert
+      setHasLiked(previousHasLiked)
+      setLikesCount(previousLikesCount)
+    } finally {
+      setIsLiking(false)
+    }
+  }
 
   const handleDelete = async () => {
     if (!onDelete) return
@@ -170,8 +220,8 @@ export function PostItCard({
             <Image
               src={pushpinImages[pushpin] ?? pushpinImages.RED}
               alt="Pin"
-              width={40}
-              height={40}
+              width={30}
+              height={30}
               className="drop-shadow-md"
             />
           </div>
@@ -179,7 +229,7 @@ export function PostItCard({
           {/* Post-it Card */}
           <div
             className={`${colorClasses[color] ?? colorClasses.YELLOW
-              } p-6 pt-8 rounded-sm shadow-lg hover:shadow-xl transition-shadow duration-200 min-h-[200px] max-w-[280px] h-full flex flex-col`}
+              } p-3 pt-5 rounded-sm shadow-md hover:shadow-lg transition-all duration-300 min-h-[120px] w-full h-full flex flex-col ${isLarge || displayImages.length > 0 ? 'max-w-[400px]' : 'max-w-[180px]'}`}
           >
             {/* Image Thumbnail (Automatic Slider if multiple) */}
             {displayImages.length > 0 && (
@@ -215,7 +265,7 @@ export function PostItCard({
             )}
 
             {/* Content */}
-            <p className={`text-gray-800 text-lg mb-4 whitespace-pre-wrap break-words flex-grow ${fontClasses[font] ?? fontClasses.HANDWRITING}`}>
+            <p className={`text-gray-800 text-sm mb-2 whitespace-pre-wrap break-words flex-grow ${fontClasses[font] ?? fontClasses.HANDWRITING}`}>
               {content}
             </p>
 
@@ -240,19 +290,30 @@ export function PostItCard({
                 <p className="font-semibold">{userName}</p>
                 <p className="text-gray-500">{categoryName}</p>
               </div>
-              {canDelete && (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+
+              <div className="flex items-center gap-3">
+                <div
+                  onClick={handleLike}
+                  className={`flex items-center gap-1 cursor-pointer transition-colors ${hasLiked ? 'text-red-500' : 'hover:text-red-500'}`}
+                >
+                  <Heart className={`w-4 h-4 ${hasLiked ? 'fill-red-500' : ''}`} />
+                  {likesCount > 0 && <span className="font-medium text-sm">{likesCount}</span>}
                 </div>
-              )}
+
+                {canDelete && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>

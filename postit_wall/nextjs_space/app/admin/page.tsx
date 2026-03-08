@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import { RichEditor } from '@/components/ui/rich-editor'
+import { PushpinLogo } from '@/components/ui/pushpin-logo'
 import {
   Loader2,
   Trash2,
@@ -77,6 +78,7 @@ import {
   Youtube,
   Github,
   Menu,
+  ExternalLink,
 } from 'lucide-react'
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
@@ -99,8 +101,10 @@ export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard')
   const [calendarCategories, setCalendarCategories] = useState<any[]>([])
   const [showCalendarCategoryModal, setShowCalendarCategoryModal] = useState(false)
-  const [calendarCategoryForm, setCalendarCategoryForm] = useState({ name: '', order: 0, globalEntries: [] as any[] })
+  const [calendarCategoryForm, setCalendarCategoryForm] = useState({ name: '', order: 0, isActive: true, globalEntries: [] as any[] })
   const [selectedGlobalCalendarDate, setSelectedGlobalCalendarDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const [showPreview, setShowPreview] = useState(false)
+  const dataLoaded = useRef(false)
 
   // Modal states
   const [showUserModal, setShowUserModal] = useState(false)
@@ -265,22 +269,22 @@ export default function AdminPage() {
       return
     }
 
-    const role = (session?.user as any)?.role
-    if (status === 'authenticated' && role !== 'SUPER_ADMIN' && role !== 'WALL_MANAGER') {
-      toast.error('Bu sayfaya erişim yetkiniz yok')
-      router.push('/')
-      return
-    }
-
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && !dataLoaded.current) {
+      const role = (session?.user as any)?.role
+      if (role !== 'SUPER_ADMIN' && role !== 'WALL_MANAGER') {
+        toast.error('Bu sayfaya erişim yetkiniz yok')
+        router.push('/')
+        return
+      }
       loadData()
+      dataLoaded.current = true
     }
   }, [status, session, router])
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const [usersRes, postitsRes, wallsRes, rolesRes, slidersRes, locationsRes, settingsRes] = await Promise.all([
+      const [usersRes, postitsRes, wallsRes, rolesRes, slidersRes, locationsRes, settingsRes, calendarRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/postits?includeUnapproved=true'),
         fetch('/api/categories'),
@@ -296,6 +300,7 @@ export default function AdminPage() {
       if (!slidersRes.ok) console.error('Sliders fetch failed', slidersRes.status)
       if (!locationsRes.ok) console.error('Locations fetch failed', locationsRes.status)
       if (!settingsRes.ok) console.error('Settings fetch failed', settingsRes.status)
+      if (!calendarRes.ok) console.error('Calendar categories fetch failed', calendarRes.status)
 
       const usersData = await usersRes.json()
       const postitsData = await postitsRes.json()
@@ -304,7 +309,7 @@ export default function AdminPage() {
       const slidersData = await slidersRes.json()
       const locationsData = await locationsRes.json()
       const settingsData = await settingsRes.json()
-      const calendarCategoriesData = await (await fetch('/api/calendar-categories')).json()
+      const calendarCategoriesData = await calendarRes.json()
 
       // Log roles data to debug
       console.log('Roles Data:', rolesData)
@@ -1483,7 +1488,7 @@ export default function AdminPage() {
         toast.success(isEditing ? 'Başlık güncellendi' : 'Başlık eklendi')
         setShowCalendarCategoryModal(false)
         setEditingItem(null)
-        setCalendarCategoryForm({ name: '', order: 0, globalEntries: [] })
+        setCalendarCategoryForm({ name: '', order: 0, isActive: true, globalEntries: [] })
         loadData()
       } else {
         toast.error('İşlem başarısız oldu')
@@ -1518,7 +1523,7 @@ export default function AdminPage() {
 
   const openAddCalendarCategory = () => {
     setEditingItem(null)
-    setCalendarCategoryForm({ name: '', order: 0, globalEntries: [] })
+    setCalendarCategoryForm({ name: '', order: 0, isActive: true, globalEntries: [] })
     setShowCalendarCategoryModal(true)
   }
 
@@ -1532,7 +1537,7 @@ export default function AdminPage() {
         parsedEntries = cat.globalEntries
       }
     }
-    setCalendarCategoryForm({ name: cat.name, order: cat.order, globalEntries: parsedEntries })
+    setCalendarCategoryForm({ name: cat.name, order: cat.order, isActive: cat.isActive ?? true, globalEntries: parsedEntries })
     setShowCalendarCategoryModal(true)
   }
 
@@ -2956,7 +2961,10 @@ export default function AdminPage() {
       {/* Sidebar */}
       <aside className="w-64 bg-gray-900 text-white flex flex-col">
         <div className="p-4 border-b border-gray-700">
-          <h1 className="text-xl font-bold">📌 Panoda Şehir</h1>
+          <div className="flex items-center gap-3">
+            <PushpinLogo size={32} />
+            <h1 className="text-xl font-bold">Panoda Şehir</h1>
+          </div>
           <p className="text-sm text-gray-400">Admin Paneli</p>
         </div>
 
@@ -3039,24 +3047,58 @@ export default function AdminPage() {
       <main className="flex-1 p-8 overflow-auto">
         {/* Dashboard */}
         {activeSection === 'dashboard' && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="text-gray-500 mb-2">Toplam Kullanıcı</div>
-                <div className="text-3xl font-bold">{stats.users}</div>
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="text-gray-500 mb-2">Toplam Kullanıcı</div>
+                  <div className="text-3xl font-bold">{stats.users}</div>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="text-gray-500 mb-2">Toplam Duvar</div>
+                  <div className="text-3xl font-bold">{stats.walls}</div>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="text-gray-500 mb-2">Onay Bekleyenler</div>
+                  <div className="text-3xl font-bold text-yellow-600">{stats.pendingPostits}</div>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="text-gray-500 mb-2">Onaylı Post-itler</div>
+                  <div className="text-3xl font-bold text-green-600">{stats.postits}</div>
+                </div>
               </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="text-gray-500 mb-2">Toplam Duvar</div>
-                <div className="text-3xl font-bold">{stats.walls}</div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col min-h-[400px]">
+              <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-700">Tüm Kategoriler (Ana Sayfa) Önizlemesi</h3>
+                <div className="flex items-center gap-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs bg-white border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={() => setShowPreview(!showPreview)}
+                  >
+                    {showPreview ? 'Önizlemeyi Kapat' : 'Önizlemeyi Yükle'}
+                  </Button>
+                  <a href="/" target="_blank" className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
+                    Yeni Sekmede Aç <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="text-gray-500 mb-2">Onay Bekleyenler</div>
-                <div className="text-3xl font-bold text-yellow-600">{stats.pendingPostits}</div>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="text-gray-500 mb-2">Onaylı Post-itler</div>
-                <div className="text-3xl font-bold text-green-600">{stats.postits}</div>
+              <div className="flex-1 w-full bg-gray-50 p-4 min-h-[500px]">
+                {showPreview ? (
+                  <div className="w-full h-[600px] border border-gray-300 rounded overflow-hidden shadow-inner bg-white">
+                    <iframe src="/?preview=1" className="w-full h-full border-none" title="Ana Sayfa Önizleme" />
+                  </div>
+                ) : (
+                  <div className="w-full h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-white text-gray-400">
+                    <LayoutGrid className="w-12 h-12 mb-3 opacity-20" />
+                    <p className="text-sm">Önizlemeyi görmek için yukarıdaki butona tıklayın.</p>
+                    <p className="text-xs mt-1">(Aynı anda hem admin hem ana sayfa açıkken oluşabilecek takılmaları önlemek için varsayılan olarak kapalıdır.)</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -3580,14 +3622,24 @@ export default function AdminPage() {
                   onChange={(e) => setCalendarCategoryForm({ ...calendarCategoryForm, name: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="catOrder">Görüntüleme Sırası</Label>
-                <Input
-                  id="catOrder"
-                  type="number"
-                  value={calendarCategoryForm.order}
-                  onChange={(e) => setCalendarCategoryForm({ ...calendarCategoryForm, order: parseInt(e.target.value) || 0 })}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="catOrder">Görüntüleme Sırası</Label>
+                  <Input
+                    id="catOrder"
+                    type="number"
+                    value={calendarCategoryForm.order}
+                    onChange={(e) => setCalendarCategoryForm({ ...calendarCategoryForm, order: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="flex items-center space-x-2 pt-8">
+                  <Checkbox
+                    id="catActive"
+                    checked={calendarCategoryForm.isActive}
+                    onCheckedChange={(checked) => setCalendarCategoryForm({ ...calendarCategoryForm, isActive: !!checked })}
+                  />
+                  <Label htmlFor="catActive" className="cursor-pointer font-medium">Aktif</Label>
+                </div>
               </div>
 
               {/* Global Calendar Entries Section */}
@@ -4458,13 +4510,14 @@ export default function AdminPage() {
                           <Table className="table-fixed w-full">
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="w-[30%]">İçerik</TableHead>
+                                <TableHead className="w-[25%]">İçerik</TableHead>
                                 <TableHead className="w-[15%]">Kullanıcı</TableHead>
                                 <TableHead className="w-[10%]">Renk</TableHead>
+                                <TableHead className="w-[10%] text-center">Beğeni</TableHead>
                                 <TableHead className="w-[10%] text-center">Onaylı</TableHead>
                                 <TableHead className="w-[10%] text-center">Yayında</TableHead>
-                                <TableHead className="w-[12%]">Kayıt Tarihi</TableHead>
-                                <TableHead className="w-[13%]">Son Görüntülenme</TableHead>
+                                <TableHead className="w-[10%]">Kayıt</TableHead>
+                                <TableHead className="w-[10%]">Bitiş</TableHead>
                                 <TableHead className="w-[10%]">İşlemler</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -4496,6 +4549,9 @@ export default function AdminPage() {
                                                 : 'bg-purple-300'
                                         }`}
                                     />
+                                  </TableCell>
+                                  <TableCell className="text-center font-bold text-gray-700">
+                                    {(postit as any)?._count?.likes || 0}
                                   </TableCell>
                                   <TableCell className="text-center">
                                     <Checkbox

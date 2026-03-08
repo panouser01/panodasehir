@@ -9,29 +9,30 @@ datasource db {
 }
 
 model User {
-  id                String     @id @default(cuid())
-  email             String     @unique
+  id                String       @id @default(cuid())
+  email             String       @unique
   emailVerified     DateTime?
   password          String?
   name              String?
   image             String?
-  role              String     @default("USER")
+  role              String       @default("USER")
   companyName       String?
   phone             String?
   taxId             String?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
   userGroupId       String?
   cityId            String?
   districtId        String?
   accounts          Account[]
   ads               Ad[]
-  managedCategories Category[] @relation("WallManager")
+  managedCategories Category[]   @relation("WallManager")
   postits           PostIt[]
+  likes             PostItLike[]
   sessions          Session[]
-  city              City?      @relation(fields: [cityId], references: [id])
-  district          District?  @relation(fields: [districtId], references: [id])
-  userGroup         UserGroup? @relation(fields: [userGroupId], references: [id])
+  city              City?        @relation(fields: [cityId], references: [id])
+  district          District?    @relation(fields: [districtId], references: [id])
+  userGroup         UserGroup?   @relation(fields: [userGroupId], references: [id])
 
   @@index([userGroupId], map: "User_userGroupId_fkey")
   @@index([cityId])
@@ -107,32 +108,32 @@ model Category {
   categoryFont        String?             @default("sans-serif")
   categoryColor       String?             @default("#1f2937")
   categoryBgColor     String?             @default("#ffffff")
-  backgroundColor     String?
-  backgroundImage     String?
-  borderColor         String?
-  borderTopColor      String?
-  borderBottomColor   String?
-  isGradient          Boolean?            @default(false)
-  gradientFrom        String?             @default("#facc15")
-  gradientVia         String?             @default("#f472b6")
-  gradientTo          String?             @default("#a855f7")
-  isWallTransparent   Boolean?            @default(false)
-  noBorder            Boolean?            @default(false)
   postCount           Int                 @default(0)
   userGroupId         String?
   cityId              String?
   districtId          String?
   heroAlignment       String?             @default("left")
+  backgroundColor     String?
+  backgroundImage     String?
+  borderBottomColor   String?
+  borderColor         String?
+  borderTopColor      String?
+  gradientFrom        String?             @default("#facc15")
+  gradientTo          String?             @default("#a855f7")
+  gradientVia         String?             @default("#f472b6")
+  isGradient          Boolean?            @default(false)
+  isWallTransparent   Boolean?            @default(false)
+  noBorder            Boolean?            @default(false)
   navMenuBgColor      String?
   navMenuFont         String?
-  navMenuTextColor    String?
   navMenuFontSize     Int?
   navMenuMainBold     Boolean?
+  navMenuTextColor    String?
   siteBackgroundColor String?
   siteBackgroundImage String?
   siteGradientFrom    String?
-  siteGradientVia     String?
   siteGradientTo      String?
+  siteGradientVia     String?
   siteIsGradient      Boolean?
   ads                 Ad[]
   city                City?               @relation(fields: [cityId], references: [id])
@@ -181,6 +182,7 @@ model PostIt {
   category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   PostItImage PostItImage[]
+  likes       PostItLike[]
 
   @@index([categoryId])
   @@index([userId])
@@ -285,9 +287,7 @@ model SiteSettings {
   gradientTo          String?  @default("#a855f7")
   gradientVia         String?  @default("#f472b6")
   isGradient          Boolean  @default(false)
-  isWallTransparent   Boolean  @default(false)
   siteBackgroundColor String?  @default("#fffbeb")
-  siteBackgroundImage String?
   siteGradientFrom    String?  @default("#fffbeb")
   siteGradientTo      String?  @default("#fff7ed")
   siteGradientVia     String?  @default("#fefce8")
@@ -311,6 +311,8 @@ model SiteSettings {
   navMenuMainBold     Boolean? @default(true)
   navMenuTextColor    String?  @default("#111827")
   navMenuFontSize     Int?     @default(14)
+  siteBackgroundImage String?
+  isWallTransparent   Boolean  @default(false)
 }
 
 model CalendarCategory {
@@ -337,6 +339,19 @@ model WallCalendarEntry {
 
   @@index([categoryId])
   @@index([calendarCategoryId])
+}
+
+model PostItLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postItId  String
+  createdAt DateTime @default(now())
+  postIt    PostIt   @relation(fields: [postItId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postItId])
+  @@index([userId])
+  @@index([postItId])
 }
 
 enum PostItColor {
