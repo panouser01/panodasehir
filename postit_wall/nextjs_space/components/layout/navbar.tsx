@@ -77,15 +77,23 @@ export function Navbar() {
   const currentCategoryId = searchParams?.get('category')
   const currentCategory: any = currentCategoryId ? categories.find((c: any) => c.id === currentCategoryId) : null
 
+  const isSet = (val: any) => val !== null && val !== undefined && val !== ''
+
   const effectiveSettings = siteSettings ? {
     ...siteSettings,
     ...(currentCategory ? {
-      navMenuBgColor: currentCategory.navMenuBgColor || siteSettings.navMenuBgColor,
-      navMenuFont: currentCategory.navMenuFont || siteSettings.navMenuFont,
-      navMenuTextColor: currentCategory.navMenuTextColor || siteSettings.navMenuTextColor,
-      navMenuFontSize: currentCategory.navMenuFontSize || siteSettings.navMenuFontSize,
-      navMenuMainBold: currentCategory.navMenuMainBold !== null ? currentCategory.navMenuMainBold : siteSettings.navMenuMainBold,
-    } : {})
+      navMenuBgColor: isSet(currentCategory.navMenuBgColor) ? currentCategory.navMenuBgColor : '#ffffff',
+      navMenuFont: isSet(currentCategory.navMenuFont) ? currentCategory.navMenuFont : 'sans-serif',
+      navMenuTextColor: isSet(currentCategory.navMenuTextColor) ? currentCategory.navMenuTextColor : '#111827',
+      navMenuFontSize: isSet(currentCategory.navMenuFontSize) ? currentCategory.navMenuFontSize : 14,
+      navMenuMainBold: currentCategory.navMenuMainBold !== null ? currentCategory.navMenuMainBold : true,
+    } : {
+      navMenuBgColor: siteSettings.navMenuBgColor || '#ffffff',
+      navMenuFont: siteSettings.navMenuFont || 'sans-serif',
+      navMenuTextColor: siteSettings.navMenuTextColor || '#111827',
+      navMenuFontSize: siteSettings.navMenuFontSize || 14,
+      navMenuMainBold: siteSettings.navMenuMainBold !== null ? siteSettings.navMenuMainBold : true,
+    })
   } : null
 
   return (
@@ -123,8 +131,13 @@ export function Navbar() {
             </Popover>
             <Link href="/" className="flex items-center gap-2 group">
               <PushpinLogo size={32} className="drop-shadow-sm transition-transform group-hover:rotate-12 duration-300" />
-              <div className="text-2xl font-bold md:text-xl lg:text-2xl bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap">
-                Panoda Şehir
+              <div className="flex flex-col -gap-1">
+                <div className="text-2xl font-bold md:text-xl lg:text-2xl bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap leading-tight">
+                  Panoda Şehir
+                </div>
+                <div className="text-[10px] md:text-[11px] font-medium text-gray-500 uppercase tracking-widest leading-none ml-1 opacity-80">
+                  {currentCategory ? currentCategory.name : 'Tüm Kategoriler'}
+                </div>
               </div>
             </Link>
           </div>

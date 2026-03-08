@@ -130,11 +130,21 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
     return false;
   })
 
-  // Randomized order for a scattered look, only on client to avoid hydration mismatch
+  // Fisher-Yates Shuffle
+  const shuffle = (array: any[]) => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  };
+
+  // Randomized post-its for a "scattered" wall feel
   const scatteredPostits = useMemo(() => {
     if (!isMounted) return filteredPostits;
-    return [...filteredPostits].sort(() => Math.random() - 0.5);
-  }, [postits, searchQuery, isMounted]); // Re-shuffle when data, search or mounting changes
+    return shuffle(filteredPostits);
+  }, [postits, searchQuery, isMounted]);
 
   if (filteredPostits?.length === 0) {
     return (
@@ -151,13 +161,25 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 grid-flow-dense gap-4 p-4 md:p-8 items-start">
       {scatteredPostits?.map?.((postit) => {
         const hasImages = (postit.PostItImage && postit.PostItImage.length > 0) || !!postit.imageUrl;
+        const isLongText = postit.content?.length > 150;
+
+        // Dynamic spans to fill layout gaps efficiently
+        let spanClass = "";
+        if (hasImages && isLongText) {
+          spanClass = "sm:col-span-2 sm:row-span-2 lg:col-span-3";
+        } else if (hasImages) {
+          spanClass = "sm:col-span-2 lg:col-span-2";
+        } else if (isLongText) {
+          spanClass = "sm:col-span-1 sm:row-span-2 lg:col-span-2";
+        }
+
         return (
-          <div key={postit.id} className={hasImages ? "sm:col-span-2 lg:col-span-3" : ""}>
+          <div key={postit.id} className={spanClass}>
             <PostItCard
               id={postit.id}
               content={postit.content}
               imageUrl={postit.imageUrl}
-              images={postit.PostItImage?.map(img => img.url) || []}
+              images={postit.PostItImage?.map((img: any) => img.url) || []}
               link={postit.link}
               color={postit.color}
               font={postit.font}
@@ -171,7 +193,7 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
               initialLikesCount={postit.likesCount ?? 0}
               initialHasLiked={postit.hasLiked ?? false}
               currentUserId={currentUserId}
-              isLarge={hasImages}
+              isLarge={hasImages || isLongText}
             />
           </div>
         )

@@ -37,29 +37,35 @@ export async function POST(req: Request) {
         }
 
         const data = await req.json()
-        const { categoryId, images, links, backgroundColor, backgroundImage, isActive, isGradient, heroGradientFrom, heroGradientVia, heroGradientTo } = data
+        const { categoryId, images, links, backgroundColor, backgroundImage, isActive, isGradient, isTransparent, heroGradientFrom, heroGradientVia, heroGradientTo } = data
+
+        let finalCategoryId = categoryId
+        if (categoryId === 'none' || categoryId === null || categoryId === undefined) {
+            finalCategoryId = null
+        }
 
         // Check if slider already exists for this category
         const existing = await prisma.slider.findUnique({
-            where: { categoryId: categoryId || '' }
+            where: { categoryId: finalCategoryId || '' }
         })
 
-        if (existing && categoryId) {
+        if (existing && finalCategoryId) {
             return NextResponse.json({ error: 'This category already has a slider.' }, { status: 400 })
         }
 
         const slider = await prisma.slider.create({
             data: {
-                categoryId: categoryId || null,
+                category: finalCategoryId && finalCategoryId !== 'none' ? { connect: { id: finalCategoryId } } : undefined,
                 images: images || [],
                 links: links || [],
-                backgroundColor: backgroundColor || '#f8f9fa',
-                backgroundImage: backgroundImage || null,
+                backgroundColor,
+                backgroundImage,
+                isActive: isActive !== undefined ? isActive : true,
                 isGradient: isGradient !== undefined ? isGradient : false,
-                heroGradientFrom: heroGradientFrom || '#facc15',
-                heroGradientVia: heroGradientVia || '#f472b6',
-                heroGradientTo: heroGradientTo || '#a855f7',
-                isActive: isActive !== undefined ? isActive : true
+                isTransparent: isTransparent !== undefined ? isTransparent : false,
+                heroGradientFrom,
+                heroGradientVia,
+                heroGradientTo
             }
         })
 

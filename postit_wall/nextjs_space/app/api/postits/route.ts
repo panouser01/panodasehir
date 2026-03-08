@@ -93,11 +93,21 @@ export async function GET(request: NextRequest) {
             name: true
           }
         },
-        PostItImage: true // Include images
+        PostItImage: true, // Include images
+        _count: {
+          select: { likes: true }
+        }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: [
+        {
+          likes: {
+            _count: 'desc'
+          }
+        },
+        {
+          createdAt: 'desc'
+        }
+      ]
     })
 
     return NextResponse.json({ postits })

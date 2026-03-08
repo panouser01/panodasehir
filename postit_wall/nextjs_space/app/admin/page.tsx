@@ -167,7 +167,7 @@ export default function AdminPage() {
   const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
   const [uploadingPostitImage, setUploadingPostitImage] = useState(false)
   const [roleForm, setRoleForm] = useState({ name: '', description: '' })
-  const [sliderForm, setSliderForm] = useState({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isActive: true })
+  const [sliderForm, setSliderForm] = useState({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, isTransparent: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isActive: true })
   const [userGroupForm, setUserGroupForm] = useState({ name: '', description: '' })
 
   // Postit search and filter states
@@ -828,7 +828,7 @@ export default function AdminPage() {
       }
       setShowSliderModal(false)
       setEditingItem(null)
-      setSliderForm({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isActive: true })
+      setSliderForm({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, isTransparent: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isActive: true })
       loadData()
     } catch (error: any) {
       toast.error(error.message || 'Slayder kaydedilemedi')
@@ -938,6 +938,7 @@ export default function AdminPage() {
         heroGradientFrom: wallSlider.heroGradientFrom || '#facc15',
         heroGradientVia: wallSlider.heroGradientVia || '#f472b6',
         heroGradientTo: wallSlider.heroGradientTo || '#a855f7',
+        isTransparent: wallSlider.isTransparent || false,
         isActive: wallSlider.isActive !== undefined ? wallSlider.isActive : true
       })
     } else {
@@ -951,6 +952,7 @@ export default function AdminPage() {
         heroGradientFrom: '#facc15',
         heroGradientVia: '#f472b6',
         heroGradientTo: '#a855f7',
+        isTransparent: false,
         isActive: true
       })
     }
@@ -1015,6 +1017,7 @@ export default function AdminPage() {
       heroGradientFrom: '#facc15',
       heroGradientVia: '#f472b6',
       heroGradientTo: '#a855f7',
+      isTransparent: false,
       isActive: true
     })
     setSelectedPostsToMove([])
@@ -1211,6 +1214,7 @@ export default function AdminPage() {
       heroGradientFrom: slider.heroGradientFrom || '#facc15',
       heroGradientVia: slider.heroGradientVia || '#f472b6',
       heroGradientTo: slider.heroGradientTo || '#a855f7',
+      isTransparent: slider.isTransparent,
       isActive: slider.isActive
     })
     setShowSliderModal(true)
@@ -1218,7 +1222,7 @@ export default function AdminPage() {
 
   const openAddSlider = () => {
     setEditingItem(null)
-    setSliderForm({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isActive: true })
+    setSliderForm({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isTransparent: false, isActive: true })
     setShowSliderModal(true)
   }
 
@@ -1779,13 +1783,23 @@ export default function AdminPage() {
           </div>
 
           <div className="space-y-4 border p-4 rounded-lg bg-gray-50">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="wallSliderIsGradient"
-                checked={sliderForm.isGradient}
-                onCheckedChange={(checked) => setSliderForm({ ...sliderForm, isGradient: !!checked })}
-              />
-              <Label htmlFor="wallSliderIsGradient" className="cursor-pointer font-semibold">Hero Gradyan Renk Kullan</Label>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="wallSliderIsGradient"
+                  checked={sliderForm.isGradient}
+                  onCheckedChange={(checked) => setSliderForm({ ...sliderForm, isGradient: !!checked })}
+                />
+                <Label htmlFor="wallSliderIsGradient" className="cursor-pointer font-semibold">Hero Gradyan Renk Kullan</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="wallSliderIsTransparent"
+                  checked={sliderForm.isTransparent}
+                  onCheckedChange={(checked) => setSliderForm({ ...sliderForm, isTransparent: !!checked })}
+                />
+                <Label htmlFor="wallSliderIsTransparent" className="cursor-pointer font-semibold">Zemini Transparan Yap</Label>
+              </div>
             </div>
 
             <div className="space-y-2 mt-4">
@@ -1810,10 +1824,10 @@ export default function AdminPage() {
                   </Button>
                 </div>
               </div>
-              <p className="text-xs text-gray-500">Resim varsa, seçilen arkaplan rengi veya gradyan kullanılmaz.</p>
+              <p className="text-xs text-gray-500">Resim varsa, transparan veya seçilen arkaplan / gradyan kullanılmaz.</p>
             </div>
 
-            {!sliderForm.isGradient ? (
+            {!sliderForm.isGradient && !sliderForm.isTransparent ? (
               <div className="space-y-2">
                 <Label htmlFor="wallSliderBackgroundColor">Tek Arka Plan Rengi</Label>
                 <div className="flex gap-2 items-center">
@@ -1833,7 +1847,7 @@ export default function AdminPage() {
                   />
                 </div>
               </div>
-            ) : (
+            ) : sliderForm.isGradient && !sliderForm.isTransparent ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Başlangıç Rengi</Label>
@@ -1857,7 +1871,7 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
 
           <div className="space-y-4 pt-4 border-t">
@@ -5761,13 +5775,23 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-4 border p-4 rounded-lg bg-gray-50">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="isGradient"
-                  checked={sliderForm.isGradient}
-                  onCheckedChange={(checked) => setSliderForm({ ...sliderForm, isGradient: !!checked })}
-                />
-                <Label htmlFor="isGradient" className="cursor-pointer font-semibold">Hero Gradyan Renk Kullan</Label>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="isGradient"
+                    checked={sliderForm.isGradient}
+                    onCheckedChange={(checked) => setSliderForm({ ...sliderForm, isGradient: !!checked })}
+                  />
+                  <Label htmlFor="isGradient" className="cursor-pointer font-semibold">Hero Gradyan Renk Kullan</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="isTransparent"
+                    checked={sliderForm.isTransparent}
+                    onCheckedChange={(checked) => setSliderForm({ ...sliderForm, isTransparent: !!checked })}
+                  />
+                  <Label htmlFor="isTransparent" className="cursor-pointer font-semibold">Zemini Transparan Yap</Label>
+                </div>
               </div>
 
               <div className="space-y-2 mt-4">
@@ -5792,10 +5816,10 @@ export default function AdminPage() {
                     </Button>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500">Resim varsa, seçilen arkaplan rengi veya gradyan kullanılmaz.</p>
+                <p className="text-xs text-gray-500">Resim varsa, transparan veya seçilen arkaplan / gradyan kullanılmaz.</p>
               </div>
 
-              {!sliderForm.isGradient ? (
+              {!sliderForm.isGradient && !sliderForm.isTransparent ? (
                 <div className="space-y-2">
                   <Label htmlFor="backgroundColor">Tek Arka Plan Rengi</Label>
                   <div className="flex gap-2 items-center">
@@ -5815,7 +5839,7 @@ export default function AdminPage() {
                     />
                   </div>
                 </div>
-              ) : (
+              ) : sliderForm.isGradient && !sliderForm.isTransparent ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Başlangıç Rengi</Label>
@@ -5839,7 +5863,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
 
             <div className="space-y-3">

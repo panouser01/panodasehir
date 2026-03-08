@@ -234,6 +234,7 @@ model Slider {
   heroGradientTo   String?   @default("#a855f7")
   heroGradientVia  String?   @default("#f472b6")
   isGradient       Boolean   @default(false)
+  isTransparent    Boolean   @default(false)
   backgroundImage  String?
   category         Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
