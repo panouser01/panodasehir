@@ -42,13 +42,22 @@ export async function GET(request: NextRequest) {
       // Logic for SUPER_ADMIN or WALL_MANAGER looking at admin dashboard
       if (isWallManager) {
         // Find all categories they manage including children
+        const currentUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { userGroups: { select: { id: true } } }
+        })
+        const currentUserGroupIds = currentUser?.userGroups?.map((g: any) => g.id) || []
+
         const allCategories = await prisma.category.findMany({
-          select: { id: true, parentId: true, wallManagers: { select: { id: true } } }
+          select: { id: true, parentId: true, userGroupId: true, wallManagers: { select: { id: true } } }
         })
         const managedIds = new Set<string>()
 
         allCategories.forEach(cat => {
-          if (cat.wallManagers?.some((m: any) => m.id === userId)) {
+          if (
+            cat.wallManagers?.some((m: any) => m.id === userId) ||
+            (cat.userGroupId && currentUserGroupIds.includes(cat.userGroupId))
+          ) {
             managedIds.add(cat.id)
           }
         })

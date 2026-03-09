@@ -288,10 +288,16 @@ export default function AdminPage() {
       const userRole = (session?.user as any)?.role
       const currentUserId = (session?.user as any)?.id
 
+      const currentUserObj = usersData?.users?.find((u: any) => u.id === currentUserId)
+      const currentUserGroupIds = currentUserObj?.userGroups?.map((g: any) => g.id) || []
+
       if (userRole === 'WALL_MANAGER' || userRole === 'WALL_USER') {
         const managedIds = new Set<string>()
         allWalls.forEach((cat: any) => {
-          if (cat.wallManagers?.some((m: any) => m.id === currentUserId)) {
+          if (
+            cat.wallManagers?.some((m: any) => m.id === currentUserId) ||
+            (cat.assignedGroup && currentUserGroupIds.includes(cat.assignedGroup.id))
+          ) {
             managedIds.add(cat.id)
           }
         })
