@@ -1,0 +1,5 @@
+id,name,description,createdAt,updatedAt
+"cmmi82yei0000w88ym2st0r35","SUPER_ADMIN","Tam yetkili sistem yöneticisi","2026-03-08T20:46:27.493Z","2026-03-08T20:46:27.493Z"
+"cmmi82yei0001w88y895wozpa","WALL_MANAGER","Duvar yöneticisi","2026-03-08T20:46:27.493Z","2026-03-08T20:46:27.493Z"
+"cmmi82yei0002w88yacdqf3jg","USER","Standart kullanıcı","2026-03-08T20:46:27.493Z","2026-03-08T20:46:27.493Z"
+"cmmid732h0000w80uw7853ojb","WALL_USER","Duvar Kullanıcısı","2026-03-08T23:09:38.249Z","2026-03-08T23:09:38.249Z"
