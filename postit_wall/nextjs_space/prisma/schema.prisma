@@ -132,6 +132,9 @@ model Category {
   siteGradientTo      String?
   siteGradientVia     String?
   siteIsGradient      Boolean?
+  contactName         String?
+  contactPhone        String?
+  contactEmail        String?
   ads                 Ad[]
   city                City?               @relation(fields: [cityId], references: [id])
   district            District?           @relation(fields: [districtId], references: [id])

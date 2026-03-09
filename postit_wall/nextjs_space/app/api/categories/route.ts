@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
     const {
       name, description, wallManagerIds, userGroupId, parentId, movePostsToNew,
       cityId, districtId,
+      contactName, contactPhone, contactEmail,
       // Appearance fields
       heroBackgroundImage, heroSubtitle,
       heroTitleFont, heroTitleColor, heroTitleSize,
@@ -203,6 +204,9 @@ export async function POST(request: NextRequest) {
         parentId: parentId || null,
         cityId: cityId || null,
         districtId: districtId || null,
+        contactName: contactName || null,
+        contactPhone: contactPhone || null,
+        contactEmail: contactEmail || null,
         // Appearance fields
         heroBackgroundImage: heroBackgroundImage || null,
         heroSubtitle: heroSubtitle || null,

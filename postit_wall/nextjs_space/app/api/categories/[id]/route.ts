@@ -95,6 +95,7 @@ export async function PATCH(
     const {
       name, description, wallManagerIds, userGroupId, movePostsTo,
       cityId, districtId,
+      contactName, contactPhone, contactEmail,
       // Appearance fields
       heroBackgroundImage, heroSubtitle,
       heroTitleFont, heroTitleColor, heroTitleSize,
@@ -128,6 +129,9 @@ export async function PATCH(
     if (description !== undefined) updateData.description = description
     if (cityId !== undefined) updateData.cityId = cityId || null
     if (districtId !== undefined) updateData.districtId = districtId || null
+    if (contactName !== undefined) updateData.contactName = contactName || null
+    if (contactPhone !== undefined) updateData.contactPhone = contactPhone || null
+    if (contactEmail !== undefined) updateData.contactEmail = contactEmail || null
     if (userRole === 'SUPER_ADMIN') {
       if (wallManagerIds !== undefined) {
         updateData.wallManagers = { set: Array.isArray(wallManagerIds) ? wallManagerIds.map((id: string) => ({ id })) : [] }

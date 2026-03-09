@@ -122,7 +122,7 @@ export default function AdminPage() {
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'USER', userGroupIds: [] as string[] })
   const [wallForm, setWallForm] = useState({
     name: '', description: '', wallManagerIds: [] as string[], userGroupId: '',
-    parentId: '', cityId: '', districtId: '', heroSubtitle: '', heroTitleFont: 'sans-serif', heroTitleColor: '#ffffff', heroTitleSize: '5xl', heroSubtitleFont: 'sans-serif', heroSubtitleColor: '#ffffff', heroSubtitleSize: 'xl', heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7',
+    parentId: '', cityId: '', districtId: '', contactName: '', contactPhone: '', contactEmail: '', heroSubtitle: '', heroTitleFont: 'sans-serif', heroTitleColor: '#ffffff', heroTitleSize: '5xl', heroSubtitleFont: 'sans-serif', heroSubtitleColor: '#ffffff', heroSubtitleSize: 'xl', heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7',
     backgroundColor: '', backgroundImage: '', borderColor: '', borderTopColor: '', borderBottomColor: '', isGradient: false, gradientFrom: '#facc15', gradientVia: '#f472b6', gradientTo: '#a855f7', isWallTransparent: false, noBorder: false, heroAlignment: 'left', heroBackgroundImage: '', navMenuBgColor: '', navMenuFont: 'sans-serif', navMenuTextColor: '', navMenuFontSize: 14, navMenuMainBold: true, siteBackgroundColor: '', siteBackgroundImage: '', siteGradientFrom: '', siteGradientVia: '', siteGradientTo: '', siteIsGradient: false,
     calendarEntries: [] as any[]
   })
@@ -403,6 +403,9 @@ export default function AdminPage() {
         parentId: wallForm.parentId || null,
         cityId: wallForm.cityId || null,
         districtId: wallForm.districtId || null,
+        contactName: wallForm.contactName || null,
+        contactPhone: wallForm.contactPhone || null,
+        contactEmail: wallForm.contactEmail || null,
         heroSubtitle: wallForm.heroSubtitle,
         heroTitleFont: wallForm.heroTitleFont,
         heroTitleColor: wallForm.heroTitleColor,
@@ -857,6 +860,9 @@ export default function AdminPage() {
       parentId: wall.parentId || '',
       cityId: wall.cityId || '',
       districtId: wall.districtId || '',
+      contactName: wall.contactName || '',
+      contactPhone: wall.contactPhone || '',
+      contactEmail: wall.contactEmail || '',
       heroSubtitle: wall.heroSubtitle || '',
       heroTitleFont: wall.heroTitleFont || 'sans-serif',
       heroTitleColor: wall.heroTitleColor || '#ffffff',
@@ -940,6 +946,9 @@ export default function AdminPage() {
       parentId: parentWall.id,
       cityId: '',
       districtId: '',
+      contactName: '',
+      contactPhone: '',
+      contactEmail: '',
       heroSubtitle: '',
       heroTitleFont: 'sans-serif',
       heroTitleColor: '#ffffff',
@@ -1042,6 +1051,9 @@ export default function AdminPage() {
       parentId: '',
       cityId: '',
       districtId: '',
+      contactName: '',
+      contactPhone: '',
+      contactEmail: '',
       heroSubtitle: '',
       heroTitleFont: 'sans-serif',
       heroTitleColor: '#ffffff',
@@ -5287,6 +5299,37 @@ export default function AdminPage() {
                     value={wallForm.description}
                     onChange={(e) => setWallForm({ ...wallForm, description: e.target.value })}
                   />
+                </div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="font-semibold text-gray-700">İletişim Bilgileri (İsteğe Bağlı)</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg border">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Yetkili Adı</Label>
+                        <Input
+                          placeholder="Örn: Ahmet Yılmaz"
+                          value={wallForm.contactName}
+                          onChange={(e) => setWallForm({ ...wallForm, contactName: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Telefon Numarası</Label>
+                        <Input
+                          placeholder="Örn: 0532 123 45 67"
+                          value={wallForm.contactPhone}
+                          onChange={(e) => setWallForm({ ...wallForm, contactPhone: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">E-posta Adresi</Label>
+                        <Input
+                          placeholder="Örn: ahmet@example.com"
+                          value={wallForm.contactEmail}
+                          onChange={(e) => setWallForm({ ...wallForm, contactEmail: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
