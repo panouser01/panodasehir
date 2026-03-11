@@ -250,6 +250,7 @@ export async function POST(request: NextRequest) {
         siteGradientTo: body.siteGradientTo || null,
         siteIsGradient: body.siteIsGradient !== undefined ? body.siteIsGradient : null,
         homeCategoryIds: body.homeCategoryIds || null,
+        postitLimit: body.postitLimit !== undefined ? parseInt(body.postitLimit) : 0,
       }
     })
 

@@ -206,52 +206,12 @@ export async function DELETE(
     const userRole = (session.user as any).role
     const userId = (session.user as any).id
 
-    // Check permissions
-    if (postit.userId !== userId && userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER' && userRole !== 'WALL_USER') {
+    // Sadece SUPER_ADMIN silebilir
+    if (userRole !== 'SUPER_ADMIN') {
       return NextResponse.json(
-        { error: 'Bu işlemi yapmaya yetkiniz yok' },
+        { error: 'Post-it silme işlemini yalnızca Super Admin yapabilir' },
         { status: 403 }
       )
-    }
-
-    if (postit.userId !== userId && (userRole === 'WALL_MANAGER' || userRole === 'WALL_USER')) {
-      const currentUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { userGroups: { select: { id: true } } }
-      })
-      const currentUserGroupIds = currentUser?.userGroups?.map((g: any) => g.id) || []
-
-      const allCategories = await prisma.category.findMany({
-        select: { id: true, parentId: true, userGroupId: true, wallManagers: { select: { id: true } } }
-      })
-      const managedIds = new Set<string>()
-
-      allCategories.forEach(cat => {
-        if (
-          cat.wallManagers?.some((m: any) => m.id === userId) ||
-          (cat.userGroupId && currentUserGroupIds.includes(cat.userGroupId))
-        ) {
-          managedIds.add(cat.id)
-        }
-      })
-
-      let added = true
-      while (added) {
-        added = false
-        allCategories.forEach(cat => {
-          if (cat.parentId && managedIds.has(cat.parentId) && !managedIds.has(cat.id)) {
-            managedIds.add(cat.id)
-            added = true
-          }
-        })
-      }
-
-      if (!managedIds.has(postit.categoryId)) {
-        return NextResponse.json(
-          { error: 'Bu işlemi yapmaya yetkiniz yok' },
-          { status: 403 }
-        )
-      }
     }
 
     await prisma.postIt.delete({

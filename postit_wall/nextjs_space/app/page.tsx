@@ -206,7 +206,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   if (categoryId) {
-    where.categoryId = categoryId
+    const getSubIds = (cat: any): string[] => {
+      const ids = [cat.id]
+      if (cat.children && cat.children.length > 0) {
+        cat.children.forEach((child: any) => {
+          ids.push(...getSubIds(child))
+        })
+      }
+      return ids
+    }
+    const catNode = categories.find(c => c.id === categoryId)
+    if (catNode) {
+      where.categoryId = { in: getSubIds(catNode) }
+    } else {
+      where.categoryId = categoryId
+    }
   }
 
   const currentUserId = (session?.user as any)?.id || ''
@@ -263,7 +277,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const sliderLinks = (activeSlider?.links as string[]) || []
 
   const userRole = (session?.user as any)?.role
-  const canDelete = userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER' || userRole === 'WALL_USER'
+  const canDelete = userRole === 'SUPER_ADMIN'
 
   // Calendar JSX
   const calendarLeaf = (
@@ -429,9 +443,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             {/* Sub-walls Marquee */}
             {(() => {
               const items = (selectedCategory ? selectedCategory.children : allCategories) || [];
-              const orderedIds = selectedCategory
+              let orderedIds = selectedCategory
                 ? (selectedCategory.homeCategoryIds || [])
                 : (siteSettings.homeCategoryIds || []);
+              if (typeof orderedIds === 'string') { try { orderedIds = JSON.parse(orderedIds); } catch (e) { orderedIds = []; } }
+              if (!Array.isArray(orderedIds)) orderedIds = [];
 
               let displayItems = items.filter((c: any) => c.name !== 'Ana Duvar');
               if (orderedIds && orderedIds.length > 0) {
@@ -442,12 +458,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
               if (displayItems.length === 0) return null;
 
+              // Sağda boşluk kalmaması için ekranı tamamen dolduracak kadar (yaklaşık 60-80 eleman)
+              // tekrar sayısını garantiye alırken, kusursuz döngü için tekrar sayısını çift tutuyoruz (x2).
+              const baseRepetitions = Math.max(1, Math.ceil(30 / displayItems.length));
+              const repeatCount = baseRepetitions * 2;
+
               return (
                 <div className="w-full bg-white/40 backdrop-blur-sm border-y border-black/10 py-1.5 overflow-hidden group">
                   <div className="relative flex overflow-x-hidden">
                     <div className="animate-marquee whitespace-nowrap">
-                      {[...Array(2)].map((_, i) => (
-                        <div key={i} className="flex shrink-0">
+                      {[...Array(repeatCount)].map((_, i) => (
+                        <div key={i} className="flex shrink-0 items-center justify-start">
                           {displayItems.map((child: any) => (
                             <a
                               key={`${i}-${child.id}`}
@@ -509,19 +530,48 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               )}
 
               {(() => {
-                const wallSettingsIds = categoryId
+                let wallSettingsIds = categoryId
                   ? (selectedCategory?.homeCategoryIds || [])
                   : (siteSettings.homeCategoryIds || []);
 
+                if (typeof wallSettingsIds === 'string') {
+                  try { wallSettingsIds = JSON.parse(wallSettingsIds); } catch (e) { wallSettingsIds = []; }
+                }
+                if (!Array.isArray(wallSettingsIds)) wallSettingsIds = [];
+
                 if (wallSettingsIds.length > 0) {
                   const directPostits = categoryId ? postits.filter((p: any) => p.categoryId === categoryId) : [];
-                  
+                  const currentWallLimit = categoryId ? (selectedCategory?.postitLimit || 0) : (siteSettings.postitLimit || 0);
+                  const limitedDirectPostits = currentWallLimit > 0 ? directPostits.slice(0, currentWallLimit) : directPostits;
+
                   return (
                     <div className="space-y-12 w-full mt-4">
-                      {directPostits.length > 0 && (
+                      {limitedDirectPostits.length > 0 && (
                         <div className="mb-12">
+                          <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
+                            <div className="relative inline-flex items-center justify-center group">
+                              <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+                              <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+                              <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
+                                style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                              <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
+                                style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                              <div className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: appearance.ribbonColor }}>
+                                <h2 className="text-3xl md:text-5xl tracking-normal text-white mb-0"
+                                  style={{
+                                    textShadow: '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)',
+                                    fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                                    fontWeight: 900
+                                  }}>
+                                  {selectedCategory?.name || 'Ana Duvar'}
+                                </h2>
+                              </div>
+                            </div>
+                          </div>
                           <PostItWall
-                            initialPostits={directPostits as any}
+                            initialPostits={limitedDirectPostits as any}
                             canDelete={canDelete}
                             currentUserId={(session?.user as any)?.id}
                           />
@@ -542,11 +592,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                         };
 
                         const validIds = getCategoryIds(cat);
-                        const catPostits = postits.filter((p: any) => validIds.includes(p.categoryId));
-                        if (catPostits.length === 0) return null;
+                        const catPostitsRaw = postits.filter((p: any) => validIds.includes(p.categoryId));
+                        if (catPostitsRaw.length === 0) return null;
+
+                        const catLimit = cat.postitLimit || 0;
+                        const catPostits = catLimit > 0 ? catPostitsRaw.slice(0, catLimit) : catPostitsRaw;
 
                         const subcatCount = validIds.length - 1;
-                        const postitCount = catPostits.length;
+                        const postitCount = catPostitsRaw.length;
 
                         const currentRibbonColor = cat.ribbonColor || '#502bb1';
 
@@ -607,9 +660,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     </div>
                   );
                 } else {
+                  const currentWallLimit = categoryId ? (selectedCategory?.postitLimit || 0) : (siteSettings.postitLimit || 0);
+                  const limitedPostits = currentWallLimit > 0 ? postits.slice(0, currentWallLimit) : postits;
+
                   return (
                     <PostItWall
-                      initialPostits={postits as any}
+                      initialPostits={limitedPostits as any}
                       canDelete={canDelete}
                       currentUserId={(session?.user as any)?.id}
                     />

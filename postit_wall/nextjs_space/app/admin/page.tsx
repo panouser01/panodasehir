@@ -100,7 +100,7 @@ export default function AdminPage() {
   const [userGroups, setUserGroups] = useState<any[]>([])
   const [cities, setCities] = useState<any[]>([])
   const [districts, setDistricts] = useState<any[]>([])
-  const [stats, setStats] = useState({ users: 0, postits: 0, pendingPostits: 0, walls: 0 })
+  const [stats, setStats] = useState({ users: 0, postits: 0, pendingPostits: 0, unpublishedPostits: 0, walls: 0 })
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard')
   const [calendarCategories, setCalendarCategories] = useState<any[]>([])
   const [showCalendarCategoryModal, setShowCalendarCategoryModal] = useState(false)
@@ -128,7 +128,8 @@ export default function AdminPage() {
     parentId: '', cityId: '', districtId: '', contactName: '', contactPhone: '', contactEmail: '', heroSubtitle: '', heroTitleFont: 'sans-serif', heroTitleColor: '#ffffff', heroTitleSize: '5xl', heroSubtitleFont: 'sans-serif', heroSubtitleColor: '#ffffff', heroSubtitleSize: 'xl', heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7',
     backgroundColor: '', backgroundImage: '', borderColor: '', borderTopColor: '', borderBottomColor: '', isGradient: false, gradientFrom: '#facc15', gradientVia: '#f472b6', gradientTo: '#a855f7', isWallTransparent: false, noBorder: false, heroAlignment: 'left', heroBackgroundImage: '', navMenuBgColor: '', navMenuFont: 'sans-serif', navMenuTextColor: '', navMenuFontSize: 14, navMenuMainBold: true, siteBackgroundColor: '', siteBackgroundImage: '', siteGradientFrom: '', siteGradientVia: '', siteGradientTo: '', siteIsGradient: false,
     calendarEntries: [] as any[],
-    homeCategoryIds: [] as string[]
+    homeCategoryIds: [] as string[],
+    postitLimit: 0
   })
   const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
   const [uploadingPostitImage, setUploadingPostitImage] = useState(false)
@@ -219,6 +220,7 @@ export default function AdminPage() {
     helpContent: '',
     kvkkContent: '',
     homeCategoryIds: [] as string[],
+    postitLimit: 0,
     popularLinks: [] as { label: string; href: string }[],
     discoverLinks: [] as { label: string; href: string }[],
     socialLinks: [] as { platform: string; icon: string; url: string }[],
@@ -346,6 +348,7 @@ export default function AdminPage() {
         users: usersData?.users?.length ?? 0,
         postits: allPostits.filter((p: any) => p.isApproved).length,
         pendingPostits: allPostits.filter((p: any) => !p.isApproved).length,
+        unpublishedPostits: allPostits.filter((p: any) => p.isApproved === true && p.isPublished === false).length,
         walls: visibleWalls.length,
       })
     } catch (error) {
@@ -449,7 +452,8 @@ export default function AdminPage() {
         siteGradientTo: wallForm.siteGradientTo,
         siteIsGradient: wallForm.siteIsGradient,
         calendarEntries: wallForm.calendarEntries || [],
-        homeCategoryIds: wallForm.homeCategoryIds || []
+        homeCategoryIds: wallForm.homeCategoryIds || [],
+        postitLimit: wallForm.postitLimit || 0
       }
 
       // Add selected posts to move if creating new subcategory
@@ -654,10 +658,19 @@ export default function AdminPage() {
   }
 
   const handleDeletePostit = async (postitId: string) => {
+    const userRole = (session?.user as any)?.role
+    if (userRole !== 'SUPER_ADMIN') {
+      toast.error('Post-it silme işlemini yalnızca Super Admin yapabilir');
+      return;
+    }
+
     if (!confirm('Bu notu silmek istediğinizden emin misiniz?')) return
     try {
       const response = await fetch(`/api/postits/${postitId}`, { method: 'DELETE' })
-      if (!response.ok) throw new Error('Silme başarısız')
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Silme başarısız');
+      }
       toast.success('Not silindi')
       loadData()
     } catch (error) {
@@ -907,7 +920,8 @@ export default function AdminPage() {
       siteGradientTo: wall.siteGradientTo || '',
       siteIsGradient: !!wall.siteIsGradient,
       calendarEntries: wall.calendarEntries || [],
-      homeCategoryIds: wall.homeCategoryIds || []
+      homeCategoryIds: wall.homeCategoryIds || [],
+      postitLimit: wall.postitLimit !== undefined ? wall.postitLimit : 0
     })
 
     // Slayder ayarlarını yükle
@@ -994,7 +1008,8 @@ export default function AdminPage() {
       siteGradientTo: '',
       siteIsGradient: false,
       calendarEntries: [],
-      homeCategoryIds: [] as string[]
+      homeCategoryIds: [] as string[],
+      postitLimit: 0
     })
     setSliderForm({
       categoryId: '',
@@ -1100,7 +1115,8 @@ export default function AdminPage() {
       siteGradientTo: '',
       siteIsGradient: false,
       calendarEntries: [],
-      homeCategoryIds: [] as string[]
+      homeCategoryIds: [] as string[],
+      postitLimit: 0
     })
     setSliderForm({
       categoryId: '',
@@ -1489,7 +1505,7 @@ export default function AdminPage() {
         const resWall = await fetch(`/api/categories/${editingItem.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ homeCategoryIds: wallForm.homeCategoryIds })
+          body: JSON.stringify({ homeCategoryIds: wallForm.homeCategoryIds, postitLimit: wallForm.postitLimit || 0 })
         })
         if (!resWall.ok) throw new Error('Duvar sıralama ayarları kaydedilemedi')
       }
@@ -3110,7 +3126,7 @@ export default function AdminPage() {
                 <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm -mx-8 -mt-8 px-8 backdrop-blur-sm">
                   <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                   <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-xl p-6 text-white border border-gray-700 relative overflow-hidden group">
                     <div className="absolute -right-6 -top-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
                       <Users className="w-32 h-32" />
@@ -3145,6 +3161,15 @@ export default function AdminPage() {
                     <div className="relative z-10">
                       <div className="text-emerald-100 font-medium mb-1 text-sm uppercase tracking-wider">Onaylı Post-itler</div>
                       <div className="text-4xl font-bold">{stats.postits}</div>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-rose-600 to-rose-500 rounded-2xl shadow-xl p-6 text-white border border-rose-500 relative overflow-hidden group">
+                    <div className="absolute -right-6 -top-6 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                      <StickyNote className="w-32 h-32" />
+                    </div>
+                    <div className="relative z-10">
+                      <div className="text-rose-100 font-medium mb-1 text-sm uppercase tracking-wider">Yayında Olmayanlar</div>
+                      <div className="text-4xl font-bold">{stats.unpublishedPostits}</div>
                     </div>
                   </div>
                 </div>
@@ -4694,14 +4719,16 @@ export default function AdminPage() {
                                         <Button variant="ghost" size="sm" onClick={() => openEditPostit(postit)}>
                                           <Pencil className="w-4 h-4" />
                                         </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleDeletePostit(postit.id)}
-                                          className="hover:bg-red-100 hover:text-red-600"
-                                        >
-                                          <Trash2 className="w-4 h-4" />
-                                        </Button>
+                                        {((session?.user as any)?.role === 'SUPER_ADMIN') && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeletePostit(postit.id)}
+                                            className="hover:bg-red-100 hover:text-red-600"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        )}
                                       </div>
                                     </TableCell>
                                   </TableRow>
@@ -5641,7 +5668,9 @@ export default function AdminPage() {
                       <Label className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-2 rounded block border border-gray-100">Kategori Havuzu (Hiyerarşik)</Label>
                       <div className="border border-gray-100 rounded-md p-3 max-h-[400px] overflow-y-auto space-y-1 bg-white">
                         {(() => {
-                          const homeArray = wallForm.name === 'Ana Duvar' ? (siteSettings.homeCategoryIds || []) : (wallForm.homeCategoryIds || []);
+                          let homeArray = wallForm.name === 'Ana Duvar' ? siteSettings.homeCategoryIds : wallForm.homeCategoryIds;
+                          if (typeof homeArray === 'string') { try { homeArray = JSON.parse(homeArray) } catch (e) { homeArray = [] } }
+                          if (!Array.isArray(homeArray)) homeArray = [];
                           const allCats = walls.filter((w: any) => w.name !== 'Ana Duvar');
 
                           const buildHierarchy = (items: any[]) => {
@@ -5701,7 +5730,9 @@ export default function AdminPage() {
                       <Label className="text-sm font-semibold text-indigo-800 bg-indigo-50 px-3 py-2 rounded block border border-indigo-100">Seçili Kategoriler (Sıralı)</Label>
                       <div className="border border-indigo-100 rounded-md p-3 max-h-[400px] overflow-y-auto space-y-2 bg-slate-50">
                         {(() => {
-                          const homeArray = wallForm.name === 'Ana Duvar' ? (siteSettings.homeCategoryIds || []) : (wallForm.homeCategoryIds || []);
+                          let homeArray = wallForm.name === 'Ana Duvar' ? siteSettings.homeCategoryIds : wallForm.homeCategoryIds;
+                          if (typeof homeArray === 'string') { try { homeArray = JSON.parse(homeArray) } catch (e) { homeArray = [] } }
+                          if (!Array.isArray(homeArray)) homeArray = [];
                           const allCats = walls.filter((w: any) => w.name !== 'Ana Duvar');
 
                           if (homeArray.length === 0) {
@@ -5798,7 +5829,29 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end pt-4 border-t">
+                  <div className="mt-8 pt-6 border-t border-gray-100">
+                    <Label className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-2 rounded block border border-gray-100 mb-4">Görüntüleme Ayarları</Label>
+                    <div className="flex flex-col gap-2">
+                      <Label>Gösterilecek Maksimum Post-it Sayısı</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="0 (Sınırsız)"
+                        value={wallForm.name === 'Ana Duvar' ? (siteSettings.postitLimit || 0) : (wallForm.postitLimit || 0)}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 0;
+                          if (wallForm.name === 'Ana Duvar') {
+                            setSiteSettings({ ...siteSettings, postitLimit: val });
+                          } else {
+                            setWallForm({ ...wallForm, postitLimit: val });
+                          }
+                        }}
+                      />
+                      <span className="text-xs text-gray-500">Bu duvarda en yeniden en eskiye doğru en fazla kaç post-it gösterileceğini belirler. Sınırsız veya tümünü göstermek için 0 bırakın. Alt kategorilerin gösterim sayısını etkilemez.</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t mt-4">
                     <Button onClick={handleSaveHomeCategories} disabled={savingSettings} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-md">
                       {savingSettings ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Settings className="w-4 h-4 mr-2" />}
                       Kategori Düzenini Kaydet

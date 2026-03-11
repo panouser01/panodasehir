@@ -189,6 +189,7 @@ export async function PATCH(
     if (body.siteGradientTo !== undefined) updateData.siteGradientTo = body.siteGradientTo
     if (body.siteIsGradient !== undefined) updateData.siteIsGradient = body.siteIsGradient
     if (body.homeCategoryIds !== undefined) updateData.homeCategoryIds = body.homeCategoryIds
+    if (body.postitLimit !== undefined) updateData.postitLimit = parseInt(body.postitLimit)
 
     const category = await prisma.category.update({
       where: { id: params.id },

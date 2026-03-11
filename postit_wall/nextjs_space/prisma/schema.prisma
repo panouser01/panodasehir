@@ -139,6 +139,7 @@ model Category {
   contactPhone        String?
   contactEmail        String?
   homeCategoryIds     Json?
+  postitLimit         Int?                @default(0)
   ads                 Ad[]
   city                City?               @relation(fields: [cityId], references: [id])
   district            District?           @relation(fields: [districtId], references: [id])
@@ -321,6 +322,7 @@ model SiteSettings {
   isWallBackgroundRepeat Boolean @default(true)
   homeCategoryIds     Json?
   ribbonColor         String?  @default("#502bb1")
+  postitLimit         Int      @default(0)
 }
 
 model CalendarCategory {

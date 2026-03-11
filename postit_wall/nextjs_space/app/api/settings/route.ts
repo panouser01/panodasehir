@@ -90,6 +90,7 @@ export async function PATCH(request: NextRequest) {
         if (data.discoverLinks !== undefined) updateData.discoverLinks = data.discoverLinks
         if (data.socialLinks !== undefined) updateData.socialLinks = data.socialLinks
         if (data.homeCategoryIds !== undefined) updateData.homeCategoryIds = data.homeCategoryIds
+        if (data.postitLimit !== undefined) updateData.postitLimit = parseInt(data.postitLimit)
         if (data.navMenuBgColor !== undefined) updateData.navMenuBgColor = data.navMenuBgColor
         if (data.navMenuFont !== undefined) updateData.navMenuFont = data.navMenuFont
         if (data.navMenuMainBold !== undefined) updateData.navMenuMainBold = data.navMenuMainBold
