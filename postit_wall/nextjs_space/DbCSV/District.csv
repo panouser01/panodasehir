@@ -1,4 +1,4 @@
-id,name,cityId,createdAt,updatedAt
+"id","name","cityId","createdAt","updatedAt"
 "cmmi8ip2v0002w8in4b3pt10h","Aladağ","cmmi8ip2m0000w8inp87jwwm8","2026-03-08T20:58:41.911Z","2026-03-08T20:58:41.911Z"
 "cmmi8ip2z0004w8in8a90bat0","Ceyhan","cmmi8ip2m0000w8inp87jwwm8","2026-03-08T20:58:41.915Z","2026-03-08T20:58:41.915Z"
 "cmmi8ip320006w8in8dwikozg","Çukurova","cmmi8ip2m0000w8inp87jwwm8","2026-03-08T20:58:41.919Z","2026-03-08T20:58:41.919Z"

@@ -1,4 +1,4 @@
-id,name,order,isActive,createdAt,updatedAt,globalEntries
-"cmmhv4m8o000yw8z0wco5b5a2","Duyurular",1,true,"2026-03-08T14:43:50.041Z","2026-03-08T14:43:50.041Z",
-"cmmhv4m8u000zw8z0uvboh5w4","Etkinlikler",2,true,"2026-03-08T14:43:50.047Z","2026-03-08T14:43:50.047Z",
-"cmmhv4m8y0010w8z0fmqb62cu","Hatırlatmalar",3,true,"2026-03-08T14:43:50.051Z","2026-03-08T14:43:50.051Z",
+"id","name","order","isActive","createdAt","updatedAt","globalEntries"
+"cmmhv4m8o000yw8z0wco5b5a2","Duyurular","1","1","2026-03-08T14:43:50.041Z","2026-03-08T14:43:50.041Z",""
+"cmmhv4m8u000zw8z0uvboh5w4","Etkinlikler","2","1","2026-03-08T14:43:50.047Z","2026-03-08T14:43:50.047Z",""
+"cmmhv4m8y0010w8z0fmqb62cu","Hatırlatmalar","3","1","2026-03-08T14:43:50.051Z","2026-03-08T14:43:50.051Z",""
