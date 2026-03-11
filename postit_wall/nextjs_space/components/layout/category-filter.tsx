@@ -163,7 +163,7 @@ export function CategoryFilter({ categories, onSelect, settings }: CategoryFilte
           fontSize: settings?.navMenuFontSize ? `${settings.navMenuFontSize}px` : undefined
         }}
       >
-        Tüm Kategoriler
+        Ana Pano
         <span
           className="ml-auto text-[10px] text-muted-foreground bg-black/5 px-2 py-0.5 rounded-full inline-block min-w-[20px] text-center"
           style={{ color: selectedCategory === null ? undefined : (settings?.navMenuTextColor ? `${settings.navMenuTextColor}99` : undefined) }}
@@ -172,6 +172,6 @@ export function CategoryFilter({ categories, onSelect, settings }: CategoryFilte
         </span>
       </Button>
       {categories?.filter(c => c.name !== 'Ana Duvar').map?.((category) => renderCategory(category))}
-    </div>
+    </div >
   )
 }

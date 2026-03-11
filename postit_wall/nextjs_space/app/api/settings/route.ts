@@ -51,11 +51,13 @@ export async function PATCH(request: NextRequest) {
         if (data.noBorder !== undefined) updateData.noBorder = data.noBorder
         if (data.isGradient !== undefined) updateData.isGradient = data.isGradient
         if (data.isWallTransparent !== undefined) updateData.isWallTransparent = data.isWallTransparent
+        if (data.isWallBackgroundRepeat !== undefined) updateData.isWallBackgroundRepeat = data.isWallBackgroundRepeat
         if (data.gradientFrom !== undefined) updateData.gradientFrom = data.gradientFrom
         if (data.gradientVia !== undefined) updateData.gradientVia = data.gradientVia
         if (data.gradientTo !== undefined) updateData.gradientTo = data.gradientTo
 
         if (data.heroBackgroundImage !== undefined) updateData.heroBackgroundImage = data.heroBackgroundImage || null
+        if (data.isHeroTransparent !== undefined) updateData.isHeroTransparent = data.isHeroTransparent
         if (data.heroSubtitle !== undefined) updateData.heroSubtitle = data.heroSubtitle || null
         if (data.heroTitleFont !== undefined) updateData.heroTitleFont = data.heroTitleFont
         if (data.heroTitleColor !== undefined) updateData.heroTitleColor = data.heroTitleColor
@@ -87,11 +89,13 @@ export async function PATCH(request: NextRequest) {
         if (data.popularLinks !== undefined) updateData.popularLinks = data.popularLinks
         if (data.discoverLinks !== undefined) updateData.discoverLinks = data.discoverLinks
         if (data.socialLinks !== undefined) updateData.socialLinks = data.socialLinks
+        if (data.homeCategoryIds !== undefined) updateData.homeCategoryIds = data.homeCategoryIds
         if (data.navMenuBgColor !== undefined) updateData.navMenuBgColor = data.navMenuBgColor
         if (data.navMenuFont !== undefined) updateData.navMenuFont = data.navMenuFont
         if (data.navMenuMainBold !== undefined) updateData.navMenuMainBold = data.navMenuMainBold
         if (data.navMenuTextColor !== undefined) updateData.navMenuTextColor = data.navMenuTextColor
         if (data.navMenuFontSize !== undefined) updateData.navMenuFontSize = data.navMenuFontSize
+        if (data.ribbonColor !== undefined) updateData.ribbonColor = data.ribbonColor
 
         const settings = await prisma.siteSettings.upsert({
             where: { id: 'global' },

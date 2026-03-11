@@ -79,6 +79,9 @@ import {
   Github,
   Menu,
   ExternalLink,
+  ListTree,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
@@ -124,7 +127,8 @@ export default function AdminPage() {
     name: '', description: '', wallManagerIds: [] as string[], userGroupId: '',
     parentId: '', cityId: '', districtId: '', contactName: '', contactPhone: '', contactEmail: '', heroSubtitle: '', heroTitleFont: 'sans-serif', heroTitleColor: '#ffffff', heroTitleSize: '5xl', heroSubtitleFont: 'sans-serif', heroSubtitleColor: '#ffffff', heroSubtitleSize: 'xl', heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7',
     backgroundColor: '', backgroundImage: '', borderColor: '', borderTopColor: '', borderBottomColor: '', isGradient: false, gradientFrom: '#facc15', gradientVia: '#f472b6', gradientTo: '#a855f7', isWallTransparent: false, noBorder: false, heroAlignment: 'left', heroBackgroundImage: '', navMenuBgColor: '', navMenuFont: 'sans-serif', navMenuTextColor: '', navMenuFontSize: 14, navMenuMainBold: true, siteBackgroundColor: '', siteBackgroundImage: '', siteGradientFrom: '', siteGradientVia: '', siteGradientTo: '', siteIsGradient: false,
-    calendarEntries: [] as any[]
+    calendarEntries: [] as any[],
+    homeCategoryIds: [] as string[]
   })
   const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
   const [uploadingPostitImage, setUploadingPostitImage] = useState(false)
@@ -164,9 +168,11 @@ export default function AdminPage() {
     heroAlignment: 'left',
     categoryFont: 'sans-serif',
     categoryColor: '#1f2937',
-    categoryBgColor: '#ffffff'
+    categoryBgColor: '#ffffff',
+    ribbonColor: '#502bb1'
   })
   const [editingAppearanceWall, setEditingAppearanceWall] = useState<any>(null)
+  const [tempCategoryRibbonColors, setTempCategoryRibbonColors] = useState<Record<string, string>>({})
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(new Date().toISOString().split('T')[0])
 
   // Site Settings
@@ -204,6 +210,7 @@ export default function AdminPage() {
     calendarSize: 'medium',
     calendarPosition: 'right',
     calendarColor: '#dc2626',
+    ribbonColor: '#502bb1',
     aboutContent: '',
     contactContent: '',
     termsContent: '',
@@ -211,6 +218,7 @@ export default function AdminPage() {
     cookiesContent: '',
     helpContent: '',
     kvkkContent: '',
+    homeCategoryIds: [] as string[],
     popularLinks: [] as { label: string; href: string }[],
     discoverLinks: [] as { label: string; href: string }[],
     socialLinks: [] as { platform: string; icon: string; url: string }[],
@@ -440,7 +448,8 @@ export default function AdminPage() {
         siteGradientVia: wallForm.siteGradientVia,
         siteGradientTo: wallForm.siteGradientTo,
         siteIsGradient: wallForm.siteIsGradient,
-        calendarEntries: wallForm.calendarEntries || []
+        calendarEntries: wallForm.calendarEntries || [],
+        homeCategoryIds: wallForm.homeCategoryIds || []
       }
 
       // Add selected posts to move if creating new subcategory
@@ -897,7 +906,8 @@ export default function AdminPage() {
       siteGradientVia: wall.siteGradientVia || '',
       siteGradientTo: wall.siteGradientTo || '',
       siteIsGradient: !!wall.siteIsGradient,
-      calendarEntries: wall.calendarEntries || []
+      calendarEntries: wall.calendarEntries || [],
+      homeCategoryIds: wall.homeCategoryIds || []
     })
 
     // Slayder ayarlarını yükle
@@ -983,7 +993,8 @@ export default function AdminPage() {
       siteGradientVia: '',
       siteGradientTo: '',
       siteIsGradient: false,
-      calendarEntries: []
+      calendarEntries: [],
+      homeCategoryIds: [] as string[]
     })
     setSliderForm({
       categoryId: '',
@@ -1088,7 +1099,8 @@ export default function AdminPage() {
       siteGradientVia: '',
       siteGradientTo: '',
       siteIsGradient: false,
-      calendarEntries: []
+      calendarEntries: [],
+      homeCategoryIds: [] as string[]
     })
     setSliderForm({
       categoryId: '',
@@ -1282,7 +1294,8 @@ export default function AdminPage() {
       heroAlignment: wall.heroAlignment || 'left',
       categoryFont: wall.categoryFont || 'sans-serif',
       categoryColor: wall.categoryColor || '#1f2937',
-      categoryBgColor: wall.categoryBgColor || '#ffffff'
+      categoryBgColor: wall.categoryBgColor || '#ffffff',
+      ribbonColor: wall.ribbonColor || '#502bb1'
     })
     setShowAppearanceModal(true)
   }
@@ -1453,6 +1466,51 @@ export default function AdminPage() {
       })
       if (!res.ok) throw new Error('Site ayarları kaydedilemedi')
       toast.success('Site görünüm ayarları kaydedildi')
+    } catch (e: any) {
+      toast.error(e.message || 'Bir hata oluştu')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const handleSaveHomeCategories = async () => {
+    try {
+      setSavingSettings(true)
+
+      if (wallForm.name === 'Ana Duvar') {
+        const resSettings = await fetch('/api/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(siteSettings)
+        })
+        if (!resSettings.ok) throw new Error('Site ayarları kaydedilemedi')
+      } else {
+        if (!editingItem?.id) throw new Error('Kategori ayarlarını kaydetmeden önce duvarı kaydetmelisiniz (Ana menüye dönüp kaydedin)')
+        const resWall = await fetch(`/api/categories/${editingItem.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ homeCategoryIds: wallForm.homeCategoryIds })
+        })
+        if (!resWall.ok) throw new Error('Duvar sıralama ayarları kaydedilemedi')
+      }
+
+      const entries = Object.entries(tempCategoryRibbonColors)
+      if (entries.length > 0) {
+        await Promise.all(
+          entries.map(async ([catId, color]) => {
+            const res = await fetch(`/api/categories/${catId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ribbonColor: color })
+            })
+            if (!res.ok) console.error(`Renk güncellenemedi: Kategori ${catId}`)
+          })
+        )
+      }
+
+      toast.success('Kategori düzeni ve renk ayarları kaydedildi')
+      loadData()
+      setTempCategoryRibbonColors({})
     } catch (e: any) {
       toast.error(e.message || 'Bir hata oluştu')
     } finally {
@@ -4968,7 +5026,7 @@ export default function AdminPage() {
             {/* Category Section Settings */}
             <div className="space-y-4 border rounded-lg p-4">
               <h3 className="font-semibold">Kategoriler Bölümü Ayarları</h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Font</Label>
                   <Select
@@ -5015,6 +5073,22 @@ export default function AdminPage() {
                     <Input
                       value={appearanceForm.categoryBgColor}
                       onChange={(e) => setAppearanceForm({ ...appearanceForm, categoryBgColor: e.target.value })}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Kurdele Rengi</Label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={appearanceForm.ribbonColor || '#502bb1'}
+                      onChange={(e) => setAppearanceForm({ ...appearanceForm, ribbonColor: e.target.value })}
+                      className="w-10 h-10 rounded cursor-pointer"
+                    />
+                    <Input
+                      value={appearanceForm.ribbonColor || '#502bb1'}
+                      onChange={(e) => setAppearanceForm({ ...appearanceForm, ribbonColor: e.target.value })}
                       className="flex-1"
                     />
                   </div>
@@ -5270,7 +5344,7 @@ export default function AdminPage() {
           </DialogHeader>
           <div className="py-4">
             <Tabs defaultValue="general" className="w-full">
-              <TabsList className={`grid w-full ${wallForm.name === 'Ana Duvar' ? 'grid-cols-4' : 'grid-cols-4'} mb-6`}>
+              <TabsList className="grid w-full grid-cols-5 mb-6">
                 <TabsTrigger value="general" className="flex items-center gap-2">
                   <Info className="w-4 h-4" /> Genel Bilgiler
                 </TabsTrigger>
@@ -5282,6 +5356,9 @@ export default function AdminPage() {
                 </TabsTrigger>
                 <TabsTrigger value="calendar" className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" /> Takvim Alanları
+                </TabsTrigger>
+                <TabsTrigger value="homeCategories" className="flex items-center gap-2">
+                  <ListTree className="w-4 h-4" /> Kategori Düzenle
                 </TabsTrigger>
               </TabsList>
 
@@ -5535,6 +5612,198 @@ export default function AdminPage() {
                   }).length === 0) && (
                       <p className="text-xs text-gray-500 text-center py-2">Bu tarih için henüz takvim alanı eklenmedi.</p>
                     )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="homeCategories" className="space-y-4 pt-2">
+                <div className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-1">
+                      <ListTree className="w-5 h-5 text-indigo-500" /> Ana Sayfa Kategori Yönetimi
+                    </h3>
+                    <p className="text-sm text-gray-500">Ana sayfada gösterilecek kategorileri seçerek hiyerarşik yapıdan sıralayın.</p>
+                  </div>
+
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <Label className="text-sm font-semibold text-purple-800 block mb-1">Varsayılan Kurdele Rengi</Label>
+                      <p className="text-xs text-purple-600">Site geneli için ana kategori kurdele rengini belirleyin. Özel renk seçilmeyen kategoriler bu rengi kullanır.</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <input type="color" value={siteSettings.ribbonColor || '#502bb1'} onChange={(e) => setSiteSettings({ ...siteSettings, ribbonColor: e.target.value })} className="w-10 h-10 rounded cursor-pointer border border-purple-200" />
+                      <Input value={siteSettings.ribbonColor || '#502bb1'} onChange={(e) => setSiteSettings({ ...siteSettings, ribbonColor: e.target.value })} className="w-24 font-mono text-sm bg-white" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Left: Hierarchical Catalog */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-2 rounded block border border-gray-100">Kategori Havuzu (Hiyerarşik)</Label>
+                      <div className="border border-gray-100 rounded-md p-3 max-h-[400px] overflow-y-auto space-y-1 bg-white">
+                        {(() => {
+                          const homeArray = wallForm.name === 'Ana Duvar' ? (siteSettings.homeCategoryIds || []) : (wallForm.homeCategoryIds || []);
+                          const allCats = walls.filter((w: any) => w.name !== 'Ana Duvar');
+
+                          const buildHierarchy = (items: any[]) => {
+                            const rootItems = wallForm.name === 'Ana Duvar' ? items.filter(i => !i.parentId) : items.filter(i => i.parentId === editingItem?.id);
+                            const findChildren = (parent: any) => {
+                              const children = items.filter(i => i.parentId === parent.id)
+                              parent.children = children
+                              children.forEach(findChildren)
+                            }
+                            rootItems.forEach(findChildren)
+                            return rootItems
+                          }
+
+                          const hierarchy = buildHierarchy(JSON.parse(JSON.stringify(allCats)));
+
+                          const renderNode = (node: any, depth = 0) => {
+                            const isSelected = homeArray.includes(node.id);
+                            const realNode = allCats.find((c: any) => c.id === node.id);
+                            const subcatCount = realNode ? allCats.filter((c: any) => c.parentId === realNode.id).length : 0;
+
+                            return (
+                              <div key={node.id} className="space-y-1">
+                                <div className={`flex items-center gap-2 p-2 rounded-md transition-colors ${isSelected ? 'bg-indigo-50/50' : 'hover:bg-gray-50'}`} style={{ marginLeft: `${depth * 16}px` }}>
+                                  <Checkbox
+                                    className="data-[state=checked]:bg-indigo-600 data-[state=checked]:text-white"
+                                    checked={isSelected}
+                                    onCheckedChange={(checked) => {
+                                      const newArray = checked ? [...homeArray, node.id] : homeArray.filter((id: string) => id !== node.id);
+                                      if (wallForm.name === 'Ana Duvar') {
+                                        setSiteSettings({ ...siteSettings, homeCategoryIds: newArray });
+                                      } else {
+                                        setWallForm({ ...wallForm, homeCategoryIds: newArray });
+                                      }
+                                    }}
+                                  />
+                                  <div className="flex flex-col flex-1">
+                                    <span className="text-sm font-semibold text-gray-800">{node.name}</span>
+                                    <span className="text-[10px] text-gray-500 font-medium">
+                                      {subcatCount} alt kategori • {realNode?._count?.postits || 0} not
+                                    </span>
+                                  </div>
+                                </div>
+                                {node.children && node.children.map((child: any) => renderNode(child, depth + 1))}
+                              </div>
+                            );
+                          };
+
+                          if (hierarchy.length === 0) return <div className="text-sm text-gray-400 p-2">Henüz kategori bulunmuyor.</div>;
+
+                          return hierarchy.map(node => renderNode(node, 0));
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Right: Selected Categories Order */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold text-indigo-800 bg-indigo-50 px-3 py-2 rounded block border border-indigo-100">Seçili Kategoriler (Sıralı)</Label>
+                      <div className="border border-indigo-100 rounded-md p-3 max-h-[400px] overflow-y-auto space-y-2 bg-slate-50">
+                        {(() => {
+                          const homeArray = wallForm.name === 'Ana Duvar' ? (siteSettings.homeCategoryIds || []) : (wallForm.homeCategoryIds || []);
+                          const allCats = walls.filter((w: any) => w.name !== 'Ana Duvar');
+
+                          if (homeArray.length === 0) {
+                            return <div className="text-center py-6 text-gray-400 text-sm">Hiç kategori seçilmedi. Soldaki havuzdan seçin.</div>;
+                          }
+
+                          // Ensure we only map items that actually exist in allCats
+                          const validHomeArray = homeArray.filter((id: string) => allCats.some((w: any) => w.id === id));
+
+                          return validHomeArray.map((id: string, index: number) => {
+                            const cat = allCats.find((w: any) => w.id === id);
+                            if (!cat) return null;
+
+                            return (
+                              <div key={id} className="flex flex-col p-2 lg:p-3 bg-white border border-gray-200 rounded shadow-sm group">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="bg-indigo-100 text-indigo-700 font-bold text-xs w-6 h-6 flex items-center justify-center rounded-full flex-shrink-0">
+                                      {index + 1}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="font-medium text-sm text-gray-800 line-clamp-1">{cat.name}</span>
+                                      {cat.parentId && <span className="text-[10px] text-indigo-500 font-semibold bg-indigo-50 leading-none py-0.5 px-1.5 rounded w-fit mt-1">Alt Kategori</span>}
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-0.5 sm:gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-gray-400 hover:text-indigo-600 focus:bg-indigo-50"
+                                      disabled={index === 0}
+                                      onClick={() => {
+                                        const newArray = [...homeArray];
+                                        const temp = newArray[index - 1];
+                                        newArray[index - 1] = newArray[index];
+                                        newArray[index] = temp;
+                                        if (wallForm.name === 'Ana Duvar') setSiteSettings({ ...siteSettings, homeCategoryIds: newArray });
+                                        else setWallForm({ ...wallForm, homeCategoryIds: newArray });
+                                      }}
+                                    >
+                                      <ArrowUp className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-gray-400 hover:text-indigo-600 focus:bg-indigo-50"
+                                      disabled={index === homeArray.length - 1}
+                                      onClick={() => {
+                                        const newArray = [...homeArray];
+                                        const temp = newArray[index + 1];
+                                        newArray[index + 1] = newArray[index];
+                                        newArray[index] = temp;
+                                        if (wallForm.name === 'Ana Duvar') setSiteSettings({ ...siteSettings, homeCategoryIds: newArray });
+                                        else setWallForm({ ...wallForm, homeCategoryIds: newArray });
+                                      }}
+                                    >
+                                      <ArrowDown className="h-4 w-4" />
+                                    </Button>
+                                    <div className="w-px h-5 bg-gray-200 mx-1 self-center" />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-gray-400 hover:text-red-600 focus:bg-red-50 hover:bg-red-50"
+                                      onClick={() => {
+                                        const newArray = homeArray.filter((i: string) => i !== id);
+                                        if (wallForm.name === 'Ana Duvar') setSiteSettings({ ...siteSettings, homeCategoryIds: newArray });
+                                        else setWallForm({ ...wallForm, homeCategoryIds: newArray });
+                                      }}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+                                  <Palette className="w-4 h-4 text-purple-400" />
+                                  <span className="text-xs text-gray-500 flex-1">Özel Kurdele Rengi:</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="color"
+                                      value={tempCategoryRibbonColors[cat.id] || cat.ribbonColor || siteSettings.ribbonColor || '#502bb1'}
+                                      onChange={(e) => setTempCategoryRibbonColors({ ...tempCategoryRibbonColors, [cat.id]: e.target.value })}
+                                      className="w-6 h-6 rounded cursor-pointer border border-gray-200"
+                                    />
+                                    <span className="text-[10px] text-gray-400 font-mono hidden sm:inline-block">
+                                      {tempCategoryRibbonColors[cat.id] || cat.ribbonColor || siteSettings.ribbonColor || '#502bb1'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button onClick={handleSaveHomeCategories} disabled={savingSettings} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium shadow-md">
+                      {savingSettings ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Settings className="w-4 h-4 mr-2" />}
+                      Kategori Düzenini Kaydet
+                    </Button>
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>

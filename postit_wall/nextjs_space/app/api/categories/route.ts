@@ -146,11 +146,11 @@ export async function POST(request: NextRequest) {
       cityId, districtId,
       contactName, contactPhone, contactEmail,
       // Appearance fields
-      heroBackgroundImage, heroSubtitle,
+      heroBackgroundImage, isHeroTransparent, heroSubtitle,
       heroTitleFont, heroTitleColor, heroTitleSize,
       heroSubtitleFont, heroSubtitleColor, heroSubtitleSize,
       heroGradientFrom, heroGradientVia, heroGradientTo,
-      categoryFont, categoryColor, categoryBgColor,
+      categoryFont, categoryColor, categoryBgColor, ribbonColor,
       calendarEntries // Array of { calendarCategoryId, date, content }
     } = body
 
@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
         contactEmail: contactEmail || null,
         // Appearance fields
         heroBackgroundImage: heroBackgroundImage || null,
+        isHeroTransparent: isHeroTransparent !== undefined ? isHeroTransparent : false,
         heroSubtitle: heroSubtitle || null,
         heroTitleFont: heroTitleFont || 'sans-serif',
         heroTitleColor: heroTitleColor || '#ffffff',
@@ -222,6 +223,7 @@ export async function POST(request: NextRequest) {
         categoryFont: categoryFont || 'sans-serif',
         categoryColor: categoryColor || '#1f2937',
         categoryBgColor: categoryBgColor || '#ffffff',
+        ribbonColor: ribbonColor || '#502bb1',
         // Board appearance fields
         backgroundColor: body.backgroundColor || null,
         backgroundImage: body.backgroundImage || null,
@@ -233,6 +235,7 @@ export async function POST(request: NextRequest) {
         gradientVia: body.gradientVia || '#f472b6',
         gradientTo: body.gradientTo || '#a855f7',
         isWallTransparent: body.isWallTransparent !== undefined ? body.isWallTransparent : null,
+        isWallBackgroundRepeat: body.isWallBackgroundRepeat !== undefined ? body.isWallBackgroundRepeat : null,
         noBorder: body.noBorder !== undefined ? body.noBorder : null,
         // Full parity with SiteSettings
         navMenuBgColor: body.navMenuBgColor || null,
@@ -246,6 +249,7 @@ export async function POST(request: NextRequest) {
         siteGradientVia: body.siteGradientVia || null,
         siteGradientTo: body.siteGradientTo || null,
         siteIsGradient: body.siteIsGradient !== undefined ? body.siteIsGradient : null,
+        homeCategoryIds: body.homeCategoryIds || null,
       }
     })
 

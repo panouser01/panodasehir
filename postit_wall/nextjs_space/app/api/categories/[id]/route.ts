@@ -97,7 +97,7 @@ export async function PATCH(
       cityId, districtId,
       contactName, contactPhone, contactEmail,
       // Appearance fields
-      heroBackgroundImage, heroSubtitle,
+      heroBackgroundImage, isHeroTransparent, heroSubtitle,
       heroTitleFont, heroTitleColor, heroTitleSize,
       heroSubtitleFont, heroSubtitleColor, heroSubtitleSize,
       heroGradientFrom, heroGradientVia, heroGradientTo,
@@ -141,6 +141,7 @@ export async function PATCH(
 
     // Appearance fields
     if (heroBackgroundImage !== undefined) updateData.heroBackgroundImage = heroBackgroundImage || null
+    if (isHeroTransparent !== undefined) updateData.isHeroTransparent = isHeroTransparent
     if (heroSubtitle !== undefined) updateData.heroSubtitle = heroSubtitle || null
     if (heroTitleFont !== undefined) updateData.heroTitleFont = heroTitleFont
     if (heroTitleColor !== undefined) updateData.heroTitleColor = heroTitleColor
@@ -155,11 +156,12 @@ export async function PATCH(
     if (categoryFont !== undefined) updateData.categoryFont = categoryFont
     if (categoryColor !== undefined) updateData.categoryColor = categoryColor
     if (categoryBgColor !== undefined) updateData.categoryBgColor = categoryBgColor
+    if (body.ribbonColor !== undefined) updateData.ribbonColor = body.ribbonColor
 
     // Board appearance fields
     const {
       backgroundColor, backgroundImage, borderColor, borderTopColor, borderBottomColor,
-      isGradient, gradientFrom, gradientVia, gradientTo, isWallTransparent, noBorder
+      isGradient, gradientFrom, gradientVia, gradientTo, isWallTransparent, isWallBackgroundRepeat, noBorder
     } = body
     if (backgroundColor !== undefined) updateData.backgroundColor = backgroundColor
     if (backgroundImage !== undefined) updateData.backgroundImage = backgroundImage
@@ -171,6 +173,7 @@ export async function PATCH(
     if (gradientVia !== undefined) updateData.gradientVia = gradientVia
     if (gradientTo !== undefined) updateData.gradientTo = gradientTo
     if (isWallTransparent !== undefined) updateData.isWallTransparent = isWallTransparent
+    if (isWallBackgroundRepeat !== undefined) updateData.isWallBackgroundRepeat = isWallBackgroundRepeat
     if (noBorder !== undefined) updateData.noBorder = noBorder
 
     // New fields for full parity with SiteSettings
@@ -185,6 +188,7 @@ export async function PATCH(
     if (body.siteGradientVia !== undefined) updateData.siteGradientVia = body.siteGradientVia
     if (body.siteGradientTo !== undefined) updateData.siteGradientTo = body.siteGradientTo
     if (body.siteIsGradient !== undefined) updateData.siteIsGradient = body.siteIsGradient
+    if (body.homeCategoryIds !== undefined) updateData.homeCategoryIds = body.homeCategoryIds
 
     const category = await prisma.category.update({
       where: { id: params.id },

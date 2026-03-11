@@ -5,7 +5,7 @@ import { PostItWall } from '@/components/postit/postit-wall'
 import { ImageSlider } from '@/components/ui/image-slider'
 import { EczanePopup } from '@/components/postit/eczane-popup'
 import { redirect } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, ListTree, StickyNote } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +70,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       borderTopColor: '#8a5a2e',
       borderBottomColor: '#4a2f18',
       noBorder: false,
+      isWallTransparent: false,
+      isWallBackgroundRepeat: true,
+      homeCategoryIds: [],
       heroBackgroundImage: null,
+      isHeroTransparent: false,
       heroSubtitle: 'Fikirlerinizi paylaşın, topluluktaki diğerlerinin görüşlerini keşfedin',
       heroTitleFont: 'sans-serif',
       heroTitleColor: '#ffffff',
@@ -95,6 +99,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   // Default appearance settings (now from global site settings)
   const defaultAppearance = {
     heroBackgroundImage: siteSettings.heroBackgroundImage || null,
+    isHeroTransparent: siteSettings.isHeroTransparent || false,
     heroSubtitle: siteSettings.heroSubtitle || 'Fikirlerinizi paylaşın, topluluktaki diğerlerinin görüşlerini keşfedin',
     heroTitleFont: siteSettings.heroTitleFont || 'sans-serif',
     heroTitleColor: siteSettings.heroTitleColor || '#ffffff',
@@ -132,6 +137,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   const appearance = {
     heroBackgroundImage: getValue('heroBackgroundImage', null),
+    isHeroTransparent: getValue('isHeroTransparent', false),
     heroSubtitle: getValue('heroSubtitle', 'Fikirlerinizi paylaşın, topluluktaki diğerlerinin görüşlerini keşfedin'),
     heroTitleFont: getValue('heroTitleFont', 'sans-serif'),
     heroTitleColor: getValue('heroTitleColor', '#ffffff'),
@@ -145,12 +151,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     heroGradientTo: getValue('heroGradientTo', '#a855f7'),
     categoryFont: getValue('categoryFont', 'sans-serif'),
     categoryColor: getValue('categoryColor', '#1f2937'),
-    categoryBgColor: getValue('categoryBgColor', '#ffffff')
+    categoryBgColor: getValue('categoryBgColor', '#ffffff'),
+    ribbonColor: getValue('ribbonColor', '#502bb1')
   }
 
   // Pano (Board) Appearance settings - NO inheritance for sub-walls
   const boardAppearance = {
     isWallTransparent: getValue('isWallTransparent', false),
+    isWallBackgroundRepeat: getValue('isWallBackgroundRepeat', true),
     isGradient: getValue('isGradient', false),
     backgroundColor: getValue('backgroundColor', '#cca378'),
     backgroundImage: getValue('backgroundImage', null),
@@ -174,7 +182,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   // Hero title - use category name if selected, otherwise if homeWall exists use its name, otherwise default
-  const heroTitle = selectedCategory ? selectedCategory.name : (homeWall && homeWall.name === 'Ana Duvar' ? 'Tüm Kategoriler' : (homeWall ? homeWall.name : 'Panoda Şehir'))
+  const heroTitle = selectedCategory ? selectedCategory.name : (homeWall && homeWall.name === 'Ana Duvar' ? 'Ana Pano' : (homeWall ? homeWall.name : 'Panoda Şehir'))
 
   // Map size string to actual CSS size
   const titleSizeMap: Record<string, string> = {
@@ -330,9 +338,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   );
 
   // Compute hero background style
-  const heroBackground = appearance.heroBackgroundImage
-    ? `url('${appearance.heroBackgroundImage}') center/cover`
-    : `linear-gradient(to right, ${appearance.heroGradientFrom}, ${appearance.heroGradientVia}, ${appearance.heroGradientTo})`
+  const heroBackground = appearance.isHeroTransparent
+    ? 'transparent'
+    : (appearance.heroBackgroundImage
+      ? `url('${appearance.heroBackgroundImage}') center/cover`
+      : `linear-gradient(to right, ${appearance.heroGradientFrom}, ${appearance.heroGradientVia}, ${appearance.heroGradientTo})`)
 
 
 
@@ -341,7 +351,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       className="min-h-screen"
       style={{
         background: siteAppearance.backgroundImage
-          ? `url('${siteAppearance.backgroundImage}') center/cover fixed`
+          ? `${siteAppearance.backgroundColor || '#fffbeb'} url('${siteAppearance.backgroundImage}') top center / 100% auto no-repeat fixed`
           : (siteAppearance.isGradient
             ? `linear-gradient(to bottom right, ${siteAppearance.gradientFrom || '#fffbeb'}, ${siteAppearance.gradientVia || '#fefce8'}, ${siteAppearance.gradientTo || '#fff7ed'})`
             : (siteAppearance.backgroundColor || '#fffbeb'))
@@ -356,7 +366,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       {/* Hero / Slider Section */}
       <div
-        className={`relative w-full overflow-hidden ${(activeSlider as any)?.isTransparent ? '' : 'shadow-md'}`}
+        className={`relative w-full overflow-hidden ${((activeSlider as any)?.isTransparent || appearance.isHeroTransparent) ? '' : 'shadow-md'}`}
         style={{
           background: sliderImages.length > 0
             ? ((activeSlider as any)?.isTransparent
@@ -453,6 +463,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 backgroundImage: boardAppearance.isWallTransparent
                   ? 'none'
                   : (boardAppearance.isGradient ? undefined : (boardAppearance.backgroundImage ? `url("${boardAppearance.backgroundImage}")` : undefined)),
+                backgroundSize: (!boardAppearance.isWallTransparent && !boardAppearance.isGradient && boardAppearance.backgroundImage) ? (boardAppearance.isWallBackgroundRepeat ? 'auto' : '100% auto') : undefined,
+                backgroundRepeat: (!boardAppearance.isWallTransparent && !boardAppearance.isGradient && boardAppearance.backgroundImage) ? (boardAppearance.isWallBackgroundRepeat ? 'repeat' : 'no-repeat') : undefined,
+                backgroundPosition: (!boardAppearance.isWallTransparent && !boardAppearance.isGradient && boardAppearance.backgroundImage) ? 'top center' : undefined,
                 border: boardAppearance.noBorder ? '0px' : `18px solid ${boardAppearance.borderColor}`,
                 borderBottomColor: boardAppearance.noBorder ? 'transparent' : boardAppearance.borderBottomColor,
                 borderRightColor: boardAppearance.noBorder ? 'transparent' : boardAppearance.borderBottomColor,
@@ -481,11 +494,93 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </a>
               )}
 
-              <PostItWall
-                initialPostits={postits as any}
-                canDelete={canDelete}
-                currentUserId={(session?.user as any)?.id}
-              />
+              {!categoryId && siteSettings.homeCategoryIds && siteSettings.homeCategoryIds.length > 0 ? (
+                <div className="space-y-12 w-full mt-4">
+                  {siteSettings.homeCategoryIds.map((catId: string) => {
+                    const cat = categories.find((c: any) => c.id === catId);
+                    if (!cat) return null;
+
+                    const getCategoryIds = (c: any): string[] => {
+                      const ids = [c.id];
+                      if (c.children && c.children.length > 0) {
+                        c.children.forEach((child: any) => {
+                          ids.push(...getCategoryIds(child));
+                        });
+                      }
+                      return ids;
+                    };
+
+                    const validIds = getCategoryIds(cat);
+                    const catPostits = postits.filter((p: any) => validIds.includes(p.categoryId));
+                    if (catPostits.length === 0) return null;
+
+                    const subcatCount = validIds.length - 1;
+                    const postitCount = catPostits.length;
+
+                    const currentRibbonColor = cat.ribbonColor || '#502bb1';
+
+                    return (
+                      <div key={cat.id} className="space-y-4">
+                        <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
+                          <div className="relative inline-flex items-center justify-center group">
+
+                            {/* Ribbon Left Tail */}
+                            <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                              style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+
+                            {/* Ribbon Right Tail */}
+                            <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                              style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+
+                            {/* Fold Left */}
+                            <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
+                              style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+
+                            {/* Fold Right */}
+                            <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
+                              style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+
+                            {/* Main Banner */}
+                            <a href={`/?category=${cat.id}`} className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: currentRibbonColor }}>
+                              <h2 className="text-3xl md:text-5xl tracking-normal text-white mb-0"
+                                style={{
+                                  textShadow: '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)',
+                                  fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                                  fontWeight: 900
+                                }}>
+                                {cat.name}
+                              </h2>
+                            </a>
+
+                            {/* Badges as floating elements on top right */}
+                            <div className="absolute -top-4 -right-4 flex items-center gap-1.5 z-20">
+                              {(subcatCount > 0) && (
+                                <span className="text-xs bg-blue-100/90 backdrop-blur-sm text-blue-800 font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1 shadow-md border-[1.5px] border-blue-400">
+                                  <ListTree className="w-3.5 h-3.5" /> {subcatCount}
+                                </span>
+                              )}
+                              <span className="text-xs bg-yellow-100/90 backdrop-blur-sm text-yellow-800 font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1 shadow-md border-[1.5px] border-yellow-500">
+                                <StickyNote className="w-3.5 h-3.5" /> {postitCount}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <PostItWall
+                          initialPostits={catPostits as any}
+                          canDelete={canDelete}
+                          currentUserId={(session?.user as any)?.id}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <PostItWall
+                  initialPostits={postits as any}
+                  canDelete={canDelete}
+                  currentUserId={(session?.user as any)?.id}
+                />
+              )}
 
             </div>
           </main>

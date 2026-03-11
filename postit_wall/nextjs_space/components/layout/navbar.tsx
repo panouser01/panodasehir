@@ -136,7 +136,7 @@ export function Navbar() {
                   Panoda Şehir
                 </div>
                 <div className="text-[10px] md:text-[11px] font-medium text-gray-500 uppercase tracking-widest leading-none ml-1 opacity-80">
-                  {currentCategory ? currentCategory.name : 'Tüm Kategoriler'}
+                  {currentCategory ? currentCategory.name : 'Ana Pano'}
                 </div>
               </div>
             </Link>
