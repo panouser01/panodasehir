@@ -427,15 +427,28 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           {/* Post-it Wall with Corkboard Styling */}
           <main className="flex-1 w-full flex flex-col gap-2">
             {/* Sub-walls Marquee */}
-            {((selectedCategory ? selectedCategory.children : allCategories) || []).filter((c: any) => c.name !== 'Ana Duvar').length > 0 && (
-              <div className="w-full bg-white/40 backdrop-blur-sm border-y border-black/10 py-1.5 overflow-hidden group">
-                <div className="relative flex overflow-x-hidden">
-                  <div className="animate-marquee whitespace-nowrap">
-                    {[...Array(2)].map((_, i) => (
-                      <div key={i} className="flex shrink-0">
-                        {((selectedCategory ? selectedCategory.children : allCategories) || [])
-                          .filter((c: any) => c.name !== 'Ana Duvar')
-                          .map((child: any) => (
+            {(() => {
+              const items = (selectedCategory ? selectedCategory.children : allCategories) || [];
+              const orderedIds = selectedCategory
+                ? (selectedCategory.homeCategoryIds || [])
+                : (siteSettings.homeCategoryIds || []);
+
+              let displayItems = items.filter((c: any) => c.name !== 'Ana Duvar');
+              if (orderedIds && orderedIds.length > 0) {
+                displayItems = orderedIds
+                  .map((id: string) => displayItems.find((c: any) => c.id === id))
+                  .filter(Boolean);
+              }
+
+              if (displayItems.length === 0) return null;
+
+              return (
+                <div className="w-full bg-white/40 backdrop-blur-sm border-y border-black/10 py-1.5 overflow-hidden group">
+                  <div className="relative flex overflow-x-hidden">
+                    <div className="animate-marquee whitespace-nowrap">
+                      {[...Array(2)].map((_, i) => (
+                        <div key={i} className="flex shrink-0">
+                          {displayItems.map((child: any) => (
                             <a
                               key={`${i}-${child.id}`}
                               href={`/?category=${child.id}`}
@@ -445,12 +458,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                               {child.name}
                             </a>
                           ))}
-                      </div>
-                    ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div
               className="w-full rounded-sm relative p-4 md:p-8 shadow-2xl flex-1"
@@ -494,93 +508,114 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </a>
               )}
 
-              {!categoryId && siteSettings.homeCategoryIds && siteSettings.homeCategoryIds.length > 0 ? (
-                <div className="space-y-12 w-full mt-4">
-                  {siteSettings.homeCategoryIds.map((catId: string) => {
-                    const cat = categories.find((c: any) => c.id === catId);
-                    if (!cat) return null;
+              {(() => {
+                const wallSettingsIds = categoryId
+                  ? (selectedCategory?.homeCategoryIds || [])
+                  : (siteSettings.homeCategoryIds || []);
 
-                    const getCategoryIds = (c: any): string[] => {
-                      const ids = [c.id];
-                      if (c.children && c.children.length > 0) {
-                        c.children.forEach((child: any) => {
-                          ids.push(...getCategoryIds(child));
-                        });
-                      }
-                      return ids;
-                    };
-
-                    const validIds = getCategoryIds(cat);
-                    const catPostits = postits.filter((p: any) => validIds.includes(p.categoryId));
-                    if (catPostits.length === 0) return null;
-
-                    const subcatCount = validIds.length - 1;
-                    const postitCount = catPostits.length;
-
-                    const currentRibbonColor = cat.ribbonColor || '#502bb1';
-
-                    return (
-                      <div key={cat.id} className="space-y-4">
-                        <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
-                          <div className="relative inline-flex items-center justify-center group">
-
-                            {/* Ribbon Left Tail */}
-                            <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
-                              style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
-
-                            {/* Ribbon Right Tail */}
-                            <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
-                              style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
-
-                            {/* Fold Left */}
-                            <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
-                              style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
-
-                            {/* Fold Right */}
-                            <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
-                              style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
-
-                            {/* Main Banner */}
-                            <a href={`/?category=${cat.id}`} className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: currentRibbonColor }}>
-                              <h2 className="text-3xl md:text-5xl tracking-normal text-white mb-0"
-                                style={{
-                                  textShadow: '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)',
-                                  fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
-                                  fontWeight: 900
-                                }}>
-                                {cat.name}
-                              </h2>
-                            </a>
-
-                            {/* Badges as floating elements on top right */}
-                            <div className="absolute -top-4 -right-4 flex items-center gap-1.5 z-20">
-                              {(subcatCount > 0) && (
-                                <span className="text-xs bg-blue-100/90 backdrop-blur-sm text-blue-800 font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1 shadow-md border-[1.5px] border-blue-400">
-                                  <ListTree className="w-3.5 h-3.5" /> {subcatCount}
-                                </span>
-                              )}
-                              <span className="text-xs bg-yellow-100/90 backdrop-blur-sm text-yellow-800 font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1 shadow-md border-[1.5px] border-yellow-500">
-                                <StickyNote className="w-3.5 h-3.5" /> {postitCount}
-                              </span>
-                            </div>
-                          </div>
+                if (wallSettingsIds.length > 0) {
+                  const directPostits = categoryId ? postits.filter((p: any) => p.categoryId === categoryId) : [];
+                  
+                  return (
+                    <div className="space-y-12 w-full mt-4">
+                      {directPostits.length > 0 && (
+                        <div className="mb-12">
+                          <PostItWall
+                            initialPostits={directPostits as any}
+                            canDelete={canDelete}
+                            currentUserId={(session?.user as any)?.id}
+                          />
                         </div>
-                        <PostItWall
-                          initialPostits={catPostits as any}
-                          canDelete={canDelete}
-                          currentUserId={(session?.user as any)?.id}
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <PostItWall
-                  initialPostits={postits as any}
-                  canDelete={canDelete}
-                  currentUserId={(session?.user as any)?.id}
-                />
-              )}
+                      )}
+                      {wallSettingsIds.map((catId: string) => {
+                        const cat = categories.find((c: any) => c.id === catId);
+                        if (!cat) return null;
+
+                        const getCategoryIds = (c: any): string[] => {
+                          const ids = [c.id];
+                          if (c.children && c.children.length > 0) {
+                            c.children.forEach((child: any) => {
+                              ids.push(...getCategoryIds(child));
+                            });
+                          }
+                          return ids;
+                        };
+
+                        const validIds = getCategoryIds(cat);
+                        const catPostits = postits.filter((p: any) => validIds.includes(p.categoryId));
+                        if (catPostits.length === 0) return null;
+
+                        const subcatCount = validIds.length - 1;
+                        const postitCount = catPostits.length;
+
+                        const currentRibbonColor = cat.ribbonColor || '#502bb1';
+
+                        return (
+                          <div key={cat.id} className="space-y-4">
+                            <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
+                              <div className="relative inline-flex items-center justify-center group">
+
+                                {/* Ribbon Left Tail */}
+                                <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                  style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+
+                                {/* Ribbon Right Tail */}
+                                <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                  style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+
+                                {/* Fold Left */}
+                                <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
+                                  style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+
+                                {/* Fold Right */}
+                                <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
+                                  style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+
+                                {/* Main Banner */}
+                                <a href={`/?category=${cat.id}`} className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: currentRibbonColor }}>
+                                  <h2 className="text-3xl md:text-5xl tracking-normal text-white mb-0"
+                                    style={{
+                                      textShadow: '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)',
+                                      fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                                      fontWeight: 900
+                                    }}>
+                                    {cat.name}
+                                  </h2>
+                                </a>
+
+                                {/* Badges as floating elements on top right */}
+                                <div className="absolute -top-4 -right-4 flex items-center gap-1.5 z-20">
+                                  {(subcatCount > 0) && (
+                                    <span className="text-xs bg-blue-100/90 backdrop-blur-sm text-blue-800 font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1 shadow-md border-[1.5px] border-blue-400">
+                                      <ListTree className="w-3.5 h-3.5" /> {subcatCount}
+                                    </span>
+                                  )}
+                                  <span className="text-xs bg-yellow-100/90 backdrop-blur-sm text-yellow-800 font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1 shadow-md border-[1.5px] border-yellow-500">
+                                    <StickyNote className="w-3.5 h-3.5" /> {postitCount}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <PostItWall
+                              initialPostits={catPostits as any}
+                              canDelete={canDelete}
+                              currentUserId={(session?.user as any)?.id}
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  );
+                } else {
+                  return (
+                    <PostItWall
+                      initialPostits={postits as any}
+                      canDelete={canDelete}
+                      currentUserId={(session?.user as any)?.id}
+                    />
+                  );
+                }
+              })()}
 
             </div>
           </main>
