@@ -58,7 +58,7 @@ export function PostItStack({ postits, canDelete, currentUserId }: PostItStackPr
         >
 
             {/* Main active post-it */}
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence>
                 <motion.div
                     key={postits[currentIndex].id}
                     initial={{ opacity: 0, x: 200, rotateY: 90, scale: 0.8 }}
