@@ -151,6 +151,7 @@ export async function POST(request: NextRequest) {
       heroSubtitleFont, heroSubtitleColor, heroSubtitleSize,
       heroGradientFrom, heroGradientVia, heroGradientTo,
       categoryFont, categoryColor, categoryBgColor, ribbonColor,
+      logoUrl, logoPosition, logoSize, useParentLogo,
       calendarEntries // Array of { calendarCategoryId, date, content }
     } = body
 
@@ -251,6 +252,10 @@ export async function POST(request: NextRequest) {
         siteIsGradient: body.siteIsGradient !== undefined ? body.siteIsGradient : null,
         homeCategoryIds: body.homeCategoryIds || null,
         postitLimit: body.postitLimit !== undefined ? parseInt(body.postitLimit) : 0,
+        logoUrl: logoUrl || null,
+        logoPosition: logoPosition || 'top-right',
+        logoSize: logoSize || 'medium',
+        useParentLogo: useParentLogo !== undefined ? useParentLogo : false,
       }
     })
 

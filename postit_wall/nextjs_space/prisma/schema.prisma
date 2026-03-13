@@ -140,6 +140,13 @@ model Category {
   contactEmail        String?
   homeCategoryIds     Json?
   postitLimit         Int?                @default(0)
+
+  // Logo Settings
+  logoUrl             String?
+  logoPosition        String?             @default("top-right") // e.g. "top-right", "top-left", "bottom-right", "bottom-left", "center"
+  logoSize            String?             @default("medium") // e.g. "small", "medium", "large"
+  useParentLogo       Boolean?            @default(false)
+
   ads                 Ad[]
   city                City?               @relation(fields: [cityId], references: [id])
   district            District?           @relation(fields: [districtId], references: [id])
@@ -183,6 +190,7 @@ model PostIt {
   updatedAt   DateTime      @updatedAt
   imageUrl    String?
   isPublished Boolean       @default(true)
+  views       Int           @default(0)
   category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   PostItImage PostItImage[]

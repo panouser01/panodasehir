@@ -10,12 +10,13 @@ import { ChevronLeft, ListTree, StickyNote } from 'lucide-react'
 export const dynamic = 'force-dynamic'
 
 interface HomePageProps {
-  searchParams: { category?: string }
+  searchParams: { category?: string; from?: string }
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const session = await getServerSession(authOptions)
   const categoryId = searchParams?.category
+  const fromId = searchParams?.from
 
   // Fetch root categories (without parent) with their children
   const allCategories = await prisma.category.findMany({
@@ -97,24 +98,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   // Default appearance settings (now from global site settings)
-  const defaultAppearance = {
-    heroBackgroundImage: siteSettings.heroBackgroundImage || null,
-    isHeroTransparent: siteSettings.isHeroTransparent || false,
-    heroSubtitle: siteSettings.heroSubtitle || 'Fikirlerinizi paylaşın, topluluktaki diğerlerinin görüşlerini keşfedin',
-    heroTitleFont: siteSettings.heroTitleFont || 'sans-serif',
-    heroTitleColor: siteSettings.heroTitleColor || '#ffffff',
-    heroTitleSize: siteSettings.heroTitleSize || '5xl',
-    heroSubtitleFont: siteSettings.heroSubtitleFont || 'sans-serif',
-    heroSubtitleColor: siteSettings.heroSubtitleColor || '#ffffff',
-    heroSubtitleSize: siteSettings.heroSubtitleSize || 'xl',
-    heroGradientFrom: siteSettings.heroGradientFrom || '#facc15',
-    heroGradientVia: siteSettings.heroGradientVia || '#f472b6',
-    heroGradientTo: siteSettings.heroGradientTo || '#a855f7',
-    heroAlignment: siteSettings.heroAlignment || 'left',
-    categoryFont: 'sans-serif',
-    categoryColor: '#1f2937',
-    categoryBgColor: '#ffffff'
-  }
 
   // Get selected category for appearance settings
   // (already defined as categoryId matching logic below)
@@ -153,6 +136,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     categoryColor: getValue('categoryColor', '#1f2937'),
     categoryBgColor: getValue('categoryBgColor', '#ffffff'),
     ribbonColor: getValue('ribbonColor', '#502bb1')
+  }
+
+  // Resolve Logo Settings
+  // Initial resolution from current wall/home wall
+  let resolvedLogoUrl = selectedCategory ? selectedCategory.logoUrl : (homeWall ? homeWall.logoUrl : null)
+  let resolvedLogoPosition = selectedCategory ? selectedCategory.logoPosition : (homeWall ? homeWall.logoPosition : 'top-right')
+  let resolvedLogoSize = selectedCategory ? selectedCategory.logoSize : (homeWall ? homeWall.logoSize : 'medium')
+
+  if (selectedCategory && selectedCategory.useParentLogo && selectedCategory.parentId) {
+    const parentWall = categories.find(c => c.id === selectedCategory.parentId)
+    if (parentWall) {
+      resolvedLogoUrl = parentWall.logoUrl || null
+      resolvedLogoPosition = parentWall.logoPosition || 'top-right'
+      resolvedLogoSize = parentWall.logoSize || 'medium'
+    }
+  }
+
+  const logoSettings = {
+    url: resolvedLogoUrl,
+    position: resolvedLogoPosition,
+    size: resolvedLogoSize
   }
 
   // Pano (Board) Appearance settings - NO inheritance for sub-walls
@@ -217,7 +221,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     }
     const catNode = categories.find(c => c.id === categoryId)
     if (catNode) {
-      where.categoryId = { in: getSubIds(catNode) }
+      const allRequiredIds = new Set<string>()
+
+      // Kategorinin kendisi ve alt kategorileri
+      getSubIds(catNode).forEach(id => allRequiredIds.add(id))
+
+      // Seçili diğer duvarların (varsa) kendisi ve alt kategorileri
+      let homeIds = catNode.homeCategoryIds || []
+      if (typeof homeIds === 'string') {
+        try { homeIds = JSON.parse(homeIds) } catch (e) { homeIds = [] }
+      }
+      if (Array.isArray(homeIds)) {
+        homeIds.forEach((hId: string) => {
+          const hNode = categories.find(c => c.id === hId)
+          if (hNode) {
+            getSubIds(hNode).forEach(id => allRequiredIds.add(id))
+          }
+        })
+      }
+
+      where.categoryId = { in: Array.from(allRequiredIds) }
     } else {
       where.categoryId = categoryId
     }
@@ -355,22 +378,77 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const heroBackground = appearance.isHeroTransparent
     ? 'transparent'
     : (appearance.heroBackgroundImage
-      ? `url('${appearance.heroBackgroundImage}') center/cover`
+      ? `url('${appearance.heroBackgroundImage}') center / cover no-repeat`
       : `linear-gradient(to right, ${appearance.heroGradientFrom}, ${appearance.heroGradientVia}, ${appearance.heroGradientTo})`)
 
 
 
+  // Helper to render logo in multiple contexts if it matches
+  const renderLogo = (context: 'page' | 'hero' | 'board') => {
+    if (!logoSettings.url) return null;
+
+    let pos = logoSettings.position || 'hero-top-right';
+    // Backwards compatibility for legacy simple positions (map to hero by default)
+    if (!pos.includes('-') && pos === 'center') pos = 'hero-center';
+    else if (pos.startsWith('top-') || pos.startsWith('bottom-')) pos = 'hero-' + pos;
+
+    if (!pos.startsWith(context + '-')) return null;
+
+    let posClasses = '';
+    if (pos.endsWith('-top-left')) posClasses = 'top-0 left-0';
+    else if (pos.endsWith('-top-center')) posClasses = 'top-0 left-1/2 -translate-x-1/2';
+    else if (pos.endsWith('-top-right')) posClasses = 'top-0 right-0';
+    else if (pos.endsWith('-bottom-left')) posClasses = 'bottom-0 left-0';
+    else if (pos.endsWith('-bottom-right')) posClasses = 'bottom-0 right-0';
+    else posClasses = 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20'; // center fallback
+
+    const sizeClasses = logoSettings.size === 'small' ? 'h-12 md:h-16' :
+      logoSettings.size === 'large' ? 'h-32 md:h-44' :
+        logoSettings.size === 'xlarge' ? 'h-48 md:h-64' :
+          logoSettings.size === 'mega' ? 'h-64 md:h-96' :
+            'h-20 md:h-28'; // medium / fallback
+
+    // Page is fixed, Hero/Board is absolute
+    const baseClasses = context === 'page' ? 'fixed z-[120] p-4 md:p-6' : 'absolute z-40 p-4 md:p-6';
+
+    return (
+      <div className={`${baseClasses} pointer-events-none ${posClasses}`}>
+        <img
+          src={logoSettings.url}
+          alt="Duvar Logosu"
+          className={`object-contain ${sizeClasses}`}
+        />
+      </div>
+    );
+  };
+
   return (
     <div
       className="min-h-screen"
-      style={{
-        background: siteAppearance.backgroundImage
-          ? `${siteAppearance.backgroundColor || '#fffbeb'} url('${siteAppearance.backgroundImage}') top center / 100% auto no-repeat fixed`
-          : (siteAppearance.isGradient
-            ? `linear-gradient(to bottom right, ${siteAppearance.gradientFrom || '#fffbeb'}, ${siteAppearance.gradientVia || '#fefce8'}, ${siteAppearance.gradientTo || '#fff7ed'})`
-            : (siteAppearance.backgroundColor || '#fffbeb'))
-      }}
+      style={(() => {
+        if (siteAppearance.backgroundImage) {
+          return {
+            backgroundColor: siteAppearance.backgroundColor || '#fffbeb',
+            backgroundImage: `url('${siteAppearance.backgroundImage}')`,
+            backgroundPosition: 'top center',
+            backgroundSize: '100% auto',
+            backgroundRepeat: 'no-repeat',
+            backgroundAttachment: 'fixed',
+          }
+        } else if (siteAppearance.isGradient) {
+          return {
+            backgroundImage: `linear-gradient(to bottom right, ${siteAppearance.gradientFrom || '#fffbeb'}, ${siteAppearance.gradientVia || '#fefce8'}, ${siteAppearance.gradientTo || '#fff7ed'})`,
+          }
+        } else {
+          return {
+            backgroundColor: siteAppearance.backgroundColor || '#fffbeb',
+          }
+        }
+      })()}
     >
+      {/* Page Logo Render */}
+      {renderLogo('page')}
+
       {/* Top Fixed Calendar Section */}
       {siteSettings.calendarShow !== false && siteSettings.calendarPosition?.startsWith('top-') && (
         <div className={`fixed top-4 z-[100] transition-all duration-500 ${siteSettings.calendarPosition === 'top-left' ? 'left-4' : 'right-4'}`}>
@@ -380,26 +458,30 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       {/* Hero / Slider Section */}
       <div
-        className={`relative w-full overflow-hidden ${((activeSlider as any)?.isTransparent || appearance.isHeroTransparent) ? '' : 'shadow-md'}`}
+        className={`relative w-full overflow-hidden ${((activeSlider as any)?.isTransparent || (appearance.isHeroTransparent && !activeSlider)) ? '' : 'shadow-md'}`}
         style={{
-          background: sliderImages.length > 0
+          background: activeSlider
             ? ((activeSlider as any)?.isTransparent
               ? 'transparent'
               : ((activeSlider as any)?.backgroundImage
-                ? `url('${(activeSlider as any).backgroundImage}') center/cover`
+                ? `url('${(activeSlider as any).backgroundImage}') center / cover no-repeat`
                 : ((activeSlider as any)?.isGradient
                   ? `linear-gradient(to right, ${(activeSlider as any)?.heroGradientFrom || '#facc15'}, ${(activeSlider as any)?.heroGradientVia || '#f472b6'}, ${(activeSlider as any)?.heroGradientTo || '#a855f7'})`
                   : ((activeSlider as any)?.backgroundColor || '#f8f9fa'))))
             : heroBackground
         }}
       >
-        {sliderImages.length > 0 ? (
-          <div className="w-full flex justify-center py-4">
-            <ImageSlider
-              images={sliderImages}
-              links={sliderLinks}
-              className={`relative w-full max-w-[1170px] mx-auto h-[130px] sm:h-[160px] md:h-[200px] lg:h-[300px] rounded-xl ${((activeSlider as any)?.isTransparent) ? '' : 'shadow-md'}`}
-            />
+        {/* Logo Render in Hero Section */}
+        {renderLogo('hero')}
+        {activeSlider ? (
+          <div className="w-full flex justify-center py-4 min-h-[160px]">
+            {sliderImages.length > 0 && (
+              <ImageSlider
+                images={sliderImages}
+                links={sliderLinks}
+                className={`relative w-full max-w-[1170px] mx-auto h-[130px] sm:h-[160px] md:h-[200px] lg:h-[300px] rounded-xl ${((activeSlider as any)?.isTransparent) ? '' : 'shadow-md'}`}
+              />
+            )}
           </div>
         ) : (
           <div className={`relative py-12 flex flex-col justify-center h-full min-h-[160px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full ${appearance.heroAlignment === 'center' ? 'items-center' :
@@ -452,8 +534,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               let displayItems = items.filter((c: any) => c.name !== 'Ana Duvar');
               if (orderedIds && orderedIds.length > 0) {
                 displayItems = orderedIds
-                  .map((id: string) => displayItems.find((c: any) => c.id === id))
-                  .filter(Boolean);
+                  .map((id: string) => categories.find((c: any) => c.id === id))
+                  .filter(Boolean)
+                  .filter((c: any) => c.name !== 'Ana Duvar');
               }
 
               if (displayItems.length === 0) return null;
@@ -472,7 +555,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                           {displayItems.map((child: any) => (
                             <a
                               key={`${i}-${child.id}`}
-                              href={`/?category=${child.id}`}
+                              href={`/?category=${child.id}&from=${categoryId || 'root'}`}
                               className="mx-8 text-sm font-bold text-gray-700 hover:text-blue-600 transition-colors flex items-center gap-1.5"
                             >
                               <span className="text-yellow-500 text-lg">📌</span>
@@ -490,14 +573,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div
               className="w-full rounded-sm relative p-4 md:p-8 shadow-2xl flex-1"
               style={{
-                background: boardAppearance.isWallTransparent
+                backgroundColor: boardAppearance.isWallTransparent
                   ? 'transparent'
-                  : (boardAppearance.isGradient
-                    ? `linear-gradient(to right, ${boardAppearance.gradientFrom || '#facc15'}, ${boardAppearance.gradientVia || '#f472b6'}, ${boardAppearance.gradientTo || '#a855f7'})`
-                    : boardAppearance.backgroundColor),
+                  : boardAppearance.backgroundColor || '#cca378',
                 backgroundImage: boardAppearance.isWallTransparent
                   ? 'none'
-                  : (boardAppearance.isGradient ? undefined : (boardAppearance.backgroundImage ? `url("${boardAppearance.backgroundImage}")` : undefined)),
+                  : (boardAppearance.isGradient
+                    ? `linear-gradient(to right, ${boardAppearance.gradientFrom || '#facc15'}, ${boardAppearance.gradientVia || '#f472b6'}, ${boardAppearance.gradientTo || '#a855f7'})`
+                    : (boardAppearance.backgroundImage ? `url("${boardAppearance.backgroundImage}")` : 'none')),
                 backgroundSize: (!boardAppearance.isWallTransparent && !boardAppearance.isGradient && boardAppearance.backgroundImage) ? (boardAppearance.isWallBackgroundRepeat ? 'auto' : '100% auto') : undefined,
                 backgroundRepeat: (!boardAppearance.isWallTransparent && !boardAppearance.isGradient && boardAppearance.backgroundImage) ? (boardAppearance.isWallBackgroundRepeat ? 'repeat' : 'no-repeat') : undefined,
                 backgroundPosition: (!boardAppearance.isWallTransparent && !boardAppearance.isGradient && boardAppearance.backgroundImage) ? 'top center' : undefined,
@@ -513,11 +596,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               }}
             >
               {/* Back Button for Sub-Categories */}
-              {selectedCategory && (
+              {(selectedCategory || fromId) && (
                 <a
-                  href={selectedCategory.parentId ? `/?category=${selectedCategory.parentId}` : '/'}
+                  href={fromId ? (fromId === 'root' ? '/' : `/?category=${fromId}`) : (selectedCategory?.parentId ? `/?category=${selectedCategory.parentId}` : '/')}
                   className="absolute top-2 left-2 z-20 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-white/60 hover:bg-white/80 backdrop-blur-md rounded-full shadow-lg border border-black/5 transition-all hover:-translate-x-1 hover:scale-110 active:scale-90 group"
-                  title="Üst Duvara Geri Dön"
+                  title="Geri Dön"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -528,6 +611,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   </svg>
                 </a>
               )}
+
+              {/* Logo Render in Board Section */}
+              {renderLogo('board')}
 
               {(() => {
                 let wallSettingsIds = categoryId
@@ -625,7 +711,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                   style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
 
                                 {/* Main Banner */}
-                                <a href={`/?category=${cat.id}`} className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: currentRibbonColor }}>
+                                <a href={`/?category=${cat.id}&from=${categoryId || 'root'}`} className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: currentRibbonColor }}>
                                   <h2 className="text-3xl md:text-5xl tracking-normal text-white mb-0"
                                     style={{
                                       textShadow: '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)',
@@ -664,11 +750,37 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   const limitedPostits = currentWallLimit > 0 ? postits.slice(0, currentWallLimit) : postits;
 
                   return (
-                    <PostItWall
-                      initialPostits={limitedPostits as any}
-                      canDelete={canDelete}
-                      currentUserId={(session?.user as any)?.id}
-                    />
+                    <div className="space-y-12 w-full mt-4">
+                      <div className="mb-12">
+                        <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
+                          <div className="relative inline-flex items-center justify-center group">
+                            <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                              style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+                            <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                              style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+                            <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
+                              style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                            <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
+                              style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                            <div className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: appearance.ribbonColor }}>
+                              <h2 className="text-3xl md:text-5xl tracking-normal text-white mb-0"
+                                style={{
+                                  textShadow: '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)',
+                                  fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                                  fontWeight: 900
+                                }}>
+                                {selectedCategory?.name || 'Ana Duvar'}
+                              </h2>
+                            </div>
+                          </div>
+                        </div>
+                        <PostItWall
+                          initialPostits={limitedPostits as any}
+                          canDelete={canDelete}
+                          currentUserId={(session?.user as any)?.id}
+                        />
+                      </div>
+                    </div>
                   );
                 }
               })()}

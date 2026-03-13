@@ -126,13 +126,15 @@ export default function AdminPage() {
   const [wallForm, setWallForm] = useState({
     name: '', description: '', wallManagerIds: [] as string[], userGroupId: '',
     parentId: '', cityId: '', districtId: '', contactName: '', contactPhone: '', contactEmail: '', heroSubtitle: '', heroTitleFont: 'sans-serif', heroTitleColor: '#ffffff', heroTitleSize: '5xl', heroSubtitleFont: 'sans-serif', heroSubtitleColor: '#ffffff', heroSubtitleSize: 'xl', heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7',
-    backgroundColor: '', backgroundImage: '', borderColor: '', borderTopColor: '', borderBottomColor: '', isGradient: false, gradientFrom: '#facc15', gradientVia: '#f472b6', gradientTo: '#a855f7', isWallTransparent: false, noBorder: false, heroAlignment: 'left', heroBackgroundImage: '', navMenuBgColor: '', navMenuFont: 'sans-serif', navMenuTextColor: '', navMenuFontSize: 14, navMenuMainBold: true, siteBackgroundColor: '', siteBackgroundImage: '', siteGradientFrom: '', siteGradientVia: '', siteGradientTo: '', siteIsGradient: false,
+    backgroundColor: '', backgroundImage: '', borderColor: '', borderTopColor: '', borderBottomColor: '', isGradient: false, gradientFrom: '#facc15', gradientVia: '#f472b6', gradientTo: '#a855f7', isWallTransparent: false, noBorder: false, heroAlignment: 'left', heroBackgroundImage: '', isHeroTransparent: false, navMenuBgColor: '', navMenuFont: 'sans-serif', navMenuTextColor: '', navMenuFontSize: 14, navMenuMainBold: true, siteBackgroundColor: '', siteBackgroundImage: '', siteGradientFrom: '', siteGradientVia: '', siteGradientTo: '', siteIsGradient: false,
     calendarEntries: [] as any[],
     homeCategoryIds: [] as string[],
-    postitLimit: 0
+    postitLimit: 0,
+    logoUrl: '', logoPosition: 'top-right', logoSize: 'medium', useParentLogo: false
   })
   const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
   const [uploadingPostitImage, setUploadingPostitImage] = useState(false)
+  const [uploadingWallLogo, setUploadingWallLogo] = useState(false)
   const [roleForm, setRoleForm] = useState({ name: '', description: '' })
   const [sliderForm, setSliderForm] = useState({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, isTransparent: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isActive: true })
   const [userGroupForm, setUserGroupForm] = useState({ name: '', description: '' })
@@ -167,6 +169,7 @@ export default function AdminPage() {
     heroGradientVia: '#f472b6',
     heroGradientTo: '#a855f7',
     heroAlignment: 'left',
+    isHeroTransparent: false,
     categoryFont: 'sans-serif',
     categoryColor: '#1f2937',
     categoryBgColor: '#ffffff',
@@ -190,6 +193,7 @@ export default function AdminPage() {
     gradientVia: '#f472b6',
     gradientTo: '#a855f7',
     heroBackgroundImage: '',
+    isHeroTransparent: false,
     heroTitleFont: 'sans-serif',
     heroTitleColor: '#ffffff',
     heroTitleSize: '5xl',
@@ -440,6 +444,7 @@ export default function AdminPage() {
         noBorder: wallForm.noBorder,
         heroAlignment: wallForm.heroAlignment,
         heroBackgroundImage: wallForm.heroBackgroundImage,
+        isHeroTransparent: wallForm.isHeroTransparent,
         navMenuBgColor: wallForm.navMenuBgColor,
         navMenuFont: wallForm.navMenuFont,
         navMenuTextColor: wallForm.navMenuTextColor,
@@ -453,7 +458,11 @@ export default function AdminPage() {
         siteIsGradient: wallForm.siteIsGradient,
         calendarEntries: wallForm.calendarEntries || [],
         homeCategoryIds: wallForm.homeCategoryIds || [],
-        postitLimit: wallForm.postitLimit || 0
+        postitLimit: wallForm.postitLimit || 0,
+        logoUrl: wallForm.logoUrl,
+        logoPosition: wallForm.logoPosition,
+        logoSize: wallForm.logoSize,
+        useParentLogo: wallForm.useParentLogo
       }
 
       // Add selected posts to move if creating new subcategory
@@ -908,6 +917,7 @@ export default function AdminPage() {
       noBorder: !!wall.noBorder,
       heroAlignment: wall.heroAlignment || 'left',
       heroBackgroundImage: wall.heroBackgroundImage || '',
+      isHeroTransparent: !!wall.isHeroTransparent,
       navMenuBgColor: wall.navMenuBgColor || '',
       navMenuFont: wall.navMenuFont || 'sans-serif',
       navMenuTextColor: wall.navMenuTextColor || '',
@@ -921,7 +931,11 @@ export default function AdminPage() {
       siteIsGradient: !!wall.siteIsGradient,
       calendarEntries: wall.calendarEntries || [],
       homeCategoryIds: wall.homeCategoryIds || [],
-      postitLimit: wall.postitLimit !== undefined ? wall.postitLimit : 0
+      postitLimit: wall.postitLimit !== undefined ? wall.postitLimit : 0,
+      logoUrl: wall.logoUrl || '',
+      logoPosition: wall.logoPosition || 'top-right',
+      logoSize: wall.logoSize || 'medium',
+      useParentLogo: !!wall.useParentLogo
     })
 
     // Slayder ayarlarını yükle
@@ -996,6 +1010,7 @@ export default function AdminPage() {
       noBorder: false,
       heroAlignment: 'left',
       heroBackgroundImage: '',
+      isHeroTransparent: false,
       navMenuBgColor: '',
       navMenuFont: 'sans-serif',
       navMenuTextColor: '',
@@ -1009,7 +1024,11 @@ export default function AdminPage() {
       siteIsGradient: false,
       calendarEntries: [],
       homeCategoryIds: [] as string[],
-      postitLimit: 0
+      postitLimit: 0,
+      logoUrl: '',
+      logoPosition: 'top-right',
+      logoSize: 'medium',
+      useParentLogo: false
     })
     setSliderForm({
       categoryId: '',
@@ -1103,6 +1122,7 @@ export default function AdminPage() {
       noBorder: false,
       heroAlignment: 'left',
       heroBackgroundImage: '',
+      isHeroTransparent: false,
       navMenuBgColor: '',
       navMenuFont: 'sans-serif',
       navMenuTextColor: '',
@@ -1116,7 +1136,11 @@ export default function AdminPage() {
       siteIsGradient: false,
       calendarEntries: [],
       homeCategoryIds: [] as string[],
-      postitLimit: 0
+      postitLimit: 0,
+      logoUrl: '',
+      logoPosition: 'top-right',
+      logoSize: 'medium',
+      useParentLogo: false
     })
     setSliderForm({
       categoryId: '',
@@ -1129,7 +1153,7 @@ export default function AdminPage() {
       heroGradientVia: '#f472b6',
       heroGradientTo: '#a855f7',
       isTransparent: false,
-      isActive: true
+      isActive: false
     })
     setSelectedPostsToMove([])
     setShowWallModal(true)
@@ -1297,6 +1321,7 @@ export default function AdminPage() {
     setEditingAppearanceWall(wall)
     setAppearanceForm({
       heroBackgroundImage: wall.heroBackgroundImage || '',
+      isHeroTransparent: !!wall.isHeroTransparent,
       heroSubtitle: wall.heroSubtitle || '',
       heroTitleFont: wall.heroTitleFont || 'sans-serif',
       heroTitleColor: wall.heroTitleColor || '#ffffff',
@@ -1435,6 +1460,40 @@ export default function AdminPage() {
       toast.error('Resim yüklenirken hata oluştu')
     } finally {
       setUploadingSiteHeroImage(false)
+    }
+  }
+
+  const handleWallLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+      return
+    }
+
+    setUploadingWallLogo(true)
+    try {
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const response = await fetch('/api/upload/local', {
+        method: 'POST',
+        body: uploadFormData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Dosya yüklenemedi')
+      }
+
+      const { fileUrl } = await response.json()
+      setWallForm({ ...wallForm, logoUrl: fileUrl })
+      toast.success('Logo yüklendi')
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Logo yüklenirken hata oluştu')
+    } finally {
+      setUploadingWallLogo(false)
     }
   }
 
@@ -2286,9 +2345,18 @@ export default function AdminPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-gray-500">Alt Başlık Metni</Label>
+                    <Label className="text-[10px] font-medium text-gray-500">Alt Başlık Metni</Label>
                     <Input value={wallForm.heroSubtitle || ''} onChange={(e) => setWallForm({ ...wallForm, heroSubtitle: e.target.value })} placeholder="Fikirlerinizi paylaşın..." className="h-9 text-xs" />
                   </div>
+                </div>
+
+                <div className="flex items-center space-x-2 mt-2 border-b border-gray-100 pb-3">
+                  <Checkbox
+                    id="heroTransparent"
+                    checked={wallForm.isHeroTransparent}
+                    onCheckedChange={(checked) => setWallForm(s => ({ ...s, isHeroTransparent: !!checked }))}
+                  />
+                  <Label htmlFor="heroTransparent" className="cursor-pointer font-bold text-amber-700">Kapak Arka Planı (Zemin) Şeffaf Olsun</Label>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
@@ -2773,6 +2841,15 @@ export default function AdminPage() {
                     <Label className="text-xs font-semibold text-gray-500">Alt Başlık Metni</Label>
                     <Input value={siteSettings.heroSubtitle || ''} onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })} placeholder="Fikirlerinizi paylaşın..." className="h-9 text-xs" />
                   </div>
+                </div>
+
+                <div className="flex items-center space-x-2 mt-2">
+                  <Checkbox
+                    id="siteHeroTransparent"
+                    checked={siteSettings.isHeroTransparent}
+                    onCheckedChange={(checked) => setSiteSettings(s => ({ ...s, isHeroTransparent: !!checked }))}
+                  />
+                  <Label htmlFor="siteHeroTransparent" className="cursor-pointer font-bold text-amber-700">Kapak Arka Planı (Zemin) Şeffaf Olsun</Label>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
@@ -4658,6 +4735,7 @@ export default function AdminPage() {
                                   <TableHead className="w-[15%] text-gray-200 font-semibold py-3">Kullanıcı</TableHead>
                                   <TableHead className="w-[10%] text-gray-200 font-semibold py-3">Renk</TableHead>
                                   <TableHead className="w-[10%] text-center text-gray-200 font-semibold py-3">Beğeni</TableHead>
+                                  <TableHead className="w-[10%] text-center text-gray-200 font-semibold py-3">Görüntülenme</TableHead>
                                   <TableHead className="w-[10%] text-center text-gray-200 font-semibold py-3">Onaylı</TableHead>
                                   <TableHead className="w-[10%] text-center text-gray-200 font-semibold py-3">Yayında</TableHead>
                                   <TableHead className="w-[10%] text-gray-200 font-semibold py-3">Kayıt</TableHead>
@@ -4696,6 +4774,9 @@ export default function AdminPage() {
                                     </TableCell>
                                     <TableCell className="text-center font-bold text-gray-700">
                                       {(postit as any)?._count?.likes || 0}
+                                    </TableCell>
+                                    <TableCell className="text-center font-bold text-gray-700">
+                                      {(postit as any)?.views || 0}
                                     </TableCell>
                                     <TableCell className="text-center">
                                       <Checkbox
@@ -4843,6 +4924,15 @@ export default function AdminPage() {
                     onChange={(e) => setAppearanceForm({ ...appearanceForm, heroSubtitle: e.target.value })}
                     placeholder="Fikirlerinizi paylaşın..."
                   />
+                </div>
+
+                <div className="flex items-center space-x-2 mt-2 border-b border-gray-100 pb-3">
+                  <Checkbox
+                    id="appearanceHeroTransparent"
+                    checked={appearanceForm.isHeroTransparent}
+                    onCheckedChange={(checked) => setAppearanceForm(s => ({ ...s, isHeroTransparent: !!checked }))}
+                  />
+                  <Label htmlFor="appearanceHeroTransparent" className="cursor-pointer font-bold text-gray-700">Kapak Arka Planı (Zemin) Şeffaf Olsun</Label>
                 </div>
               </div>
 
@@ -5384,6 +5474,9 @@ export default function AdminPage() {
                 <TabsTrigger value="calendar" className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" /> Takvim Alanları
                 </TabsTrigger>
+                <TabsTrigger value="logo" className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4" /> Logo Ayarları
+                </TabsTrigger>
                 <TabsTrigger value="homeCategories" className="flex items-center gap-2">
                   <ListTree className="w-4 h-4" /> Kategori Düzenle
                 </TabsTrigger>
@@ -5558,7 +5651,7 @@ export default function AdminPage() {
                       <h4 className="font-bold text-lg text-amber-800 flex items-center gap-2 mb-1">
                         <Palette className="w-5 h-5" /> Duvara Özgü Görünüm Ayarları
                       </h4>
-                      <p className="text-sm text-amber-700 mb-2 text-left">Bu ayarlar sadece bu duvarın (kategorinin) görünümünü değiştirir. Boş bırakılan alanlar ana sayfanın görünüm ayarlarından miras alınır.</p>
+                      <p className="text-sm text-amber-700 mb-2 text-left">Bu ayarlar sadece bu duvarın (kategorinin) görünümünü değiştirir.</p>
                     </div>
                     {renderWallGorseli()}
                   </div>
@@ -5642,6 +5735,165 @@ export default function AdminPage() {
                 </div>
               </TabsContent>
 
+              <TabsContent value="logo" className="space-y-4 pt-2">
+                <div className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-1">
+                      <ImageIcon className="w-5 h-5 text-indigo-500" /> Logo Ayarları
+                    </h3>
+                    <p className="text-sm text-gray-500">Duvarın belirlediğiniz bir köşesinde görünecek logoyu buradan yönetebilirsiniz.</p>
+                  </div>
+
+                  {wallForm.parentId && (
+                    <div className="flex items-center space-x-2 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                      <Checkbox
+                        id="useParentLogo"
+                        checked={wallForm.useParentLogo}
+                        onCheckedChange={(checked) => setWallForm(s => ({ ...s, useParentLogo: !!checked }))}
+                      />
+                      <Label htmlFor="useParentLogo" className="cursor-pointer font-bold text-indigo-700">Üst Duvar Logosunu Kullan</Label>
+                    </div>
+                  )}
+
+                  {!wallForm.useParentLogo && (
+                    <div className="space-y-4 mt-4">
+                      <div className="space-y-2">
+                        <Label>Logo Resmi</Label>
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center justify-center w-32 h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 relative overflow-hidden bg-white">
+                            {wallForm.logoUrl ? (
+                              <img src={wallForm.logoUrl} alt="Logo Önizleme" className="w-full h-full object-contain p-2" />
+                            ) : (
+                              <div className="flex flex-col items-center">
+                                <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                                <span className="text-sm text-gray-500">Logo Yükle</span>
+                              </div>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleWallLogoUpload}
+                              disabled={uploadingWallLogo}
+                            />
+                            {uploadingWallLogo && (
+                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <span className="text-white text-sm">Yükleniyor...</span>
+                              </div>
+                            )}
+                          </label>
+                          {wallForm.logoUrl && (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setWallForm({ ...wallForm, logoUrl: '' })}
+                            >
+                              Logoyu Kaldır
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Konum</Label>
+                          <Select
+                            value={wallForm.logoPosition}
+                            onValueChange={(value) => setWallForm({ ...wallForm, logoPosition: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Konum Seçin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="page-top-left">Sayfa Sol Üst (Sabit)</SelectItem>
+                              <SelectItem value="page-top-center">Sayfa Üst Orta (Sabit)</SelectItem>
+                              <SelectItem value="page-top-right">Sayfa Sağ Üst (Sabit)</SelectItem>
+
+                              <SelectItem value="hero-top-left">Kapak Sol Üst</SelectItem>
+                              <SelectItem value="hero-top-center">Kapak Üst Orta</SelectItem>
+                              <SelectItem value="hero-top-right">Kapak Sağ Üst</SelectItem>
+                              <SelectItem value="hero-bottom-left">Kapak Sol Alt</SelectItem>
+                              <SelectItem value="hero-bottom-right">Kapak Sağ Alt</SelectItem>
+
+                              <SelectItem value="board-top-left">Pano Sol Üst</SelectItem>
+                              <SelectItem value="board-top-right">Pano Sağ Üst</SelectItem>
+                              <SelectItem value="board-bottom-left">Pano Sol Alt</SelectItem>
+                              <SelectItem value="board-bottom-right">Pano Sağ Alt</SelectItem>
+
+                              {/* Legacy fallbacks */}
+                              <SelectItem value="top-left" className="hidden">Eski Sol Üst</SelectItem>
+                              <SelectItem value="top-center" className="hidden">Eski Üst Orta</SelectItem>
+                              <SelectItem value="top-right" className="hidden">Eski Sağ Üst</SelectItem>
+                              <SelectItem value="bottom-left" className="hidden">Eski Sol Alt</SelectItem>
+                              <SelectItem value="bottom-right" className="hidden">Eski Sağ Alt</SelectItem>
+                              <SelectItem value="center" className="hidden">Eski Merkez</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Boyut</Label>
+                          <Select
+                            value={wallForm.logoSize}
+                            onValueChange={(value) => setWallForm({ ...wallForm, logoSize: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Boyut Seçin" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="small">Küçük</SelectItem>
+                              <SelectItem value="medium">Orta</SelectItem>
+                              <SelectItem value="large">Büyük</SelectItem>
+                              <SelectItem value="xlarge">Çok Büyük</SelectItem>
+                              <SelectItem value="mega">Mega</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Canlı Ön İzleme Alanı (Logo Özel) */}
+                      {wallForm.logoUrl && (
+                        <div className="mt-8 pt-6 border-t border-gray-100">
+                          <Label className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-4">
+                            <Eye className="w-4 h-4 text-blue-500" /> Logo Canlı Önizleme
+                          </Label>
+                          <div
+                            className="w-full h-64 rounded-xl border border-gray-200 relative overflow-hidden bg-gray-100 shadow-inner"
+                            style={{
+                              backgroundImage: wallForm.heroBackgroundImage ? `url("${wallForm.heroBackgroundImage}")` : (wallForm.heroGradientFrom ? `linear-gradient(135deg, ${wallForm.heroGradientFrom}, ${wallForm.heroGradientVia}, ${wallForm.heroGradientTo})` : 'none')
+                            }}
+                          >
+                            <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                              <span className="text-xl font-bold">Kapak (Hero) Alanı</span>
+                            </div>
+                            <div
+                              className={`absolute p-4 z-10 ${(wallForm.logoPosition === 'hero-top-left' || wallForm.logoPosition === 'top-left' || wallForm.logoPosition === 'page-top-left') ? 'top-0 left-0' :
+                                (wallForm.logoPosition === 'hero-top-center' || wallForm.logoPosition === 'top-center' || wallForm.logoPosition === 'page-top-center') ? 'top-0 left-1/2 -translate-x-1/2' :
+                                  (wallForm.logoPosition === 'hero-top-right' || wallForm.logoPosition === 'top-right' || wallForm.logoPosition === 'page-top-right') ? 'top-0 right-0' :
+                                    (wallForm.logoPosition === 'hero-bottom-left' || wallForm.logoPosition === 'bottom-left' || wallForm.logoPosition === 'board-top-left' || wallForm.logoPosition === 'board-bottom-left') ? 'bottom-0 left-0' :
+                                      (wallForm.logoPosition === 'hero-bottom-right' || wallForm.logoPosition === 'bottom-right' || wallForm.logoPosition === 'board-top-right' || wallForm.logoPosition === 'board-bottom-right') ? 'bottom-0 right-0' :
+                                        'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-50'
+                                }`}
+                            >
+                              <img
+                                src={wallForm.logoUrl}
+                                alt="Önizleme Logosu"
+                                className={`object-contain ${wallForm.logoSize === 'small' ? 'h-8' :
+                                  wallForm.logoSize === 'medium' ? 'h-12' :
+                                    wallForm.logoSize === 'large' ? 'h-20' :
+                                      wallForm.logoSize === 'xlarge' ? 'h-28' :
+                                        'h-36' // mega fallback
+                                  }`}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
               <TabsContent value="homeCategories" className="space-y-4 pt-2">
                 <div className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
                   <div>
@@ -5674,7 +5926,15 @@ export default function AdminPage() {
                           const allCats = walls.filter((w: any) => w.name !== 'Ana Duvar');
 
                           const buildHierarchy = (items: any[]) => {
-                            const rootItems = wallForm.name === 'Ana Duvar' ? items.filter(i => !i.parentId) : items.filter(i => i.parentId === editingItem?.id);
+                            const isSuperAdmin = (session?.user as any)?.role === 'SUPER_ADMIN';
+                            let rootItems = [];
+
+                            if (wallForm.name === 'Ana Duvar' || isSuperAdmin) {
+                              rootItems = items.filter(i => !i.parentId);
+                            } else {
+                              rootItems = items.filter(i => i.parentId === (editingItem?.id || 'new'));
+                            }
+
                             const findChildren = (parent: any) => {
                               const children = items.filter(i => i.parentId === parent.id)
                               parent.children = children

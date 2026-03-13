@@ -191,6 +191,12 @@ export async function PATCH(
     if (body.homeCategoryIds !== undefined) updateData.homeCategoryIds = body.homeCategoryIds
     if (body.postitLimit !== undefined) updateData.postitLimit = parseInt(body.postitLimit)
 
+    // Logo settings
+    if (body.logoUrl !== undefined) updateData.logoUrl = body.logoUrl || null
+    if (body.logoPosition !== undefined) updateData.logoPosition = body.logoPosition
+    if (body.logoSize !== undefined) updateData.logoSize = body.logoSize
+    if (body.useParentLogo !== undefined) updateData.useParentLogo = body.useParentLogo
+
     const category = await prisma.category.update({
       where: { id: params.id },
       data: updateData

@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { ExternalLink, Trash2, Heart } from 'lucide-react'
+import { ExternalLink, Trash2, Heart, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
@@ -40,6 +40,7 @@ interface PostItCardProps {
   initialHasLiked?: boolean
   currentUserId?: string
   isLarge?: boolean
+  initialViewsCount?: number
 }
 
 const colorClasses: { [key: string]: string } = {
@@ -87,15 +88,30 @@ export function PostItCard({
   initialHasLiked = false,
   currentUserId,
   isLarge,
+  initialViewsCount = 0,
 }: PostItCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [likesCount, setLikesCount] = useState(initialLikesCount)
+  const [viewsCount, setViewsCount] = useState(initialViewsCount)
   const [hasLiked, setHasLiked] = useState(initialHasLiked)
+  const [hasViewed, setHasViewed] = useState(false)
   const [isLiking, setIsLiking] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [transitionEffect, setTransitionEffect] = useState<'flip-left' | 'flip-right' | 'fade'>('flip-left')
 
   const effects: ('flip-left' | 'flip-right' | 'fade')[] = ['flip-left', 'flip-right', 'fade']
+
+  const handleOpenChange = async (open: boolean) => {
+    if (open && !hasViewed) {
+      setHasViewed(true)
+      setViewsCount((prev) => prev + 1)
+      try {
+        await fetch(`/api/postits/${id}/view`, { method: 'POST' })
+      } catch (error) {
+        console.error('View increment error', error)
+      }
+    }
+  }
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -205,7 +221,7 @@ export function PostItCard({
   const motionProps = getMotionProps()
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -291,12 +307,17 @@ export function PostItCard({
               </div>
 
               <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-gray-500">
+                  <Eye className="w-3.5 h-3.5" />
+                  {viewsCount > 0 && <span className="font-medium text-xs font-sans">{viewsCount}</span>}
+                </div>
+
                 <div
                   onClick={handleLike}
-                  className={`flex items-center gap-1 cursor-pointer transition-colors ${hasLiked ? 'text-red-500' : 'hover:text-red-500'}`}
+                  className={`flex items-center gap-1 cursor-pointer transition-colors ml-1 ${hasLiked ? 'text-red-500' : 'hover:text-red-500'}`}
                 >
                   <Heart className={`w-3.5 h-3.5 ${hasLiked ? 'fill-red-500' : ''}`} />
-                  {likesCount > 0 && <span className="font-medium text-xs">{likesCount}</span>}
+                  {likesCount > 0 && <span className="font-medium text-xs font-sans">{likesCount}</span>}
                 </div>
 
                 {canDelete && (

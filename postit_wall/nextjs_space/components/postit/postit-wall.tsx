@@ -26,6 +26,7 @@ interface PostIt {
   PostItImage?: { url: string }[]
   likesCount?: number
   hasLiked?: boolean
+  views?: number
 }
 
 interface PostItWallProps {
@@ -192,6 +193,7 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
               onDelete={handleDelete}
               initialLikesCount={postit.likesCount ?? 0}
               initialHasLiked={postit.hasLiked ?? false}
+              initialViewsCount={postit.views ?? 0}
               currentUserId={currentUserId}
               isLarge={hasImages || isLongText}
             />

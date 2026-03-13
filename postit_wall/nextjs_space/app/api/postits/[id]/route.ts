@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -98,7 +99,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { content, categoryId, color, font, pushpin, link, isApproved, isPublished, expiresInDays, expiresAtDate } = body
+    const { content, categoryId, color, font, pushpin, link, isApproved, isPublished, expiresInDays, expiresAtDate, imageUrl, imageUrls } = body
 
     const updateData: any = {}
     if (content !== undefined) updateData.content = content
@@ -109,6 +110,24 @@ export async function PATCH(
     if (link !== undefined) updateData.link = link
     if (isApproved !== undefined) updateData.isApproved = isApproved
     if (isPublished !== undefined) updateData.isPublished = isPublished
+
+    // Handle image updates
+    if (imageUrls !== undefined && Array.isArray(imageUrls)) {
+      updateData.imageUrl = imageUrls.length > 0 ? imageUrls[0] : null
+      updateData.PostItImage = {
+        deleteMany: {},
+        create: imageUrls.map((url: string) => ({
+          id: randomUUID(),
+          url: url
+        }))
+      }
+    } else if (imageUrl !== undefined) {
+      updateData.imageUrl = imageUrl
+      updateData.PostItImage = {
+        deleteMany: {},
+        create: imageUrl ? [{ id: randomUUID(), url: imageUrl }] : []
+      }
+    }
 
     if (expiresInDays !== undefined) {
       let expiresAt = new Date()
