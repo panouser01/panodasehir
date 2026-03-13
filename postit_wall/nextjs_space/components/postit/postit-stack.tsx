@@ -21,21 +21,23 @@ export function PostItStack({ postits, canDelete, currentUserId }: PostItStackPr
         if (isHovered || isModalOpen) return
 
         let timer: NodeJS.Timeout
-        const intervalTime = 4500
+
+        // Return a randomized interval between 4s and 7.5s for each tick
+        const getNextInterval = () => 4000 + Math.random() * 3500
 
         const tick = () => {
             setCurrentIndex((prev) => (prev + 1) % postits.length)
-            timer = setTimeout(tick, intervalTime)
+            timer = setTimeout(tick, getNextInterval())
         }
 
         if (isInitialMount.current) {
             isInitialMount.current = false
-            // Add a random delay for the first tick so multiple stacks don't sync up perfectly
-            const initialDelay = intervalTime + (Math.random() * 3000)
+            // Add a completely random delay for the very first tick to completely scatter starts
+            const initialDelay = 3000 + Math.random() * 5000
             timer = setTimeout(tick, initialDelay)
         } else {
             // Standard unpausing
-            timer = setTimeout(tick, intervalTime)
+            timer = setTimeout(tick, getNextInterval())
         }
 
         return () => clearTimeout(timer)
