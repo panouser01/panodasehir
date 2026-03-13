@@ -197,6 +197,10 @@ export async function PATCH(
     if (body.logoSize !== undefined) updateData.logoSize = body.logoSize
     if (body.useParentLogo !== undefined) updateData.useParentLogo = body.useParentLogo
 
+    // Layout configuration
+    if (body.useCustomLayout !== undefined) updateData.useCustomLayout = body.useCustomLayout
+    if (body.customLayout !== undefined) updateData.customLayout = body.customLayout
+
     const category = await prisma.category.update({
       where: { id: params.id },
       data: updateData

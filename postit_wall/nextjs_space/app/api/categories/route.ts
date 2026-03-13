@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
       heroGradientFrom, heroGradientVia, heroGradientTo,
       categoryFont, categoryColor, categoryBgColor, ribbonColor,
       logoUrl, logoPosition, logoSize, useParentLogo,
+      useCustomLayout, customLayout,
       calendarEntries // Array of { calendarCategoryId, date, content }
     } = body
 
@@ -256,6 +257,8 @@ export async function POST(request: NextRequest) {
         logoPosition: logoPosition || 'top-right',
         logoSize: logoSize || 'medium',
         useParentLogo: useParentLogo !== undefined ? useParentLogo : false,
+        useCustomLayout: useCustomLayout !== undefined ? useCustomLayout : false,
+        customLayout: customLayout || null
       }
     })
 

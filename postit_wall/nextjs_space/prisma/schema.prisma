@@ -147,6 +147,10 @@ model Category {
   logoSize            String?             @default("medium") // e.g. "small", "medium", "large"
   useParentLogo       Boolean?            @default(false)
 
+  // Layout / Widget Settings
+  useCustomLayout     Boolean?            @default(false)
+  customLayout        Json?
+
   ads                 Ad[]
   city                City?               @relation(fields: [cityId], references: [id])
   district            District?           @relation(fields: [districtId], references: [id])
@@ -310,6 +314,7 @@ model SiteSettings {
   calendarPosition    String?  @default("right")
   calendarShow        Boolean? @default(true)
   calendarSize        String?  @default("medium")
+  calendarPopupBackgroundImage String?
   aboutContent        String?  @db.Text
   contactContent      String?  @db.Text
   cookiesContent      String?  @db.Text

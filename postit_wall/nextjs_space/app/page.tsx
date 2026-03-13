@@ -2,10 +2,13 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { PostItWall } from '@/components/postit/postit-wall'
+import { PostItStack } from '@/components/postit/postit-stack'
 import { ImageSlider } from '@/components/ui/image-slider'
 import { EczanePopup } from '@/components/postit/eczane-popup'
 import { redirect } from 'next/navigation'
 import { ChevronLeft, ListTree, StickyNote } from 'lucide-react'
+import Link from 'next/link'
+import { CalendarPopup } from '@/components/postit/calendar-popup'
 
 export const dynamic = 'force-dynamic'
 
@@ -302,6 +305,66 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const userRole = (session?.user as any)?.role
   const canDelete = userRole === 'SUPER_ADMIN'
 
+  // Fetch Calendar Data
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const todayStr = today.toISOString().split('T')[0];
+
+  const activeCalendarCategories = await prisma.calendarCategory.findMany({
+    where: { isActive: true },
+    orderBy: { order: 'asc' }
+  });
+
+  const calendarDailyData: { categoryName: string; content: string; isWallSpecific?: boolean }[] = [];
+
+  // Global Entries
+  activeCalendarCategories.forEach(cat => {
+    let entries: any[] = [];
+    if (cat.globalEntries) {
+      if (typeof cat.globalEntries === 'string') {
+        try { entries = JSON.parse(cat.globalEntries); } catch (e) { }
+      } else if (Array.isArray(cat.globalEntries)) {
+        entries = cat.globalEntries;
+      }
+    }
+    const todayEntry = entries.find(e => {
+      const eDateStr = e.date ? (typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0]) : '';
+      return eDateStr === todayStr;
+    });
+    if (todayEntry?.content) {
+      calendarDailyData.push({
+        categoryName: cat.name,
+        content: todayEntry.content
+      });
+    }
+  });
+
+  // Wall Specific Entries
+  if (selectedCategory) {
+    const wallEntries = await prisma.wallCalendarEntry.findMany({
+      where: {
+        categoryId: selectedCategory.id,
+        date: {
+          gte: today,
+          lt: tomorrow
+        }
+      },
+      include: {
+        calendarCategory: true
+      }
+    });
+
+    wallEntries.forEach(w => {
+      calendarDailyData.push({
+        categoryName: w.calendarCategory.name,
+        content: w.content,
+        isWallSpecific: true
+      });
+    });
+  }
+
   // Calendar JSX
   const calendarLeaf = (
     <div className="flex flex-col items-center gap-2">
@@ -373,6 +436,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <EczanePopup calendarSize={siteSettings.calendarSize} />
     </div>
   );
+
+  const clickableCalendarLeaf = (
+    <CalendarPopup dailyData={calendarDailyData} backgroundImage={siteSettings.calendarPopupBackgroundImage}>
+      {calendarLeaf}
+    </CalendarPopup>
+  )
 
   // Compute hero background style
   const heroBackground = appearance.isHeroTransparent
@@ -452,7 +521,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       {/* Top Fixed Calendar Section */}
       {siteSettings.calendarShow !== false && siteSettings.calendarPosition?.startsWith('top-') && (
         <div className={`fixed top-4 z-[100] transition-all duration-500 ${siteSettings.calendarPosition === 'top-left' ? 'left-4' : 'right-4'}`}>
-          {calendarLeaf}
+          {clickableCalendarLeaf}
         </div>
       )}
 
@@ -616,6 +685,115 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               {renderLogo('board')}
 
               {(() => {
+                const isCustomLayoutEnabled = categoryId
+                  ? selectedCategory?.useCustomLayout
+                  : (homeWall?.useCustomLayout || siteSettings.useCustomLayout);
+
+                if (isCustomLayoutEnabled) {
+                  const customLayoutStr = categoryId
+                    ? selectedCategory?.customLayout
+                    : (homeWall?.useCustomLayout ? homeWall.customLayout : siteSettings.customLayout);
+                  let customLayout: any[] = [];
+                  try {
+                    customLayout = typeof customLayoutStr === 'string' ? JSON.parse(customLayoutStr) : (customLayoutStr || []);
+                  } catch (e) {
+                    customLayout = [];
+                  }
+
+                  if (customLayout && customLayout.length > 0) {
+                    return (
+                      <div className="flex flex-row flex-wrap gap-x-[2%] gap-y-6 w-full mt-4">
+                        {customLayout.map((block: any, idx: number) => {
+                          let content = null;
+                          let needsCorkFrame = false;
+
+                          if (block.type === 'category_posts') {
+                            const catPostitsRaw = block.categoryId ? postits.filter((p: any) => p.categoryId === block.categoryId) : [];
+                            const catLimit = block.limit || 0;
+                            const catPostits = catLimit > 0 ? catPostitsRaw.slice(0, catLimit) : catPostitsRaw;
+
+                            content = <PostItStack postits={catPostits as any} canDelete={canDelete} currentUserId={currentUserId} />;
+                            needsCorkFrame = !block.noBorder;
+                          } else if (block.type === 'custom_html') {
+                            content = <div dangerouslySetInnerHTML={{ __html: block.htmlContent || '' }} className="w-full h-full p-4" />;
+                          } else if (block.type === 'pharmacy_plugin') {
+                            content = (
+                              <div className="w-full h-[300px] bg-red-500/10 border-2 border-red-500 text-red-700 font-bold text-2xl flex flex-col items-center justify-center rounded-xl p-4 text-center">
+                                ⚕️ Nöbetçi Eczaneler Alanı
+                                <span className="text-sm font-normal mt-2">Bu modül ileride eklenecektir. (Placeholder)</span>
+                              </div>
+                            );
+                          }
+
+                          const blockWidth = block.width || 'full';
+                          let widthClass = 'w-full';
+                          if (blockWidth === 'half') widthClass = 'w-full md:w-[49%]';
+                          if (blockWidth === 'third') widthClass = 'w-full md:w-[32%]';
+                          if (blockWidth === 'twothird') widthClass = 'w-full md:w-[66%]';
+
+                          const currentRibbonColor = block.ribbonColor || appearance.ribbonColor || '#c40000';
+                          const defaultBorderColor = '#8B5A2B';
+                          const dynamicBorderColor = block.borderColor || defaultBorderColor;
+
+                          return (
+                            <div key={idx} className={`${widthClass} flex flex-col mb-4 relative`}>
+                              {/* Customizable Background */}
+                              <div
+                                className="absolute inset-0 z-0 bg-center bg-no-repeat rounded-xl opacity-100 pointer-events-none"
+                                style={{
+                                  backgroundImage: block.backgroundImage ? `url(${block.backgroundImage})` : 'none',
+                                  backgroundSize: '100% 100%'
+                                }}
+                              />
+
+                              {(block.title || block.titleImage) && (
+                                <div className="relative flex justify-center w-full mt-2 mb-0 z-10">
+                                  {block.titleImage ? (
+                                    <Link href={block.categoryId ? `/?category=${block.categoryId}` : '#'} className="relative inline-flex items-center justify-center transform transition-transform duration-300 hover:scale-[1.05] -mt-2 cursor-pointer z-20">
+                                      <img src={block.titleImage} alt={block.title || 'Başlık'} className="max-h-24 w-auto object-contain drop-shadow-lg" />
+                                      {block.title && (
+                                        <h3 className="absolute inset-0 flex items-center justify-center text-lg md:text-2xl font-black tracking-wide text-white px-4 text-center leading-tight" style={{ fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif", textShadow: '0 2px 4px rgba(0,0,0,0.8), 0 -1px 2px rgba(255,255,255,0.4)' }}>
+                                          {block.title}
+                                        </h3>
+                                      )}
+                                    </Link>
+                                  ) : (
+                                    <Link href={block.categoryId ? `/?category=${block.categoryId}` : '#'} className="relative inline-flex items-center justify-center group transform transition-transform duration-300 hover:scale-[1.05] cursor-pointer z-20">
+                                      {/* Ribbon side folds */}
+                                      <div className="absolute top-2 -left-8 w-12 h-full -z-20 drop-shadow-md brightness-[0.65]" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+                                      <div className="absolute top-2 -right-8 w-12 h-full -z-20 drop-shadow-md brightness-[0.65]" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+                                      <div className="absolute -bottom-2 left-0 w-4 h-2 -z-10 brightness-50" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                                      <div className="absolute -bottom-2 right-0 w-4 h-2 -z-10 brightness-50" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+
+                                      <div className="relative px-6 md:px-12 py-2 rounded-sm border-b-4 border-r-[3px] border-black/30 shadow-xl flex items-center gap-2" style={{ backgroundColor: currentRibbonColor }}>
+                                        <h3 className="text-xl md:text-3xl font-black tracking-wide text-white group-hover:text-yellow-200 transition-colors duration-200" style={{ fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif", textShadow: '0 2px 4px rgba(0,0,0,0.4), 0 -1px 1px rgba(255,255,255,0.2)' }}>
+                                          {block.title}
+                                        </h3>
+                                      </div>
+                                    </Link>
+                                  )}
+                                </div>
+                              )}
+
+                              <div
+                                className={`relative flex overflow-hidden transition-all duration-300 ${needsCorkFrame ? 'border-[12px] bg-[#E8DCC4] shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1`}
+                                style={needsCorkFrame ? { borderColor: dynamicBorderColor } : {}}
+                              >
+                                {needsCorkFrame && (
+                                  <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
+                                )}
+                                <div className="relative z-10 w-full p-2 h-full flex flex-col items-center">
+                                  {content}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+                } // End Custom Layout Logic
+
                 let wallSettingsIds = categoryId
                   ? (selectedCategory?.homeCategoryIds || [])
                   : (siteSettings.homeCategoryIds || []);
@@ -792,7 +970,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           {siteSettings.calendarShow !== false && (siteSettings.calendarPosition === 'left' || siteSettings.calendarPosition === 'right' || !siteSettings.calendarPosition) && (
             <aside className={`${siteSettings.calendarSize === 'large' ? 'lg:w-40' : siteSettings.calendarSize === 'small' ? 'lg:w-24' : 'lg:w-32'} flex flex-col items-center ${siteSettings.calendarPosition === 'left' ? 'lg:items-end' : 'lg:items-start'}`}>
               <div className="sticky top-8">
-                {calendarLeaf}
+                {clickableCalendarLeaf}
               </div>
             </aside>
           )}

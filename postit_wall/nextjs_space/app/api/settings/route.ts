@@ -79,6 +79,7 @@ export async function PATCH(request: NextRequest) {
         if (data.calendarSize !== undefined) updateData.calendarSize = data.calendarSize
         if (data.calendarPosition !== undefined) updateData.calendarPosition = data.calendarPosition
         if (data.calendarColor !== undefined) updateData.calendarColor = data.calendarColor
+        if (data.calendarPopupBackgroundImage !== undefined) updateData.calendarPopupBackgroundImage = data.calendarPopupBackgroundImage
         if (data.aboutContent !== undefined) updateData.aboutContent = data.aboutContent
         if (data.contactContent !== undefined) updateData.contactContent = data.contactContent
         if (data.termsContent !== undefined) updateData.termsContent = data.termsContent

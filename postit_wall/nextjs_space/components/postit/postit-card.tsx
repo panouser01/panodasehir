@@ -41,6 +41,7 @@ interface PostItCardProps {
   currentUserId?: string
   isLarge?: boolean
   initialViewsCount?: number
+  onInteraction?: (isOpen: boolean) => void
 }
 
 const colorClasses: { [key: string]: string } = {
@@ -89,6 +90,7 @@ export function PostItCard({
   currentUserId,
   isLarge,
   initialViewsCount = 0,
+  onInteraction,
 }: PostItCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [likesCount, setLikesCount] = useState(initialLikesCount)
@@ -102,6 +104,7 @@ export function PostItCard({
   const effects: ('flip-left' | 'flip-right' | 'fade')[] = ['flip-left', 'flip-right', 'fade']
 
   const handleOpenChange = async (open: boolean) => {
+    onInteraction?.(open)
     if (open && !hasViewed) {
       setHasViewed(true)
       setViewsCount((prev) => prev + 1)

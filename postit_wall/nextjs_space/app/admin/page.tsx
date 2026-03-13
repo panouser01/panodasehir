@@ -130,11 +130,14 @@ export default function AdminPage() {
     calendarEntries: [] as any[],
     homeCategoryIds: [] as string[],
     postitLimit: 0,
-    logoUrl: '', logoPosition: 'top-right', logoSize: 'medium', useParentLogo: false
+    logoUrl: '', logoPosition: 'top-right', logoSize: 'medium', useParentLogo: false,
+    useCustomLayout: false, customLayout: [] as any[]
   })
   const [postitForm, setPostitForm] = useState({ content: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] })
   const [uploadingPostitImage, setUploadingPostitImage] = useState(false)
   const [uploadingWallLogo, setUploadingWallLogo] = useState(false)
+  const [uploadingBlockImage, setUploadingBlockImage] = useState<string | null>(null)
+  const [uploadingTitleImage, setUploadingTitleImage] = useState<string | null>(null)
   const [roleForm, setRoleForm] = useState({ name: '', description: '' })
   const [sliderForm, setSliderForm] = useState({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, isTransparent: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isActive: true })
   const [userGroupForm, setUserGroupForm] = useState({ name: '', description: '' })
@@ -215,6 +218,7 @@ export default function AdminPage() {
     calendarSize: 'medium',
     calendarPosition: 'right',
     calendarColor: '#dc2626',
+    calendarPopupBackgroundImage: '',
     ribbonColor: '#502bb1',
     aboutContent: '',
     contactContent: '',
@@ -238,6 +242,7 @@ export default function AdminPage() {
   const [uploadingSiteImage, setUploadingSiteImage] = useState(false)
   const [uploadingSiteHeroImage, setUploadingSiteHeroImage] = useState(false)
   const [uploadingSiteBackgroundImage, setUploadingSiteBackgroundImage] = useState(false)
+  const [uploadingCalendarPopupImage, setUploadingCalendarPopupImage] = useState(false)
   const [uploadingAppearanceImage, setUploadingAppearanceImage] = useState(false)
 
   useEffect(() => {
@@ -462,7 +467,9 @@ export default function AdminPage() {
         logoUrl: wallForm.logoUrl,
         logoPosition: wallForm.logoPosition,
         logoSize: wallForm.logoSize,
-        useParentLogo: wallForm.useParentLogo
+        useParentLogo: wallForm.useParentLogo,
+        useCustomLayout: wallForm.useCustomLayout,
+        customLayout: wallForm.customLayout
       }
 
       // Add selected posts to move if creating new subcategory
@@ -935,7 +942,9 @@ export default function AdminPage() {
       logoUrl: wall.logoUrl || '',
       logoPosition: wall.logoPosition || 'top-right',
       logoSize: wall.logoSize || 'medium',
-      useParentLogo: !!wall.useParentLogo
+      useParentLogo: wall.useParentLogo || false,
+      useCustomLayout: wall.useCustomLayout || false,
+      customLayout: Array.isArray(wall.customLayout) ? wall.customLayout : (typeof wall.customLayout === 'string' ? (() => { try { return JSON.parse(wall.customLayout) || [] } catch (e) { return [] } })() : [])
     })
 
     // Slayder ayarlarını yükle
@@ -1028,7 +1037,9 @@ export default function AdminPage() {
       logoUrl: '',
       logoPosition: 'top-right',
       logoSize: 'medium',
-      useParentLogo: false
+      useParentLogo: false,
+      useCustomLayout: false,
+      customLayout: []
     })
     setSliderForm({
       categoryId: '',
@@ -1140,7 +1151,9 @@ export default function AdminPage() {
       logoUrl: '',
       logoPosition: 'top-right',
       logoSize: 'medium',
-      useParentLogo: false
+      useParentLogo: false,
+      useCustomLayout: false,
+      customLayout: []
     })
     setSliderForm({
       categoryId: '',
@@ -1429,6 +1442,40 @@ export default function AdminPage() {
     }
   }
 
+  const handleCalendarPopupImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+      return
+    }
+
+    setUploadingCalendarPopupImage(true)
+    try {
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const response = await fetch('/api/upload/local', {
+        method: 'POST',
+        body: uploadFormData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Dosya yüklenemedi')
+      }
+
+      const { fileUrl } = await response.json()
+      setSiteSettings({ ...siteSettings, calendarPopupBackgroundImage: fileUrl })
+      toast.success('Takvim pop-up resmi yüklendi')
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Resim yüklenirken hata oluştu')
+    } finally {
+      setUploadingCalendarPopupImage(false)
+    }
+  }
+
   const handleSiteHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -1494,6 +1541,86 @@ export default function AdminPage() {
       toast.error('Logo yüklenirken hata oluştu')
     } finally {
       setUploadingWallLogo(false)
+    }
+  }
+
+  const handleBlockImageUpload = async (blockIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+      return
+    }
+
+    const blockId = wallForm.customLayout[blockIndex]?.id;
+    if (!blockId) return;
+
+    setUploadingBlockImage(blockId)
+    try {
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const response = await fetch('/api/upload/local', {
+        method: 'POST',
+        body: uploadFormData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Dosya yüklenemedi')
+      }
+
+      const { fileUrl } = await response.json()
+
+      const newLayout = [...wallForm.customLayout];
+      newLayout[blockIndex] = { ...newLayout[blockIndex], backgroundImage: fileUrl };
+      setWallForm({ ...wallForm, customLayout: newLayout });
+
+      toast.success('Bölüm arkaplanı yüklendi')
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Arkaplan yüklenirken hata oluştu')
+    } finally {
+      setUploadingBlockImage(null)
+    }
+  }
+
+  const handleTitleImageUpload = async (blockIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+      return
+    }
+
+    const blockId = wallForm.customLayout[blockIndex]?.id || String(blockIndex);
+    setUploadingTitleImage(blockId)
+    try {
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const response = await fetch('/api/upload/local', {
+        method: 'POST',
+        body: uploadFormData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Dosya yüklenemedi')
+      }
+
+      const { fileUrl } = await response.json()
+
+      const newLayout = [...wallForm.customLayout];
+      newLayout[blockIndex] = { ...newLayout[blockIndex], titleImage: fileUrl };
+      setWallForm({ ...wallForm, customLayout: newLayout });
+
+      toast.success('Başlık resmi yüklendi')
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Başlık resmi yüklenirken hata oluştu')
+    } finally {
+      setUploadingTitleImage(null)
     }
   }
 
@@ -3691,6 +3818,28 @@ export default function AdminPage() {
                                 onChange={e => setSiteSettings(s => ({ ...s, calendarColor: e.target.value }))}
                               />
                             </div>
+                            <div className="space-y-2 mt-4">
+                              <Label className="text-xs font-semibold flex justify-between">
+                                Takvim Pop-up Zemin Resmi
+                                {siteSettings.calendarPopupBackgroundImage && (
+                                  <button onClick={() => setSiteSettings(s => ({ ...s, calendarPopupBackgroundImage: '' }))} className="text-red-500 text-[10px]">Temizle</button>
+                                )}
+                              </Label>
+                              <div className="flex gap-2 items-center">
+                                <div className="w-16 h-10 bg-gray-100 rounded border overflow-hidden relative flex items-center justify-center">
+                                  {siteSettings.calendarPopupBackgroundImage ? (
+                                    <img src={siteSettings.calendarPopupBackgroundImage} className="w-full h-full object-cover" />
+                                  ) : <ImageIcon className="w-4 h-4 text-gray-400" />}
+                                  {uploadingCalendarPopupImage && <div className="absolute inset-0 bg-white/50 flex items-center justify-center"><Loader2 className="w-3 h-3 animate-spin" /></div>}
+                                </div>
+                                <Input
+                                  type="file"
+                                  accept="image/*"
+                                  className="flex-1 text-xs"
+                                  onChange={handleCalendarPopupImageUpload}
+                                />
+                              </div>
+                            </div>
                           </div>
                         </>
                       )}
@@ -5461,8 +5610,8 @@ export default function AdminPage() {
           </DialogHeader>
           <div className="py-4">
             <Tabs defaultValue="general" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 mb-6">
-                <TabsTrigger value="general" className="flex items-center gap-2">
+              <TabsList className="flex flex-wrap gap-2 w-full mb-6 bg-slate-100/50 p-1.5 rounded-lg justify-start h-auto">
+                <TabsTrigger value="general" className="flex items-center gap-2 flex-grow sm:flex-grow-0">
                   <Info className="w-4 h-4" /> Genel Bilgiler
                 </TabsTrigger>
                 <TabsTrigger value="appearance" className="flex items-center gap-2">
@@ -5477,8 +5626,11 @@ export default function AdminPage() {
                 <TabsTrigger value="logo" className="flex items-center gap-2">
                   <ImageIcon className="w-4 h-4" /> Logo Ayarları
                 </TabsTrigger>
-                <TabsTrigger value="homeCategories" className="flex items-center gap-2">
+                <TabsTrigger value="homeCategories" className="flex items-center gap-2 flex-grow sm:flex-grow-0">
                   <ListTree className="w-4 h-4" /> Kategori Düzenle
+                </TabsTrigger>
+                <TabsTrigger value="layout" className="flex items-center gap-2 flex-grow sm:flex-grow-0">
+                  <LayoutGrid className="w-4 h-4" /> Pano Düzeni
                 </TabsTrigger>
               </TabsList>
 
@@ -6117,6 +6269,409 @@ export default function AdminPage() {
                       Kategori Düzenini Kaydet
                     </Button>
                   </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="layout" className="space-y-4 pt-2">
+                <div className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-1">
+                      <LayoutGrid className="w-5 h-5 text-indigo-500" /> Pano Yerleşimi (Gelişmiş)
+                    </h3>
+                    <p className="text-sm text-gray-500">Mantar panonun içerisindeki klasik post-it listeleme düzenini iptal edip, özel Widget kutularıyla (Örn: Nöbetçi Eczaneler, Haberler, Etkinlikler) yeni nesil bir modüler pano görünümü oluşturabilirsiniz.</p>
+                  </div>
+
+                  <div className="flex items-center space-x-2 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                    <Checkbox
+                      id="useCustomLayout"
+                      checked={wallForm.useCustomLayout}
+                      onCheckedChange={(checked) => setWallForm(s => ({ ...s, useCustomLayout: !!checked }))}
+                    />
+                    <Label htmlFor="useCustomLayout" className="cursor-pointer font-bold text-indigo-700 block">Özel Pano Yerleşimi Kullan (Beta)</Label>
+                  </div>
+
+                  {wallForm.useCustomLayout && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mt-4 border-t pt-4">
+                        <Label className="text-sm font-semibold text-gray-700">Pano Blokları (Widgetlar)</Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setWallForm(s => ({
+                              ...s,
+                              customLayout: [...(s.customLayout || []), { id: Math.random().toString(36).substr(2, 9), type: 'category_posts', title: 'Yeni Blok', ribbonColor: '#502bb1', width: 'full', categoryId: '' }]
+                            }))
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-1" /> Blok Ekle
+                        </Button>
+                      </div>
+
+                      {(!wallForm.customLayout || wallForm.customLayout.length === 0) ? (
+                        <div className="p-8 text-center text-gray-500 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl">
+                          Henüz hiçbir blok eklemediniz. İlan panosunun düzenini dizebilmek için "Blok Ekle" butonuna tıklayarak tasarıma başlayın.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {wallForm.customLayout.map((block: any, index: number) => (
+                            <div key={block.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50/80 relative group shadow-sm">
+                              <div className="absolute top-2 right-2 flex gap-1 z-10">
+                                <Button
+                                  type="button" variant="ghost" size="icon" className="h-7 w-7 text-gray-500 bg-white shadow-sm border" disabled={index === 0}
+                                  onClick={() => {
+                                    const newLayout = [...wallForm.customLayout];
+                                    const temp = newLayout[index - 1]; newLayout[index - 1] = newLayout[index]; newLayout[index] = temp;
+                                    setWallForm({ ...wallForm, customLayout: newLayout });
+                                  }}
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  type="button" variant="ghost" size="icon" className="h-7 w-7 text-gray-500 bg-white shadow-sm border" disabled={index === wallForm.customLayout.length - 1}
+                                  onClick={() => {
+                                    const newLayout = [...wallForm.customLayout];
+                                    const temp = newLayout[index + 1]; newLayout[index + 1] = newLayout[index]; newLayout[index] = temp;
+                                    setWallForm({ ...wallForm, customLayout: newLayout });
+                                  }}
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-600 bg-red-50 border border-red-100 hover:bg-red-100"
+                                  onClick={() => {
+                                    setWallForm(s => ({ ...s, customLayout: s.customLayout.filter((b: any) => b.id !== block.id) }))
+                                  }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-1">
+                                <div className="space-y-1">
+                                  <Label className="text-xs font-semibold">Blok Tipi</Label>
+                                  <Select
+                                    value={block.type}
+                                    onValueChange={(val) => {
+                                      const newLayout = [...wallForm.customLayout];
+                                      newLayout[index].type = val;
+                                      setWallForm({ ...wallForm, customLayout: newLayout });
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="category_posts">Dinamik Kategori Listesi</SelectItem>
+                                      <SelectItem value="pharmacy_plugin">Nöbetçi Eczaneler Panosu (Akıllı)</SelectItem>
+                                      <SelectItem value="custom_html">Özel Görsel / HTML Kutu</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs font-semibold">Özel Kurdele Başlığı</Label>
+                                  <Input
+                                    className="h-8 text-xs bg-white"
+                                    placeholder="Örn: Önemli Duyurular"
+                                    value={block.title || ''}
+                                    onChange={(e) => {
+                                      const newLayout = [...wallForm.customLayout];
+                                      newLayout[index].title = e.target.value;
+                                      setWallForm({ ...wallForm, customLayout: newLayout });
+                                    }}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs font-semibold">Kurdele Rengi</Label>
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="color"
+                                      className="w-8 h-8 rounded shrink-0 p-0 border cursor-pointer"
+                                      value={block.ribbonColor || '#000000'}
+                                      onChange={(e) => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].ribbonColor = e.target.value;
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }}
+                                    />
+                                    <Input
+                                      className="h-8 text-xs font-mono bg-white flex-1"
+                                      value={block.ribbonColor || ''}
+                                      onChange={(e) => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].ribbonColor = e.target.value;
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs font-semibold flex items-center justify-between">
+                                    <span>Veya Başlık Resmi</span>
+                                    {block.titleImage && (
+                                      <button type="button" onClick={() => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].titleImage = '';
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }} className="text-red-500 hover:text-red-700 text-[10px]">Temizle</button>
+                                    )}
+                                  </Label>
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative overflow-hidden rounded border border-gray-200 bg-white h-8 w-12 flex items-center justify-center shrink-0">
+                                      {block.titleImage ? (
+                                        <img src={block.titleImage} alt="Başlık Resmi" className="w-full h-full object-contain" />
+                                      ) : (
+                                        <ImageIcon className="w-4 h-4 text-gray-300" />
+                                      )}
+                                      {uploadingTitleImage === (block.id || String(index)) && (
+                                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                                          <Loader2 className="w-3 h-3 animate-spin text-indigo-600" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1">
+                                      <Input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp,image/gif"
+                                        className="h-8 text-xs bg-white text-gray-500 cursor-pointer file:cursor-pointer file:h-full file:bg-gray-100 file:border-0 file:text-gray-700 file:font-semibold file:text-xs hover:file:bg-gray-200"
+                                        onChange={(e) => handleTitleImageUpload(index, e)}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs font-semibold">Genişlik (Dizilim Kapsamı)</Label>
+                                  <Select
+                                    value={block.width}
+                                    onValueChange={(val) => {
+                                      const newLayout = [...wallForm.customLayout];
+                                      newLayout[index].width = val;
+                                      setWallForm({ ...wallForm, customLayout: newLayout });
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="full">Tam Genişlik (Büyük Blok)</SelectItem>
+                                      <SelectItem value="half">Yarım Genişlik (1/2 Kutucuk)</SelectItem>
+                                      <SelectItem value="third">Üçte Bir Genişlik (1/3 Kutucuk)</SelectItem>
+                                      <SelectItem value="twothird">Üçte İki Genişlik (2/3 Kutucuk)</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                  <Label className="text-xs font-semibold flex items-center justify-between">
+                                    <span>Zemin Resmi / Deseni (Arkaplan)</span>
+                                    {block.backgroundImage && (
+                                      <button type="button" onClick={() => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].backgroundImage = '';
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }} className="text-red-500 hover:text-red-700 text-[10px]">Temizle</button>
+                                    )}
+                                  </Label>
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative overflow-hidden rounded border border-gray-200 bg-white h-8 w-12 flex items-center justify-center shrink-0">
+                                      {block.backgroundImage ? (
+                                        <img src={block.backgroundImage} alt="Zemin" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <ImageIcon className="w-4 h-4 text-gray-300" />
+                                      )}
+                                      {uploadingBlockImage === block.id && (
+                                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                                          <Loader2 className="w-3 h-3 animate-spin text-indigo-600" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1">
+                                      <Input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp,image/gif"
+                                        className="h-8 text-xs bg-white text-gray-500 cursor-pointer file:cursor-pointer file:h-full file:bg-gray-100 file:border-0 file:text-gray-700 file:font-semibold file:text-xs hover:file:bg-gray-200"
+                                        onChange={(e) => handleBlockImageUpload(index, e)}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1 flex flex-col justify-center">
+                                  <Label className="text-xs font-semibold flex items-center gap-2 cursor-pointer mt-5">
+                                    <input
+                                      type="checkbox"
+                                      className="rounded border-gray-300"
+                                      checked={!!block.noBorder}
+                                      onChange={(e) => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].noBorder = e.target.checked;
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }}
+                                    />
+                                    Mantar Çerçeveyi Gizle
+                                  </Label>
+                                </div>
+                                {!block.noBorder && (
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-semibold">Çerçeve (Mantar) Rengi</Label>
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="color"
+                                        className="w-8 h-8 rounded shrink-0 p-0 border cursor-pointer"
+                                        value={block.borderColor || '#8B5A2B'}
+                                        onChange={(e) => {
+                                          const newLayout = [...wallForm.customLayout];
+                                          newLayout[index].borderColor = e.target.value;
+                                          setWallForm({ ...wallForm, customLayout: newLayout });
+                                        }}
+                                      />
+                                      <Input
+                                        className="h-8 text-xs font-mono bg-white flex-1"
+                                        value={block.borderColor || ''}
+                                        placeholder="#8B5A2B"
+                                        onChange={(e) => {
+                                          const newLayout = [...wallForm.customLayout];
+                                          newLayout[index].borderColor = e.target.value;
+                                          setWallForm({ ...wallForm, customLayout: newLayout });
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Type Specific Fields */}
+                              {block.type === 'category_posts' && (
+                                <div className="mt-3 space-y-1 p-3 bg-indigo-50/50 rounded border border-indigo-100">
+                                  <Label className="text-xs text-indigo-700 font-bold flex items-center gap-1">
+                                    <ListTree className="w-3 h-3" /> Veri Kaynağı (Gösterilecek Duvar Kategorisi)
+                                  </Label>
+                                  <div className="flex flex-col sm:flex-row gap-2">
+                                    <Select
+                                      value={block.categoryId || undefined}
+                                      onValueChange={(val) => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].categoryId = val;
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-8 text-xs bg-white mt-1 flex-1"><SelectValue placeholder="İlanların Çekileceği Kategoriyi Konumlandırın" /></SelectTrigger>
+                                      <SelectContent>
+                                        {walls.map((w: any) => (
+                                          <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Input
+                                      type="number"
+                                      placeholder="Sayı"
+                                      className="h-8 text-xs bg-white mt-1 w-full sm:w-24 border-indigo-200"
+                                      title="Gösterilecek Not Sayısı"
+                                      value={block.limit || 3}
+                                      onChange={(e) => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].limit = parseInt(e.target.value) || undefined;
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              {block.type === 'custom_html' && (
+                                <div className="mt-3 space-y-1 p-3 bg-slate-50 border rounded">
+                                  <Label className="text-xs text-slate-700 font-bold block mb-1">
+                                    Dış Görsel / Özel İçerik (Kodu buraya yapıştırın veya HTML formatında görsel linki girin)
+                                  </Label>
+                                  <Textarea
+                                    rows={3}
+                                    className="text-xs font-mono bg-white shadow-inner"
+                                    placeholder='<a href="/hedef"><img src="https://gorsel.com/ilan.jpg" className="w-full rounded" /></a>'
+                                    value={block.htmlContent || ''}
+                                    onChange={(e) => {
+                                      const newLayout = [...wallForm.customLayout];
+                                      newLayout[index].htmlContent = e.target.value;
+                                      setWallForm({ ...wallForm, customLayout: newLayout });
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Live Preview Area */}
+                      {wallForm.customLayout && wallForm.customLayout.length > 0 && (
+                        <div className="mt-8 pt-6 border-t border-gray-100">
+                          <Label className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-4">
+                            <Eye className="w-4 h-4 text-indigo-500" /> Şablon Canlı Önizleme (Temsili)
+                          </Label>
+                          <div
+                            className="w-full bg-[#e8cda3] rounded-xl border-[6px] border-[#a06830] p-4 flex flex-wrap gap-4 relative shadow-inner"
+                          >
+                            {wallForm.customLayout.map((block: any, i: number) => {
+                              const widthClass = block.width === 'full' ? 'w-full' :
+                                block.width === 'half' ? 'w-[calc(50%-0.5rem)]' :
+                                  block.width === 'third' ? 'w-[calc(33.333%-0.66rem)]' :
+                                    block.width === 'twothird' ? 'w-[calc(66.666%-0.66rem)]' : 'w-full';
+
+                              return (
+                                <div
+                                  key={block.id || i}
+                                  className={`${widthClass} bg-white/90 flex flex-col items-center justify-center p-4 min-h-[140px] relative shadow-sm overflow-hidden`}
+                                  style={{
+                                    backgroundImage: block.backgroundImage ? `url(${block.backgroundImage})` : 'none',
+                                    backgroundSize: '100% 100%',
+                                    backgroundPosition: 'center',
+                                    borderColor: !block.noBorder ? (block.borderColor || '#8B5A2B') : 'transparent',
+                                    borderWidth: !block.noBorder ? '6px' : '0px',
+                                    borderStyle: !block.noBorder ? 'solid' : 'none',
+                                    borderRadius: '0.5rem'
+                                  }}
+                                >
+                                  {/* Mock Ribbon */}
+                                  {/* Mock Ribbon / Title Image */}
+                                  {(block.title || block.titleImage) && (
+                                    <div className="absolute top-0 transform -translate-y-[20%] z-20 w-fit drop-shadow-md">
+                                      {block.titleImage ? (
+                                        <div className="relative inline-flex items-center justify-center">
+                                          <img src={block.titleImage} alt="Title" className="h-12 w-auto object-contain" />
+                                          {block.title && (
+                                            <h3 className="absolute inset-0 flex items-center justify-center text-xs md:text-sm font-black tracking-wide text-white px-2 text-center" style={{ fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif", textShadow: '0 2px 4px rgba(0,0,0,0.8), 0 -1px 1px rgba(255,255,255,0.4)' }}>
+                                              {block.title}
+                                            </h3>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="px-6 py-1 rounded-sm border-b-4 border-r-[3px] border-black/30 flex items-center gap-2 shadow-xl whitespace-nowrap" style={{ backgroundColor: block.ribbonColor || '#c40000' }}>
+                                          <h3 className="text-lg md:text-xl font-black tracking-wide text-white" style={{ fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif", textShadow: '0 2px 4px rgba(0,0,0,0.4), 0 -1px 1px rgba(255,255,255,0.2)' }}>
+                                            {block.title || 'Başlıksız Blok'}
+                                          </h3>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  <div className={`mt-2 text-center z-10 ${block.backgroundImage ? 'bg-white/80 p-2 rounded backdrop-blur-sm' : ''}`}>
+                                    <div className="text-gray-800 font-semibold text-sm">
+                                      {block.type === 'category_posts' ? 'Kategori İlanları' :
+                                        block.type === 'pharmacy_plugin' ? 'Nöbetçi Eczaneler' : 'Özel Görsel/Kod'}
+                                    </div>
+                                    <div className="text-gray-500 text-[10px] mt-1 font-mono">
+                                      {block.width === 'full' ? 'Tam Genişlik (1/1)' :
+                                        block.width === 'half' ? 'Yarım Genişlik (1/2)' :
+                                          block.width === 'third' ? 'Üçte Bir Genişlik (1/3)' : 'İkili Genişlik (2/3)'}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
