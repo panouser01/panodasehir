@@ -594,18 +594,21 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             {/* Sub-walls Marquee */}
             {(() => {
               const items = (selectedCategory ? selectedCategory.children : allCategories) || [];
-              let orderedIds = selectedCategory
-                ? (selectedCategory.homeCategoryIds || [])
-                : (siteSettings.homeCategoryIds || []);
-              if (typeof orderedIds === 'string') { try { orderedIds = JSON.parse(orderedIds); } catch (e) { orderedIds = []; } }
-              if (!Array.isArray(orderedIds)) orderedIds = [];
-
               let displayItems = items.filter((c: any) => c.name !== 'Ana Duvar');
-              if (orderedIds && orderedIds.length > 0) {
-                displayItems = orderedIds
-                  .map((id: string) => categories.find((c: any) => c.id === id))
-                  .filter(Boolean)
-                  .filter((c: any) => c.name !== 'Ana Duvar');
+
+              // Ana sayfa için TÜM ana kategorileri göster (orderedIds'yi yok say). 
+              // Sadece alt sayfalardayken (selectedCategory varsa) özel sıralamayı dikkate al.
+              if (selectedCategory) {
+                let orderedIds = selectedCategory.homeCategoryIds || [];
+                if (typeof orderedIds === 'string') { try { orderedIds = JSON.parse(orderedIds); } catch (e) { orderedIds = []; } }
+                if (!Array.isArray(orderedIds)) orderedIds = [];
+
+                if (orderedIds && orderedIds.length > 0) {
+                  displayItems = orderedIds
+                    .map((id: string) => categories.find((c: any) => c.id === id))
+                    .filter(Boolean)
+                    .filter((c: any) => c.name !== 'Ana Duvar');
+                }
               }
 
               if (displayItems.length === 0) return null;
