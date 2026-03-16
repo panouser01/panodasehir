@@ -82,11 +82,12 @@ import {
   ListTree,
   ArrowUp,
   ArrowDown,
+  Megaphone,
 } from 'lucide-react'
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
 
-type ActiveSection = 'dashboard' | 'users' | 'postits' | 'walls' | 'roles' | 'groups' | 'sliders' | 'locations' | 'settings' | 'calendar' | 'about' | 'contact' | 'terms' | 'privacy' | 'cookies' | 'help' | 'kvkk' | 'popularCategories' | 'discover' | 'socialMedia'
+type ActiveSection = 'dashboard' | 'users' | 'postits' | 'walls' | 'roles' | 'groups' | 'sliders' | 'locations' | 'settings' | 'calendar' | 'about' | 'contact' | 'terms' | 'privacy' | 'cookies' | 'help' | 'kvkk' | 'popularCategories' | 'discover' | 'socialMedia' | 'ads'
 
 export default function AdminPage() {
   const { data: session, status } = useSession() || {}
@@ -141,6 +142,9 @@ export default function AdminPage() {
   const [roleForm, setRoleForm] = useState({ name: '', description: '' })
   const [sliderForm, setSliderForm] = useState({ categoryId: '', images: ['', '', '', '', ''], links: ['', '', '', '', ''], backgroundColor: '#f8f9fa', backgroundImage: '', isGradient: false, isTransparent: false, heroGradientFrom: '#facc15', heroGradientVia: '#f472b6', heroGradientTo: '#a855f7', isActive: true })
   const [userGroupForm, setUserGroupForm] = useState({ name: '', description: '' })
+  const [ads, setAds] = useState<any[]>([])
+  const [showAdModal, setShowAdModal] = useState(false)
+  const [adForm, setAdForm] = useState({ title: '', imageUrl: '', link: '', positions: ['NATIVE'], categoryId: '', isActive: true, startDate: '', endDate: '' })
 
   // Postit search and filter states
   const [postitSearch, setPostitSearch] = useState('')
@@ -259,6 +263,15 @@ export default function AdminPage() {
         return
       }
       loadData()
+      
+      // Auto-Cleanup: Run background job to delete unreferenced/orphaned images
+      if (role === 'SUPER_ADMIN') {
+        fetch('/api/system/cleanup', { method: 'POST' })
+          .then(res => res.json())
+          .then(res => { if (res.deleted > 0) console.log(`[Auto-Cleanup] Temizlenen resim sayısı: ${res.deleted}`) })
+          .catch(err => console.error('Cleanup failed:', err))
+      }
+      
       dataLoaded.current = true
     }
   }, [status, session, router])
@@ -266,7 +279,7 @@ export default function AdminPage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [usersRes, postitsRes, wallsRes, rolesRes, slidersRes, locationsRes, settingsRes, calendarRes] = await Promise.all([
+      const [usersRes, postitsRes, wallsRes, rolesRes, slidersRes, locationsRes, settingsRes, calendarRes, adsRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/postits?includeUnapproved=true'),
         fetch('/api/categories'),
@@ -274,7 +287,8 @@ export default function AdminPage() {
         fetch('/api/sliders'),
         fetch('/api/locations'),
         fetch('/api/settings'),
-        fetch('/api/calendar-categories')
+        fetch('/api/calendar-categories'),
+        fetch('/api/ads?all=true')
       ])
 
       if (!usersRes.ok) console.error('Users fetch failed', usersRes.status)
@@ -283,6 +297,7 @@ export default function AdminPage() {
       if (!locationsRes.ok) console.error('Locations fetch failed', locationsRes.status)
       if (!settingsRes.ok) console.error('Settings fetch failed', settingsRes.status)
       if (!calendarRes.ok) console.error('Calendar categories fetch failed', calendarRes.status)
+      if (!adsRes.ok) console.error('Ads fetch failed', adsRes.status)
 
       const usersData = await usersRes.json()
       const postitsData = await postitsRes.json()
@@ -292,6 +307,7 @@ export default function AdminPage() {
       const locationsData = await locationsRes.json()
       const settingsData = await settingsRes.json()
       const calendarCategoriesData = await calendarRes.json()
+      const adsData = await adsRes.json()
 
       // Log roles data to debug
       console.log('Roles Data:', rolesData)
@@ -340,6 +356,7 @@ export default function AdminPage() {
       setCities(locationsData?.cities ?? [])
       setDistricts(locationsData?.districts ?? [])
       setCalendarCategories(calendarCategoriesData ?? [])
+      setAds(adsData?.ads ?? [])
 
       try {
         const groupsRes = await fetch('/api/user-groups')
@@ -582,6 +599,85 @@ export default function AdminPage() {
     } catch (error: any) {
       toast.error(error.message || 'Duvar silinemedi')
     }
+  }
+
+  // Ad operations
+  const handleSaveAd = async () => {
+    try {
+      if (!adForm.title || !adForm.imageUrl || !adForm.link || !adForm.positions || adForm.positions.length === 0) {
+        toast.error('Lütfen zorunlu alanları (Başlık, Resim URL, Link, En az 1 Pozisyon) doldurun')
+        return
+      }
+      
+      const payload = { ...adForm }
+      if (!payload.categoryId) delete (payload as any).categoryId
+
+      const method = editingItem ? 'PUT' : 'POST'
+      const url = editingItem ? `/api/ads/${editingItem.id}` : '/api/ads'
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'İşlem başarısız')
+      }
+
+      toast.success(editingItem ? 'Reklam güncellendi' : 'Reklam oluşturuldu')
+      setShowAdModal(false)
+      loadData()
+    } catch (error: any) {
+      toast.error(error.message || 'Reklam kaydedilirken hata oluştu')
+    }
+  }
+
+  const handleDeleteAd = async (id: string) => {
+    if (!confirm('Bu reklamı silmek istediğinizden emin misiniz?')) return
+    try {
+      const response = await fetch(`/api/ads/${id}`, { method: 'DELETE' })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Silme başarısız')
+      }
+      toast.success('Reklam silindi')
+      loadData()
+    } catch (error: any) {
+      toast.error(error.message || 'Reklam silinemedi')
+    }
+  }
+
+  const openAdModal = (ad?: any) => {
+    if (ad) {
+      setEditingItem(ad)
+      
+      // Parse positions if they come back as string (depending on prisma json output format)
+      let parsedPositions = ['NATIVE']
+      if (ad.positions) {
+        if (Array.isArray(ad.positions)) {
+          parsedPositions = ad.positions
+        } else if (typeof ad.positions === 'string') {
+          try { parsedPositions = JSON.parse(ad.positions) } catch(e) {}
+        }
+      }
+
+      setAdForm({
+        title: ad.title || '',
+        imageUrl: ad.imageUrl || '',
+        link: ad.link || '',
+        positions: parsedPositions,
+        categoryId: ad.categoryId || '',
+        isActive: ad.isActive ?? true,
+        startDate: ad.startDate ? new Date(ad.startDate).toISOString().slice(0, 16) : '',
+        endDate: ad.endDate ? new Date(ad.endDate).toISOString().slice(0, 16) : ''
+      })
+    } else {
+      setEditingItem(null)
+      setAdForm({ title: '', imageUrl: '', link: '', positions: ['NATIVE'], categoryId: '', isActive: true, startDate: '', endDate: '' })
+    }
+    setShowAdModal(true)
   }
 
   // Post-it operations
@@ -1845,10 +1941,11 @@ export default function AdminPage() {
     { id: 'roles', label: 'Yetki Türü Tanımla', icon: Shield },
     { id: 'groups', label: 'Kullanıcı Grupları', icon: UserGroupIcon },
     { id: 'postits', label: 'Notlar', icon: StickyNote },
+    { id: 'ads', label: 'Reklam Yönetimi', icon: Megaphone },
   ].filter(item => {
     if (role === 'SUPER_ADMIN') return true
     if (role === 'WALL_MANAGER') {
-      return ['dashboard', 'walls', 'postits', 'users'].includes(item.id)
+      return ['dashboard', 'walls', 'postits', 'users', 'ads'].includes(item.id)
     }
     if (role === 'WALL_USER') {
       return ['dashboard', 'postits'].includes(item.id)
@@ -3376,6 +3473,58 @@ export default function AdminPage() {
                       <div className="text-4xl font-bold">{stats.unpublishedPostits}</div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Duvar İstatistikleri */}
+              <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
+                  <h3 className="font-semibold text-gray-700">Duvar İstatistikleri (Toplam Beğeni ve Görüntülenme)</h3>
+                </div>
+                <div className="overflow-x-auto max-h-[400px]">
+                  <table className="w-full text-sm text-left relative">
+                    <thead className="text-xs text-gray-600 uppercase bg-gray-100 sticky top-0 z-10 shadow-sm">
+                      <tr>
+                        <th className="px-4 py-3 border-b">Duvar Adı</th>
+                        <th className="px-4 py-3 text-center border-b">Toplam Post-it</th>
+                        <th className="px-4 py-3 text-center border-b">Onay Bekleyen</th>
+                        <th className="px-4 py-3 text-center border-b">Görüntülenme</th>
+                        <th className="px-4 py-3 text-center border-b">Beğeni</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {walls.map(wall => {
+                        const wallPostits = postits.filter((p: any) => p.categoryId === wall.id)
+                        const totalPostits = wallPostits.length
+                        const pendingPostits = wallPostits.filter((p: any) => !p.isApproved).length
+                        const totalViews = wallPostits.reduce((acc: number, p: any) => acc + (p.views || 0), 0)
+                        const totalLikes = wallPostits.reduce((acc: number, p: any) => acc + (p._count?.likes || 0), 0)
+                        
+                        return { wall, totalPostits, pendingPostits, totalViews, totalLikes }
+                      }).sort((a, b) => b.totalViews - a.totalViews).map(({ wall, totalPostits, pendingPostits, totalViews, totalLikes }) => (
+                        <tr key={wall.id} className="hover:bg-gray-50/80 transition-colors">
+                          <td className="px-4 py-3 font-medium text-gray-800">{wall.name}</td>
+                          <td className="px-4 py-3 text-center text-gray-600 font-semibold">{totalPostits}</td>
+                          <td className="px-4 py-3 text-center min-w-[120px]">
+                            {pendingPostits > 0 ? (
+                              <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                {pendingPostits} Bekliyor
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center text-gray-600">{totalViews}</td>
+                          <td className="px-4 py-3 text-center font-medium text-blue-600">{totalLikes}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {walls.length === 0 && (
+                    <div className="p-8 text-center text-gray-500">
+                      Hiç duvar bulunamadı.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -4974,8 +5123,272 @@ export default function AdminPage() {
               </div>
             )
           }
+
+          {/* Ads Management Section */}
+          {
+            activeSection === 'ads' && (
+              <div>
+                <div className="sticky top-0 z-30 bg-gray-50/95 py-5 mb-6 flex items-center justify-between border-b border-gray-200 shadow-sm flex-col md:flex-row gap-4 md:gap-0 -mx-8 -mt-8 px-8 backdrop-blur-sm">
+                  <h2 className="text-2xl font-bold flex items-center gap-2">
+                    <Megaphone className="w-6 h-6 text-indigo-600" />
+                    Reklam Yönetimi
+                  </h2>
+                  <Button
+                    onClick={() => openAdModal()}
+                    className="bg-indigo-600 hover:bg-indigo-700 shadow-sm rounded-full px-6"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Yeni Reklam Ekle
+                  </Button>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gray-50/50">
+                      <TableRow>
+                        <TableHead>Görsel</TableHead>
+                        <TableHead>Başlık & Link</TableHead>
+                        <TableHead>Pozisyon</TableHead>
+                        <TableHead>Kategori (Opsiyonel)</TableHead>
+                        <TableHead>Tarihler</TableHead>
+                        <TableHead>Durum</TableHead>
+                        <TableHead className="text-right">İşlemler</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {ads.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-32 text-center text-gray-500">
+                            Henüz reklam eklenmemiş
+                          </TableCell>
+                        </TableRow>
+                      ) : ads.map((ad: any) => (
+                        <TableRow key={ad.id} className="hover:bg-gray-50/50 transition-colors">
+                          <TableCell>
+                            <div className="relative w-16 h-12 rounded bg-gray-100 border border-gray-200 overflow-hidden">
+                              <img src={ad.imageUrl} alt={ad.title} className="w-full h-full object-cover" />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-semibold text-gray-900">{ad.title}</div>
+                            <a href={ad.link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1">
+                              Git <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <div className="flex flex-wrap gap-1">
+                              {(() => {
+                                let positionsArray: string[] = [];
+                                if (ad.positions) {
+                                  if (Array.isArray(ad.positions)) {
+                                    positionsArray = ad.positions;
+                                  } else if (typeof ad.positions === 'string') {
+                                    try { positionsArray = JSON.parse(ad.positions); } catch(e) {}
+                                  }
+                                } else if ((ad as any).position) {
+                                  positionsArray = [(ad as any).position];
+                                }
+                                
+                                 return positionsArray.map((pos, idx) => (
+                                  <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-semibold whitespace-nowrap">
+                                    {pos === 'NATIVE' ? 'Ana Pano (Native)' :
+                                     pos === 'SEPARATOR' ? 'Kategori Arası' :
+                                     pos === 'TOP_BANNER' ? 'Üst Manşet' :
+                                     pos === 'BOTTOM_BANNER' ? 'Alt Manşet (Footer)' :
+                                     pos === 'SIDEBAR_LEFT' ? 'Sol Kenar' :
+                                     pos === 'SIDEBAR_RIGHT' ? 'Sağ Kenar' :
+                                     pos === 'MARQUEE' ? 'Kayan Yazı' :
+                                     pos}
+                                  </span>
+                                ));
+                              })()}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {ad.categoryId ? (
+                              <span className="text-sm px-2 py-1 bg-purple-50 text-purple-700 rounded-md">
+                                {ad.category?.name || ad.categoryId}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-400">Tüm Sayfalar</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs text-gray-500 whitespace-nowrap">
+                              <div>Başlangıç: <span className="font-semibold">{ad.startDate ? new Date(ad.startDate).toLocaleDateString('tr-TR') : 'Sürekli'}</span></div>
+                              <div>Bitiş: <span className="font-semibold">{ad.endDate ? new Date(ad.endDate).toLocaleDateString('tr-TR') : 'Sürekli'}</span></div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const now = new Date();
+                              const isStarted = !ad.startDate || new Date(ad.startDate) <= now;
+                              const isExpired = ad.endDate && new Date(ad.endDate) < now;
+                              
+                              if (!ad.isActive) {
+                                return <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Pasif (Kapalı)</span>
+                              }
+                              
+                              if (isExpired) {
+                                return <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Süresi Doldu</span>
+                              }
+                              
+                              if (!isStarted) {
+                                return <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Beklemede</span>
+                              }
+                              
+                              return <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Yayında</span>
+                            })()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openAdModal(ad)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Pencil className="w-4 h-4 text-gray-500" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteAd(ad.id)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )
+          }
+
         </div>
       </main>
+
+      {/* Ad Modal */}
+      <Dialog open={showAdModal} onOpenChange={setShowAdModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingItem ? 'Reklamı Düzenle' : 'Yeni Reklam Ekle'}</DialogTitle>
+            <DialogDescription>
+              Reklam bilgilerini aşağıdan doldurabilirsiniz.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Başlık (Alt tag / Açıklama)</Label>
+              <Input
+                value={adForm.title}
+                onChange={(e) => setAdForm({ ...adForm, title: e.target.value })}
+                placeholder="Örn: Yaz İndirimi Afişi"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Resim URL</Label>
+              <Input
+                value={adForm.imageUrl}
+                onChange={(e) => setAdForm({ ...adForm, imageUrl: e.target.value })}
+                placeholder="https://..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Yönlendirilecek Link (Hedef URL)</Label>
+              <Input
+                value={adForm.link}
+                onChange={(e) => setAdForm({ ...adForm, link: e.target.value })}
+                placeholder="https://..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Gösterim Pozisyonu (Çoklu Seçim Yapabilirsiniz)</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                {[
+                  { value: 'NATIVE', label: 'Ana Pano İçi (Native Gönderi Gibi)' },
+                  { value: 'SEPARATOR', label: 'Kategori Arası (Yatay Banner)' },
+                  { value: 'SIDEBAR_LEFT', label: 'Sol Kenar (Dikey Afiş)' },
+                  { value: 'SIDEBAR_RIGHT', label: 'Sağ Kenar (Dikey Afiş)' },
+                  { value: 'TOP_BANNER', label: 'Üst Manşet (Hero Altı)' },
+                  { value: 'BOTTOM_BANNER', label: 'Alt Manşet (Footer Üstü)' },
+                  { value: 'MARQUEE', label: 'Kayan Yazı Sponsorluğu' }
+                ].map((pos) => (
+                  <label key={pos.value} className="flex items-center space-x-2 border rounded p-2 cursor-pointer hover:bg-gray-50 flex-1">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      checked={adForm.positions.includes(pos.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setAdForm({ ...adForm, positions: [...adForm.positions, pos.value] })
+                        } else {
+                          setAdForm({ ...adForm, positions: adForm.positions.filter(p => p !== pos.value) })
+                        }
+                      }}
+                    />
+                    <span className="text-sm text-gray-700">{pos.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Hedef Kategori (İsteğe Bağlı)</Label>
+              <Select
+                value={adForm.categoryId || 'none'}
+                onValueChange={(val) => setAdForm({ ...adForm, categoryId: val === 'none' ? '' : val })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Tüm Sayfalarda Göster" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Tüm Sayfalar (Boş Bırak)</SelectItem>
+                  {walls.map(w => (
+                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">Tüm sayfalarda göstermek için "Tüm Sayfalar" seçili kalsın. Sadece belirli bir duvarda/kategoride göstermek için seçim yapın.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Başlangıç Tarihi (Opsiyonel)</Label>
+                <Input
+                  type="datetime-local"
+                  value={adForm.startDate}
+                  onChange={(e) => setAdForm({ ...adForm, startDate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Bitiş Tarihi (Opsiyonel)</Label>
+                <Input
+                  type="datetime-local"
+                  value={adForm.endDate}
+                  onChange={(e) => setAdForm({ ...adForm, endDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox
+                id="ad-active"
+                checked={adForm.isActive}
+                onCheckedChange={(checked) => setAdForm({ ...adForm, isActive: checked === true })}
+              />
+              <Label htmlFor="ad-active">Aktif (Kullanıcılara Gösterilir)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setShowAdModal(false)}>İptal</Button>
+            <Button onClick={handleSaveAd}>Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Appearance Settings Modal */}
       <Dialog open={showAppearanceModal} onOpenChange={setShowAppearanceModal}>
@@ -6317,38 +6730,41 @@ export default function AdminPage() {
                         <div className="space-y-4">
                           {wallForm.customLayout.map((block: any, index: number) => (
                             <div key={block.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50/80 relative group shadow-sm">
-                              <div className="absolute top-2 right-2 flex gap-1 z-10">
+                              <div className="absolute -top-3 -right-2 flex gap-1 z-10 bg-white p-1 rounded-md shadow-sm border">
                                 <Button
-                                  type="button" variant="ghost" size="icon" className="h-7 w-7 text-gray-500 bg-white shadow-sm border" disabled={index === 0}
+                                  type="button" variant="ghost" size="icon" className="h-6 w-6 text-gray-500 hover:bg-gray-100" disabled={index === 0}
                                   onClick={() => {
                                     const newLayout = [...wallForm.customLayout];
                                     const temp = newLayout[index - 1]; newLayout[index - 1] = newLayout[index]; newLayout[index] = temp;
                                     setWallForm({ ...wallForm, customLayout: newLayout });
                                   }}
+                                  title="Yukarı Taşı"
                                 >
                                   <ArrowUp className="w-3.5 h-3.5" />
                                 </Button>
                                 <Button
-                                  type="button" variant="ghost" size="icon" className="h-7 w-7 text-gray-500 bg-white shadow-sm border" disabled={index === wallForm.customLayout.length - 1}
+                                  type="button" variant="ghost" size="icon" className="h-6 w-6 text-gray-500 hover:bg-gray-100" disabled={index === wallForm.customLayout.length - 1}
                                   onClick={() => {
                                     const newLayout = [...wallForm.customLayout];
                                     const temp = newLayout[index + 1]; newLayout[index + 1] = newLayout[index]; newLayout[index] = temp;
                                     setWallForm({ ...wallForm, customLayout: newLayout });
                                   }}
+                                  title="Aşağı Taşı"
                                 >
                                   <ArrowDown className="w-3.5 h-3.5" />
                                 </Button>
                                 <Button
-                                  type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-600 bg-red-50 border border-red-100 hover:bg-red-100"
+                                  type="button" variant="ghost" size="icon" className="h-6 w-6 text-red-600 hover:bg-red-50"
                                   onClick={() => {
                                     setWallForm(s => ({ ...s, customLayout: s.customLayout.filter((b: any) => b.id !== block.id) }))
                                   }}
+                                  title="Bloğu Sil"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                               </div>
 
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-1">
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
                                 <div className="space-y-1">
                                   <Label className="text-xs font-semibold">Blok Tipi</Label>
                                   <Select
@@ -6492,6 +6908,49 @@ export default function AdminPage() {
                                       />
                                     </div>
                                   </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs font-semibold">Zemin (Arkaplan) Rengi</Label>
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="color"
+                                      className="w-8 h-8 rounded shrink-0 p-0 border cursor-pointer"
+                                      value={block.backgroundColor || '#E8DCC4'}
+                                      onChange={(e) => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].backgroundColor = e.target.value;
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }}
+                                    />
+                                    <Input
+                                      className="h-8 text-xs font-mono bg-white flex-1"
+                                      value={block.backgroundColor || ''}
+                                      placeholder="#E8DCC4"
+                                      onChange={(e) => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].backgroundColor = e.target.value;
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1 flex flex-col justify-center">
+                                  <Label className="text-xs font-semibold flex items-center gap-2 cursor-pointer mt-2">
+                                    <input
+                                      type="checkbox"
+                                      className="rounded border-gray-300"
+                                      checked={!!block.isTransparent}
+                                      onChange={(e) => {
+                                        const newLayout = [...wallForm.customLayout];
+                                        newLayout[index].isTransparent = e.target.checked;
+                                        setWallForm({ ...wallForm, customLayout: newLayout });
+                                      }}
+                                    />
+                                    Arkaplan Rengini Saydam Yap (Gizle)
+                                  </Label>
                                 </div>
                               </div>
 

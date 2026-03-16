@@ -19,14 +19,15 @@ import { NavbarPostItButton } from './navbar-postit-button'
 import { CategoryFilter } from './category-filter'
 import { PushpinLogo } from '../ui/pushpin-logo'
 
-export function Navbar() {
+export function Navbar({ initialCategories, initialSettings }: { initialCategories?: any[], initialSettings?: any }) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '')
-  const [categories, setCategories] = useState([])
-  const [siteSettings, setSiteSettings] = useState<any>(null)
+  // Use initial data if available, otherwise fallback to empty/null (fetching can be done if needed, but we pass from Layout)
+  const [categories, setCategories] = useState(initialCategories || [])
+  const [siteSettings, setSiteSettings] = useState<any>(initialSettings || null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const userRole = (session?.user as any)?.role
@@ -53,22 +54,28 @@ export function Navbar() {
   }, [searchQuery, router, searchParams])
 
   useEffect(() => {
-    // Fetch categories for the menu
-    fetch('/api/categories')
-      .then(res => res.json())
-      .then(data => {
-        if (data.categories) setCategories(data.categories)
-      })
-      .catch(err => console.error("Error fetching categories:", err))
+    let mounted = true
 
-    // Fetch site settings for menu appearance
-    fetch('/api/settings')
-      .then(res => res.json())
-      .then(data => {
-        if (data.settings) setSiteSettings(data.settings)
-      })
-      .catch(err => console.error("Error fetching settings:", err))
-  }, [])
+    if (!initialCategories || initialCategories.length === 0) {
+      fetch('/api/categories')
+        .then(res => res.json())
+        .then(data => {
+          if (mounted && data.categories) setCategories(data.categories)
+        })
+        .catch(err => console.error("Error fetching categories:", err))
+    }
+
+    if (!initialSettings) {
+      fetch('/api/settings')
+        .then(res => res.json())
+        .then(data => {
+          if (mounted && data.settings) setSiteSettings(data.settings)
+        })
+        .catch(err => console.error("Error fetching settings:", err))
+    }
+
+    return () => { mounted = false }
+  }, []) // Removed dependency array objects that change identity on every render
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' })

@@ -205,26 +205,29 @@ model PostIt {
   @@index([expiresAt])
   @@index([isApproved])
   @@index([isPublished])
+  @@index([isApproved, isPublished, expiresAt, categoryId])
 }
 
 model Ad {
   id         String     @id @default(cuid())
   title      String
-  imageUrl   String
-  link       String
-  position   AdPosition
+  imageUrl   String     @db.Text
+  link       String     @db.Text
+  positions  Json       @default("[]")
   categoryId String?
   createdBy  String
   isActive   Boolean    @default(true)
+  startDate  DateTime?
+  endDate    DateTime?
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   category   Category?  @relation(fields: [categoryId], references: [id])
   creator    User       @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
-  @@index([position])
   @@index([isActive])
   @@index([categoryId], map: "Ad_categoryId_fkey")
   @@index([createdBy], map: "Ad_createdBy_fkey")
+  @@index([startDate, endDate])
 }
 
 model PostItImage {
@@ -406,5 +409,11 @@ enum PushpinStyle {
 enum AdPosition {
   HEADER
   SIDEBAR
+  SIDEBAR_RIGHT
+  SIDEBAR_LEFT
   FOOTER
+  NATIVE
+  SEPARATOR
+  TOP_BANNER
+  MARQUEE
 }

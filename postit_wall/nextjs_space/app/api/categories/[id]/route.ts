@@ -189,9 +189,10 @@ export async function PATCH(
     if (body.siteGradientTo !== undefined) updateData.siteGradientTo = body.siteGradientTo
     if (body.siteIsGradient !== undefined) updateData.siteIsGradient = body.siteIsGradient
     if (body.homeCategoryIds !== undefined) updateData.homeCategoryIds = body.homeCategoryIds
-    if (body.postitLimit !== undefined) updateData.postitLimit = parseInt(body.postitLimit)
-
-    // Logo settings
+    if (body.postitLimit !== undefined) {
+      const parsedLimit = parseInt(body.postitLimit);
+      updateData.postitLimit = isNaN(parsedLimit) ? 0 : parsedLimit;
+    }
     if (body.logoUrl !== undefined) updateData.logoUrl = body.logoUrl || null
     if (body.logoPosition !== undefined) updateData.logoPosition = body.logoPosition
     if (body.logoSize !== undefined) updateData.logoSize = body.logoSize
@@ -226,7 +227,8 @@ export async function PATCH(
     return NextResponse.json({ category })
   } catch (error) {
     console.error('Error updating category:', error)
-    return NextResponse.json({ error: 'Kategori güncellenirken hata oluştu' }, { status: 500 })
+    const err = error as Error
+    return NextResponse.json({ error: err.message || 'Kategori güncellenirken hata oluştu' }, { status: 500 })
   }
 }
 

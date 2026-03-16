@@ -12,10 +12,28 @@ export async function GET(request: NextRequest) {
     const position = searchParams.get('position')
     const categoryId = searchParams.get('categoryId')
 
-    const where: any = { isActive: true }
+    const all = searchParams.get('all') === 'true'
+
+    const where: any = {}
+    if (!all) {
+      where.isActive = true
+      const now = new Date()
+      where.AND = [
+        { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+        { OR: [{ endDate: null }, { endDate: { gte: now } }] }
+      ]
+    }
+
+    if (all) {
+      const session = await getServerSession(authOptions)
+      const userRole = (session?.user as any)?.role
+      if (!session?.user || (userRole !== 'SUPER_ADMIN' && userRole !== 'WALL_MANAGER')) {
+        return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 403 })
+      }
+    }
 
     if (position) {
-      where.position = position
+      where.positions = { array_contains: position }
     }
 
     if (categoryId) {
@@ -72,11 +90,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, imageUrl, link, position, categoryId } = body
+    const { title, imageUrl, link, positions, categoryId, startDate, endDate } = body
 
-    if (!title || !imageUrl || !link || !position) {
+    if (!title || !imageUrl || !link || !positions || !Array.isArray(positions) || positions.length === 0) {
       return NextResponse.json(
-        { error: 'Tüm alanlar gereklidir' },
+        { error: 'Tüm alanlar gereklidir ve en az bir gösterim pozisyonu seçilmelidir' },
         { status: 400 }
       )
     }
@@ -86,8 +104,10 @@ export async function POST(request: NextRequest) {
         title,
         imageUrl,
         link,
-        position,
+        positions,
         categoryId: categoryId || null,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
         createdBy: (session.user as any).id
       }
     })

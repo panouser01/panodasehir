@@ -1,3 +1,4 @@
+import React from 'react'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
@@ -11,6 +12,7 @@ import Link from 'next/link'
 import { CalendarPopup } from '@/components/postit/calendar-popup'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 interface HomePageProps {
   searchParams: { category?: string; from?: string }
@@ -59,6 +61,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   let selectedCategory = categoryId
     ? categories.find(c => c.id === categoryId)
     : null
+
+  // Fetch active ads
+  const now = new Date()
+  const activeAds = await prisma.ad.findMany({
+    where: {
+      isActive: true,
+      AND: [
+        { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+        { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        { OR: [{ categoryId: categoryId || null }, { categoryId: null }] }
+      ]
+    }
+  })
 
   // Fetch site settings
   let siteSettings: any = await prisma.siteSettings.findUnique({
@@ -286,19 +301,84 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     ]
   })
 
-  const postits = postitData.map(postit => ({
+  const organicPostits = postitData.map((postit: any) => ({
     ...postit,
     hasLiked: postit.likes.length > 0,
     likesCount: postit._count.likes
   }))
 
-  // Fetch slider for this category (or home page if category is null)
-  let activeSlider = await prisma.slider.findFirst({
-    where: {
-      categoryId: categoryId || null,
-      isActive: true,
+  const hasPosition = (ad: any, pos: string) => {
+    try {
+      if (Array.isArray(ad.positions)) {
+        return ad.positions.includes(pos)
+      } else if (typeof ad.positions === 'string') {
+        const parsed = JSON.parse(ad.positions as string)
+        return Array.isArray(parsed) && parsed.includes(pos)
+      }
+      return (ad as any).position === pos // Fallback for old data if needed
+    } catch(e) {
+      return (ad as any).position === pos
     }
+  }
+
+  const nativeAds = activeAds.filter(ad => hasPosition(ad, 'NATIVE'))
+  const separatorAds = activeAds.filter(ad => hasPosition(ad, 'SEPARATOR'))
+  const topAds = activeAds.filter(ad => hasPosition(ad, 'TOP_BANNER'))
+  const bottomAds = activeAds.filter(ad => hasPosition(ad, 'BOTTOM_BANNER'))
+  const leftAds = activeAds.filter(ad => hasPosition(ad, 'SIDEBAR_LEFT'))
+  const rightAds = activeAds.filter(ad => hasPosition(ad, 'SIDEBAR_RIGHT'))
+  const marqueeAds = activeAds.filter(ad => hasPosition(ad, 'MARQUEE'))
+
+  // Inject NATIVE ads into postits randomly (e.g. 1 ad per 6 postits roughly)
+  const postits: any[] = [...organicPostits]
+  nativeAds.forEach((ad, index) => {
+    const insertIndex = Math.min((index + 1) * 6, postits.length)
+    postits.splice(insertIndex, 0, {
+      id: ad.id,
+      content: ad.title,
+      link: ad.link,
+      isAd: true, // Identify as Ad
+      imageUrl: ad.imageUrl,
+      color: 'YELLOW',
+      font: 'HANDWRITING',
+      pushpin: 'RED',
+      rotation: (Math.random() - 0.5) * 10,
+      user: { name: 'Sponsorlu' },
+      category: { name: 'Reklam' },
+      createdAt: ad.createdAt,
+      // allow ad to bypass categoryId filter by explicitly mapping it if it has no category, or match current
+      categoryId: ad.categoryId || categoryId || 'all' 
+    })
   })
+
+  // Fetch slider for this category (or home page if category is null)
+  // Fetch slider for this category (or home page if category is null)
+  let homeCatId = null;
+  if (!categoryId && homeWall) {
+    homeCatId = homeWall.id;
+  }
+  
+  let activeSlider: any = null;
+  
+  if (categoryId) {
+    activeSlider = await prisma.slider.findFirst({
+      where: { categoryId: categoryId, isActive: true }
+    });
+  } else {
+    // Priority 1: Home Wall specific slider explicitly
+    if (homeCatId) {
+      activeSlider = await prisma.slider.findFirst({
+        where: { categoryId: homeCatId, isActive: true }
+      });
+    }
+    // Priority 2: Generic (Null) slider
+    if (!activeSlider) {
+      activeSlider = await prisma.slider.findFirst({
+        where: { categoryId: null, isActive: true }
+      });
+    }
+  }
+  
   const sliderImages = (activeSlider?.images as string[]) || []
   const sliderLinks = (activeSlider?.links as string[]) || []
 
@@ -587,10 +667,36 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className={`flex flex-col gap-8 ${siteSettings.calendarPosition === 'left' ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
+      <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 py-6">
+        <div className={`flex flex-col gap-6 lg:gap-8 ${siteSettings.calendarPosition === 'left' ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
+          {/* Left Sidebar Ads */}
+          {leftAds.length > 0 && (
+            <aside className="hidden lg:flex flex-col w-[160px] xl:w-[200px] shrink-0">
+              <div className="sticky top-24 flex flex-col gap-4">
+                {leftAds.map((ad: any) => (
+                  <a key={ad.id} href={ad.link} target="_blank" rel="noopener noreferrer" className="block relative bg-white border p-1 border-gray-200 shadow-sm rounded-md transition-transform hover:scale-105 group">
+                    <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded shadow z-10">Sponsorlu</span>
+                    <img src={ad.imageUrl} alt={ad.title} className="w-full h-auto rounded" />
+                  </a>
+                ))}
+              </div>
+            </aside>
+          )}
+
           {/* Post-it Wall with Corkboard Styling */}
-          <main className="flex-1 w-full flex flex-col gap-2">
+          <main className="flex-1 w-full flex flex-col gap-2 min-w-0">
+            {/* Top Banner Ads */}
+            {topAds.length > 0 && (
+              <div className="w-full flex flex-col gap-3 mb-4">
+                {topAds.map((ad: any) => (
+                  <a key={ad.id} href={ad.link} target="_blank" rel="noopener noreferrer" className="relative block w-full bg-white border border-gray-200 p-1 shadow-sm rounded-md transition-transform hover:scale-[1.01]">
+                    <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded shadow z-10">Sponsorlu</span>
+                    <img src={ad.imageUrl} alt={ad.title} className="w-full max-h-[120px] md:max-h-[200px] object-cover rounded" />
+                  </a>
+                ))}
+              </div>
+            )}
+
             {/* Sub-walls Marquee */}
             {(() => {
               const items = (selectedCategory ? selectedCategory.children : allCategories) || [];
@@ -632,6 +738,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                             >
                               <span className="text-yellow-500 text-lg">📌</span>
                               {child.name}
+                            </a>
+                          ))}
+                          {marqueeAds.map((ad: any) => (
+                            <a
+                              key={`${i}-ad-${ad.id}`}
+                              href={ad.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mx-8 text-sm font-bold text-indigo-700 hover:text-indigo-900 transition-colors flex items-center gap-1.5"
+                            >
+                              <span className="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.5 rounded shadow-sm border border-indigo-200">Sponsorlu</span>
+                              {ad.title}
                             </a>
                           ))}
                         </div>
@@ -711,11 +829,32 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                           let needsCorkFrame = false;
 
                           if (block.type === 'category_posts') {
-                            const catPostitsRaw = block.categoryId ? postits.filter((p: any) => p.categoryId === block.categoryId) : [];
+                            const catPostitsRaw = block.categoryId ? organicPostits.filter((p: any) => p.categoryId === block.categoryId) : [];
                             const catLimit = block.limit || 0;
                             const catPostits = catLimit > 0 ? catPostitsRaw.slice(0, catLimit) : catPostitsRaw;
 
-                            content = <PostItStack postits={catPostits as any} canDelete={canDelete} currentUserId={currentUserId} />;
+                            // Inject NATIVE ads for this block
+                            const injectedPostits = [...catPostits];
+                            nativeAds.forEach((ad, adIdx) => {
+                              const insertIndex = Math.min((adIdx + 1) * 6, injectedPostits.length);
+                              injectedPostits.splice(insertIndex, 0, {
+                                id: ad.id + '-' + idx + '-' + adIdx,
+                                content: ad.title,
+                                link: ad.link,
+                                isAd: true, // Identify as Ad
+                                imageUrl: ad.imageUrl,
+                                color: 'YELLOW',
+                                font: 'HANDWRITING',
+                                pushpin: 'RED',
+                                rotation: (Math.random() - 0.5) * 10,
+                                user: { name: 'Sponsorlu' },
+                                category: { name: 'Reklam' },
+                                hasLiked: false,
+                                likesCount: 0
+                              })
+                            })
+
+                            content = <PostItStack postits={injectedPostits as any} canDelete={canDelete} currentUserId={currentUserId} />;
                             needsCorkFrame = !block.noBorder;
                           } else if (block.type === 'custom_html') {
                             content = <div dangerouslySetInnerHTML={{ __html: block.htmlContent || '' }} className="w-full h-full p-4" />;
@@ -734,13 +873,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                           if (blockWidth === 'third') widthClass = 'w-full md:w-[32%]';
                           if (blockWidth === 'twothird') widthClass = 'w-full md:w-[66%]';
 
+                          let cumW = 0;
+                          let showBanner = false;
+                          for (let i = 0; i <= idx; i++) {
+                            const bw = customLayout[i].width || 'full';
+                            cumW += bw === 'half' ? 0.5 : bw === 'third' ? 0.33 : bw === 'twothird' ? 0.66 : 1;
+                            if (cumW >= 0.95) {
+                              if (i === idx) showBanner = true;
+                              cumW = 0;
+                            }
+                          }
+                          // Always show after the last element if a row was partially filled
+                          if (idx === customLayout.length - 1 && cumW > 0) showBanner = true;
+
                           const currentRibbonColor = block.ribbonColor || appearance.ribbonColor || '#c40000';
                           const defaultBorderColor = '#8B5A2B';
                           const dynamicBorderColor = block.borderColor || defaultBorderColor;
 
                           return (
-                            <div key={idx} className={`${widthClass} flex flex-col mb-4 relative`}>
-                              {/* Customizable Background */}
+                            <React.Fragment key={idx}>
+                              <div className={`${widthClass} flex flex-col mb-4 relative`}>
+                                {/* Customizable Background */}
                               <div
                                 className="absolute inset-0 z-0 bg-center bg-no-repeat rounded-xl opacity-100 pointer-events-none"
                                 style={{
@@ -779,10 +932,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                               )}
 
                               <div
-                                className={`relative flex overflow-hidden transition-all duration-300 ${needsCorkFrame ? 'border-[12px] bg-[#E8DCC4] shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1`}
-                                style={needsCorkFrame ? { borderColor: dynamicBorderColor } : {}}
+                                className={`relative flex overflow-hidden transition-all duration-300 ${needsCorkFrame && !block.isTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1`}
+                                style={{
+                                  ...(needsCorkFrame && !block.isTransparent ? { border: `12px solid ${dynamicBorderColor}` } : {}),
+                                  backgroundColor: block.isTransparent ? 'transparent' : (block.backgroundColor || (needsCorkFrame ? '#E8DCC4' : 'transparent'))
+                                }}
                               >
-                                {needsCorkFrame && (
+                                {needsCorkFrame && !block.isTransparent && (
                                   <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
                                 )}
                                 <div className="relative z-10 w-full p-2 h-full flex flex-col items-center">
@@ -790,8 +946,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                 </div>
                               </div>
                             </div>
-                          );
-                        })}
+
+                            {/* Render SEPARATOR Ad after block if it completed a visual row */}
+                            {separatorAds.length > 0 && showBanner && (
+                              <div className="w-full flex justify-center py-4 mb-2 -mt-2">
+                                <a href={separatorAds[idx % separatorAds.length].link} target="_blank" rel="noopener noreferrer" className="relative block w-full bg-white border border-gray-200 p-1 shadow-sm rounded-md transition-transform hover:scale-[1.01]">
+                                  <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded shadow z-10">Sponsorlu</span>
+                                  <img src={separatorAds[idx % separatorAds.length].imageUrl} alt="Sponsor" className="w-full max-h-[120px] md:max-h-[180px] object-cover rounded" />
+                                </a>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                       </div>
                     );
                   }
@@ -837,14 +1004,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                               </div>
                             </div>
                           </div>
-                          <PostItWall
-                            initialPostits={limitedDirectPostits as any}
-                            canDelete={canDelete}
-                            currentUserId={(session?.user as any)?.id}
-                          />
+                          <div
+                            className={`relative flex overflow-hidden transition-all duration-300 ${!boardAppearance.noBorder && !boardAppearance.isWallTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1 w-full`}
+                            style={{
+                              ...(!boardAppearance.noBorder && !boardAppearance.isWallTransparent ? { border: `12px solid ${boardAppearance.borderColor || '#8B5A2B'}` } : {}),
+                              backgroundColor: boardAppearance.isWallTransparent ? 'transparent' : (boardAppearance.backgroundColor || (!boardAppearance.noBorder ? '#E8DCC4' : 'transparent'))
+                            }}
+                          >
+                            {!boardAppearance.noBorder && !boardAppearance.isWallTransparent && (
+                              <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
+                            )}
+                            <div className="relative z-10 w-full p-2 h-full flex flex-col items-center">
+                              <PostItWall
+                                initialPostits={limitedDirectPostits as any}
+                                canDelete={canDelete}
+                                currentUserId={(session?.user as any)?.id}
+                              />
+                            </div>
+                          </div>
                         </div>
                       )}
-                      {wallSettingsIds.map((catId: string) => {
+                      {wallSettingsIds.map((catId: string, index: number) => {
                         const cat = categories.find((c: any) => c.id === catId);
                         if (!cat) return null;
 
@@ -916,11 +1096,36 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                 </div>
                               </div>
                             </div>
-                            <PostItWall
-                              initialPostits={catPostits as any}
-                              canDelete={canDelete}
-                              currentUserId={(session?.user as any)?.id}
-                            />
+                            <div
+                              className={`relative flex overflow-hidden transition-all duration-300 ${!cat.noBorder && !cat.isWallTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1 w-full`}
+                              style={{
+                                ...(!cat.noBorder && !cat.isWallTransparent ? { border: `12px solid ${cat.borderColor || '#8B5A2B'}` } : {}),
+                                backgroundColor: cat.isWallTransparent ? 'transparent' : (cat.backgroundColor || (!cat.noBorder ? '#E8DCC4' : 'transparent'))
+                              }}
+                            >
+                              {!cat.noBorder && !cat.isWallTransparent && (
+                                <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
+                              )}
+                              <div className="relative z-10 w-full p-2 h-full flex flex-col items-center">
+                                <PostItWall
+                                  initialPostits={catPostits as any}
+                                  canDelete={canDelete}
+                                  currentUserId={(session?.user as any)?.id}
+                                  separatorAds={separatorAds}
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Separator Ad */}
+                            {separatorAds.length > 0 && (
+                              <div className="w-full flex justify-center pt-8 pb-4">
+                                <a href={separatorAds[index % separatorAds.length].link} target="_blank" rel="noopener noreferrer" className="relative block w-full bg-white border border-gray-200 p-1 shadow-sm rounded-md transition-transform hover:scale-[1.01]">
+                                  <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded shadow z-10">Sponsorlu</span>
+                                  <img src={separatorAds[index % separatorAds.length].imageUrl} alt="Sponsor" className="w-full max-h-[120px] md:max-h-[180px] object-cover rounded" />
+                                </a>
+                              </div>
+                            )}
+
                           </div>
                         )
                       })}
@@ -955,19 +1160,61 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                             </div>
                           </div>
                         </div>
-                        <PostItWall
-                          initialPostits={limitedPostits as any}
-                          canDelete={canDelete}
-                          currentUserId={(session?.user as any)?.id}
-                        />
+                        <div
+                          className={`relative flex overflow-hidden transition-all duration-300 ${!boardAppearance.noBorder && !boardAppearance.isWallTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1 w-full`}
+                          style={{
+                            ...(!boardAppearance.noBorder && !boardAppearance.isWallTransparent ? { border: `12px solid ${boardAppearance.borderColor || '#8B5A2B'}` } : {}),
+                            backgroundColor: boardAppearance.isWallTransparent ? 'transparent' : (boardAppearance.backgroundColor || (!boardAppearance.noBorder ? '#E8DCC4' : 'transparent'))
+                          }}
+                        >
+                          {!boardAppearance.noBorder && !boardAppearance.isWallTransparent && (
+                            <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
+                          )}
+                          <div className="relative z-10 w-full p-2 h-full flex flex-col items-center">
+                            <PostItWall
+                              initialPostits={limitedPostits as any}
+                              canDelete={canDelete}
+                              currentUserId={(session?.user as any)?.id}
+                              separatorAds={separatorAds}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
                 }
               })()}
 
+              {/* Bottom Ads Wrapper */}
+              {bottomAds.length > 0 && (
+                <div className="w-full flex justify-center py-4 mt-8 z-20">
+                  <div className="w-full flex flex-col gap-4">
+                    {bottomAds.map((ad: any) => (
+                      <a key={ad.id} href={ad.link} target="_blank" rel="noopener noreferrer" className="relative block w-full bg-white border border-gray-200 p-1 shadow-sm rounded-md transition-transform hover:scale-[1.01]">
+                        <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded shadow z-10">Sponsorlu</span>
+                        <img src={ad.imageUrl} alt={ad.title} className="w-full max-h-[120px] md:max-h-[180px] object-cover rounded" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           </main>
+
+          {/* Right Sidebar Ads */}
+          {rightAds.length > 0 && (
+            <aside className="hidden lg:flex flex-col w-[160px] xl:w-[200px] shrink-0">
+              <div className="sticky top-24 flex flex-col gap-4">
+                {rightAds.map((ad: any) => (
+                  <a key={ad.id} href={ad.link} target="_blank" rel="noopener noreferrer" className="block relative bg-white border p-1 border-gray-200 shadow-sm rounded-md transition-transform hover:scale-105 group">
+                    <span className="absolute -top-2 -left-2 bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded shadow z-10">Sponsorlu</span>
+                    <img src={ad.imageUrl} alt={ad.title} className="w-full h-auto rounded" />
+                  </a>
+                ))}
+              </div>
+            </aside>
+          )}
 
           {/* Side Calendar Section */}
           {siteSettings.calendarShow !== false && (siteSettings.calendarPosition === 'left' || siteSettings.calendarPosition === 'right' || !siteSettings.calendarPosition) && (

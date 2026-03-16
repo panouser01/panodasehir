@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,8 +99,29 @@ export async function PATCH(
       }
     }
 
+    const updateSchema = z.object({
+      content: z.string().optional(),
+      categoryId: z.string().optional(),
+      color: z.enum(['YELLOW', 'PINK', 'BLUE', 'GREEN', 'ORANGE', 'PURPLE']).optional(),
+      font: z.enum(['HANDWRITING', 'SERIF', 'SANS', 'MONO', 'CURSIVE']).optional(),
+      pushpin: z.enum(['RED', 'BLUE', 'GOLD', 'GREEN', 'PINK', 'SILVER']).optional(),
+      link: z.string().nullable().optional(),
+      isApproved: z.boolean().optional(),
+      isPublished: z.boolean().optional(),
+      expiresInDays: z.string().optional(),
+      expiresAtDate: z.string().optional(),
+      imageUrl: z.string().nullable().optional(),
+      imageUrls: z.array(z.string()).optional()
+    })
+
     const body = await request.json()
-    const { content, categoryId, color, font, pushpin, link, isApproved, isPublished, expiresInDays, expiresAtDate, imageUrl, imageUrls } = body
+    const parseResult = updateSchema.safeParse(body)
+    
+    if (!parseResult.success) {
+      return NextResponse.json({ error: 'Geçersiz veri formatı', details: parseResult.error.errors }, { status: 400 })
+    }
+
+    const { content, categoryId, color, font, pushpin, link, isApproved, isPublished, expiresInDays, expiresAtDate, imageUrl, imageUrls } = parseResult.data
 
     const updateData: any = {}
     if (content !== undefined) updateData.content = content

@@ -1,7 +1,7 @@
 'use client'
 
 import { PostItCard } from './postit-card'
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import toast from 'react-hot-toast'
 
 interface PostIt {
@@ -33,6 +33,7 @@ interface PostItWallProps {
   initialPostits: PostIt[]
   canDelete?: boolean
   currentUserId?: string
+  separatorAds?: any[]
 }
 
 import { useSearchParams } from 'next/navigation'
@@ -71,7 +72,7 @@ function stringSimilarity(s1: string, s2: string): number {
   return (maxLen - distance) / parseFloat(maxLen.toString());
 }
 
-export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItWallProps) {
+export function PostItWall({ initialPostits, canDelete, currentUserId, separatorAds = [] }: PostItWallProps) {
   const [postits, setPostits] = useState<PostIt[]>(initialPostits)
   const [isMounted, setIsMounted] = useState(false)
   const searchParams = useSearchParams()
@@ -160,7 +161,7 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 grid-flow-dense gap-6 p-4 md:p-8 items-start">
-      {scatteredPostits?.map?.((postit) => {
+      {scatteredPostits?.map?.((postit, index) => {
         const hasImages = (postit.PostItImage && postit.PostItImage.length > 0) || !!postit.imageUrl;
         const isLongText = postit.content?.length > 150;
 
@@ -174,30 +175,43 @@ export function PostItWall({ initialPostits, canDelete, currentUserId }: PostItW
           spanClass = "sm:col-span-1 sm:row-span-2 lg:col-span-2";
         }
 
+        const shouldRenderAd = separatorAds && separatorAds.length > 0 && index > 0 && index % 12 === 0;
+        const ad = shouldRenderAd ? separatorAds[(Math.floor(index / 12) - 1) % separatorAds.length] : null;
+
         return (
-          <div key={postit.id} className={spanClass}>
-            <PostItCard
-              id={postit.id}
-              content={postit.content}
-              imageUrl={postit.imageUrl}
-              images={postit.PostItImage?.map((img: any) => img.url) || []}
-              link={postit.link}
-              color={postit.color}
-              font={postit.font}
-              pushpin={postit.pushpin}
-              rotation={postit.rotation}
-              userName={postit?.user?.name ?? 'Anonim'}
-              categoryName={postit?.category?.name ?? 'Genel'}
-              createdAt={postit.createdAt instanceof Date ? postit.createdAt : new Date(postit.createdAt)}
-              canDelete={canDelete ?? false}
-              onDelete={handleDelete}
-              initialLikesCount={postit.likesCount ?? 0}
-              initialHasLiked={postit.hasLiked ?? false}
-              initialViewsCount={postit.views ?? 0}
-              currentUserId={currentUserId}
-              isLarge={hasImages || isLongText}
-            />
-          </div>
+          <React.Fragment key={postit.id}>
+            {shouldRenderAd && ad && (
+              <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5 w-full flex justify-center py-4 my-2 order-none">
+                <a href={ad.link} target="_blank" rel="noopener noreferrer" className="relative block w-full bg-white border border-gray-200 p-1 shadow-sm rounded-md transition-transform hover:scale-[1.01]">
+                  <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded shadow z-10">Sponsorlu</span>
+                  <img src={ad.imageUrl} alt="Sponsor" className="w-full max-h-[120px] md:max-h-[180px] object-cover rounded" />
+                </a>
+              </div>
+            )}
+            <div className={spanClass}>
+              <PostItCard
+                id={postit.id}
+                content={postit.content}
+                imageUrl={postit.imageUrl}
+                images={postit.PostItImage?.map((img: any) => img.url) || []}
+                link={postit.link}
+                color={postit.color}
+                font={postit.font}
+                pushpin={postit.pushpin}
+                rotation={postit.rotation}
+                userName={postit?.user?.name ?? 'Anonim'}
+                categoryName={postit?.category?.name ?? 'Genel'}
+                createdAt={postit.createdAt instanceof Date ? postit.createdAt : new Date(postit.createdAt)}
+                canDelete={canDelete ?? false}
+                onDelete={handleDelete}
+                initialLikesCount={postit.likesCount ?? 0}
+                initialHasLiked={postit.hasLiked ?? false}
+                initialViewsCount={postit.views ?? 0}
+                currentUserId={currentUserId}
+                isLarge={hasImages || isLongText}
+              />
+            </div>
+          </React.Fragment>
         )
       })}
     </div>

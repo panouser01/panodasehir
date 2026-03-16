@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { Suspense } from 'react'
+import { prisma } from '@/lib/db'
 import './globals.css'
 import { SessionProvider } from '@/components/providers/session-provider'
 import { Navbar } from '@/components/layout/navbar'
@@ -7,8 +9,6 @@ import { Footer } from '@/components/layout/footer'
 import { Toaster } from 'react-hot-toast'
 
 const inter = Inter({ subsets: ['latin'] })
-
-export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL ?? 'http://localhost:3000'),
@@ -25,11 +25,17 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // get settings
+  const siteSettings = await prisma.siteSettings.findUnique({
+    where: { id: 'global' },
+  })
+
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
@@ -40,7 +46,9 @@ export default function RootLayout({
       </head>
       <body className={inter.className} suppressHydrationWarning>
         <SessionProvider>
-          <Navbar />
+          <Suspense fallback={<div className="h-16 w-full bg-white/80 animate-pulse border-b" />}>
+            <Navbar initialSettings={siteSettings as any} />
+          </Suspense>
           {children}
           <Footer />
           <Toaster position="top-right" />

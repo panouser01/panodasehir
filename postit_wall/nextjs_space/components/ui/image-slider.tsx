@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export function ImageSlider({ images, links, className }: { images: string[], links?: string[], className?: string }) {
@@ -38,11 +39,14 @@ export function ImageSlider({ images, links, className }: { images: string[], li
                     const hasLink = links && links[idx] && links[idx].trim() !== ''
 
                     const imgElement = (
-                        <img
+                        <Image
                             key={`img-${idx}`}
                             src={url}
                             alt={`Slide ${idx + 1}`}
-                            className="w-full h-full object-cover flex-shrink-0"
+                            fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 1170px, 1170px"
+                            className="object-cover flex-shrink-0"
+                            priority={idx === 0}
                         />
                     )
 
@@ -52,12 +56,12 @@ export function ImageSlider({ images, links, className }: { images: string[], li
                             href={links[idx]}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-shrink-0 w-full h-full block cursor-pointer transition-transform hover:scale-105 duration-700"
+                            className="flex-shrink-0 w-full h-full block relative cursor-pointer transition-transform hover:scale-105 duration-700"
                         >
                             {imgElement}
                         </a>
                     ) : (
-                        <div key={idx} className="flex-shrink-0 w-full h-full">
+                        <div key={idx} className="flex-shrink-0 w-full h-full relative">
                             {imgElement}
                         </div>
                     )
