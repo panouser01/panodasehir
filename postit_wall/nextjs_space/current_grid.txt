@@ -1,0 +1,131 @@
+                            ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Yönetici (Sadece Seçili Gruptaki Kullanıcılar)
+                    </Label>
+                    <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
+                      {!wallForm.userGroupId ? (
+                        <p className="text-sm text-gray-500 text-center py-2">
+                          Lütfen önce bir Grup Yetkisi seçin.
+                        </p>
+                      ) : users.filter(
+                          (u) =>
+                            u.role !== "SUPER_ADMIN" &&
+                            u.userGroups?.some(
+                              (g: any) => g.id === wallForm.userGroupId,
+                            ),
+                        ).length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-2">
+                          Seçili grupta henüz hiç kullanıcı bulunmuyor.
+                        </p>
+                      ) : (
+                        users
+                          .filter(
+                            (u) =>
+                              u.role !== "SUPER_ADMIN" &&
+                              u.userGroups?.some(
+                                (g: any) => g.id === wallForm.userGroupId,
+                              ),
+                          )
+                          .map((manager) => (
+                            <div
+                              key={manager.id}
+                              className="flex items-center space-x-2"
+                            >
+                              <Checkbox
+                                id={`manager-${manager.id}`}
+                                checked={wallForm.wallManagerIds.includes(
+                                  manager.id,
+                                )}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setWallForm({
+                                      ...wallForm,
+                                      wallManagerIds: [
+                                        ...wallForm.wallManagerIds,
+                                        manager.id,
+                                      ],
+                                    });
+                                  } else {
+                                    setWallForm({
+                                      ...wallForm,
+                                      wallManagerIds:
+                                        wallForm.wallManagerIds.filter(
+                                          (id) => id !== manager.id,
+                                        ),
+                                    });
+                                  }
+                                }}
+                              />
+                              <label
+                                htmlFor={`manager-${manager.id}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                {manager.name}{" "}
+                                <span className="text-xs text-gray-500">
+                                  ({manager.role})
+                                </span>
+                              </label>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Grup Yetkisi</Label>
+                    <Select
+                      value={wallForm.userGroupId || "none"}
+                      onValueChange={(value) => {
+                        setWallForm({
+                          ...wallForm,
+                          userGroupId: value === "none" ? "" : value,
+                          // Optionally, we could clear wallManagerIds if group changes, but maybe the user wants to keep the old ones or just untick. Let's just update userGroupId.
+                        });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Grup seçiniz" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Grup Yok</SelectItem>
+                        {userGroups.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="sliders" className="space-y-4 pt-2">
+                {wallForm.name === "Ana Duvar"
+                  ? renderSliderSettings()
+                  : renderWallSliderTabContent()}
+              </TabsContent>
+
+              <TabsContent value="appearance" className="space-y-4 pt-2">
+                {wallForm.name === "Ana Duvar" ? (
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h4 className="font-bold text-lg text-blue-700 flex items-center gap-2 mb-1">
+                        <Settings className="w-5 h-5" /> Siteye Ait Metinler
+                      </h4>
+                      <p className="text-sm text-blue-600 mb-2 text-left">
+                        Bu ayarlar tüm site genelindeki görünümü ve pano
+                        yapısını etkiler.
+                      </p>
+                    </div>
+                    {renderSiteGorseli()}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="bg-amber-50 p-4 rounded-lg">

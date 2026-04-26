@@ -15,7 +15,7 @@ export async function PATCH(
         }
 
         const body = await request.json()
-        const { name, description } = body
+        const { name, description, permissions } = body
 
         // Check if role exists
         const existing = await prisma.userRole.findUnique({ where: { id: params.id } })
@@ -27,7 +27,8 @@ export async function PATCH(
             where: { id: params.id },
             data: {
                 name: name || undefined,
-                description: description
+                description: description,
+                permissions: permissions !== undefined ? permissions : undefined
             }
         })
 
@@ -46,6 +47,26 @@ export async function DELETE(
         const session = await getServerSession(authOptions)
         if (!session?.user || (session.user as any).role !== 'SUPER_ADMIN') {
             return NextResponse.json({ error: 'Yetkiniz yok' }, { status: 403 })
+        }
+
+        const roleRecord = await prisma.userRole.findUnique({
+            where: { id: params.id }
+        })
+
+        if (!roleRecord) {
+            return NextResponse.json({ error: 'Rol bulunamadı' }, { status: 404 })
+        }
+
+        if (roleRecord.name === 'SUPER_ADMIN') {
+            return NextResponse.json({ error: 'SUPER_ADMIN rolü silinemez' }, { status: 400 })
+        }
+
+        const userCount = await prisma.user.count({
+            where: { role: roleRecord.name }
+        })
+
+        if (userCount > 0) {
+            return NextResponse.json({ error: `Bu rol şu anda ${userCount} kullanıcı tarafından kullanılıyor ve silinemez.` }, { status: 400 })
         }
 
         await prisma.userRole.delete({

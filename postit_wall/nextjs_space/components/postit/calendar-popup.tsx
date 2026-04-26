@@ -23,11 +23,8 @@ interface CalendarPopupProps {
 export function CalendarPopup({ children, dailyData, backgroundImage }: CalendarPopupProps) {
     const [isOpen, setIsOpen] = useState(false)
 
-    const dateStr = new Intl.DateTimeFormat('tr-TR', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-    }).format(new Date());
+    const d = new Date();
+    const dateStr = `${d.getDate()} ${['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][d.getMonth()]} ${d.getFullYear()}`;
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>

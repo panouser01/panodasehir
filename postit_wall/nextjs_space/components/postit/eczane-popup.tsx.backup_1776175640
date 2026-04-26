@@ -1,0 +1,44 @@
+"use client";
+
+import { useState } from "react";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
+export function EczanePopup({ calendarSize }: { calendarSize?: string }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <button className="block mt-1 transition-transform duration-300 hover:scale-[1.03] hover:drop-shadow-sm opacity-90 hover:opacity-100 cursor-pointer border-none bg-transparent p-0">
+                    <img
+                        src="/eczaneler.png"
+                        alt="Nöbetçi Eczaneler"
+                        className={`object-contain bg-white/60 p-1 rounded-sm backdrop-blur-sm shadow-sm ${calendarSize === 'large' ? 'h-9' : calendarSize === 'small' ? 'h-5' : 'h-7'}`}
+                    />
+                </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[650px] p-0 overflow-hidden bg-white max-h-[90vh] flex flex-col">
+                <DialogTitle className="sr-only">Nöbetçi Eczaneler</DialogTitle>
+                <DialogDescription className="sr-only">Türkiye nöbetçi eczaneler listesi ve arama motoru.</DialogDescription>
+                <div className="flex-1 overflow-y-auto w-full custom-scrollbar bg-white">
+                    <div style={{ margin: 'auto', textAlign: 'center', width: '100%', maxWidth: '600px' }} className="p-4 sm:p-6 pb-2">
+                        <a href="https://www.eczaneler.gen.tr/" target="_blank" rel="noopener noreferrer">
+                            <img
+                                src="https://www.eczaneler.gen.tr/resimler/turkiye-nobetci-eczaneleri.jpg"
+                                alt="yakındaki eczaneler nöbetçi"
+                                style={{ borderRadius: '3px', width: '100%', marginBottom: '0px' }}
+                            />
+                        </a>
+                        <br />
+                        <iframe
+                            src="https://www.eczaneler.gen.tr/turkiye.php"
+                            name="Nöbetçi Eczaneler"
+                            style={{ width: '100%', height: '600px', border: 'none' }}
+                            title="Nöbetçi Eczaneler"
+                        />
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}

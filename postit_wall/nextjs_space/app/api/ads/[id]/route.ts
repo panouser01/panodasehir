@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { revalidateTag } from 'next/cache'
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -14,7 +15,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Bu işlemi yapmaya yetkiniz yok' }, { status: 403 })
     }
     const body = await request.json()
-    const { title, imageUrl, link, positions, categoryId, isActive, startDate, endDate } = body
+    const { title, imageUrl, link, positions, categoryId, categoryIds, isActive, startDate, endDate, frequency, companyId } = body
 
     const ad = await prisma.ad.update({
       where: { id: params.id },
@@ -24,11 +25,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         link,
         positions,
         categoryId: categoryId || null,
+        categoryIds: categoryIds || [],
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
+        frequency: frequency !== undefined ? parseInt(frequency) : undefined,
+        companyId: companyId !== undefined ? (companyId || null) : undefined,
         isActive: isActive !== undefined ? isActive : true
       }
     })
+
+    revalidateTag('ads-and-settings')
+    revalidateTag('site-settings')
 
     return NextResponse.json({ ad })
   } catch (error) {

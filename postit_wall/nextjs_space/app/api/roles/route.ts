@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json()
-        const { name, description } = body
+        const { name, description, permissions } = body
 
         if (!name) {
             return NextResponse.json({ error: 'Rol adı gereklidir' }, { status: 400 })
@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
         const role = await prisma.userRole.create({
             data: {
                 name,
-                description
+                description,
+                permissions: permissions || []
             }
         })
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { revalidateTag } from 'next/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,9 @@ export async function PATCH(request: NextRequest) {
         if (data.borderTopColor !== undefined) updateData.borderTopColor = data.borderTopColor
         if (data.borderBottomColor !== undefined) updateData.borderBottomColor = data.borderBottomColor
         if (data.noBorder !== undefined) updateData.noBorder = data.noBorder
+        if (data.noInnerBorder !== undefined) updateData.noInnerBorder = data.noInnerBorder
+        if (data.innerBackgroundColor !== undefined) updateData.innerBackgroundColor = data.innerBackgroundColor
+        if (data.isInnerTransparent !== undefined) updateData.isInnerTransparent = data.isInnerTransparent
         if (data.isGradient !== undefined) updateData.isGradient = data.isGradient
         if (data.isWallTransparent !== undefined) updateData.isWallTransparent = data.isWallTransparent
         if (data.isWallBackgroundRepeat !== undefined) updateData.isWallBackgroundRepeat = data.isWallBackgroundRepeat
@@ -57,14 +61,29 @@ export async function PATCH(request: NextRequest) {
         if (data.gradientTo !== undefined) updateData.gradientTo = data.gradientTo
 
         if (data.heroBackgroundImage !== undefined) updateData.heroBackgroundImage = data.heroBackgroundImage || null
+        if (data.heroBackgroundStyle !== undefined) updateData.heroBackgroundStyle = data.heroBackgroundStyle
         if (data.isHeroTransparent !== undefined) updateData.isHeroTransparent = data.isHeroTransparent
         if (data.heroSubtitle !== undefined) updateData.heroSubtitle = data.heroSubtitle || null
         if (data.heroTitleFont !== undefined) updateData.heroTitleFont = data.heroTitleFont
         if (data.heroTitleColor !== undefined) updateData.heroTitleColor = data.heroTitleColor
+        if (data.hideHeroText !== undefined) updateData.hideHeroText = data.hideHeroText
         if (data.heroTitleSize !== undefined) updateData.heroTitleSize = data.heroTitleSize
+        if (data.heroTitleBgMode !== undefined) updateData.heroTitleBgMode = data.heroTitleBgMode
+        if (data.heroTitleBgColor !== undefined) updateData.heroTitleBgColor = data.heroTitleBgColor
+        if (data.heroTitleBgOpacity !== undefined) updateData.heroTitleBgOpacity = data.heroTitleBgOpacity
+        if (data.heroTitleBgImage !== undefined) updateData.heroTitleBgImage = data.heroTitleBgImage
         if (data.heroSubtitleFont !== undefined) updateData.heroSubtitleFont = data.heroSubtitleFont
         if (data.heroSubtitleColor !== undefined) updateData.heroSubtitleColor = data.heroSubtitleColor
         if (data.heroSubtitleSize !== undefined) updateData.heroSubtitleSize = data.heroSubtitleSize
+        if (data.hideWallTitle !== undefined) updateData.hideWallTitle = data.hideWallTitle
+        if (data.hideWallRibbon !== undefined) updateData.hideWallRibbon = data.hideWallRibbon
+        if (data.hideHeroPushpin !== undefined) updateData.hideHeroPushpin = data.hideHeroPushpin
+        if (data.ribbonColor !== undefined) updateData.ribbonColor = data.ribbonColor
+        if (data.ribbonTextColor !== undefined) updateData.ribbonTextColor = data.ribbonTextColor
+        if (data.ribbonTextFont !== undefined) updateData.ribbonTextFont = data.ribbonTextFont
+        if (data.customRibbonText !== undefined) updateData.customRibbonText = data.customRibbonText
+        if (data.ribbonImage !== undefined) updateData.ribbonImage = data.ribbonImage
+        if (data.ribbonAlignment !== undefined) updateData.ribbonAlignment = data.ribbonAlignment
         if (data.heroGradientFrom !== undefined) updateData.heroGradientFrom = data.heroGradientFrom
         if (data.heroGradientVia !== undefined) updateData.heroGradientVia = data.heroGradientVia
         if (data.heroGradientTo !== undefined) updateData.heroGradientTo = data.heroGradientTo
@@ -75,8 +94,10 @@ export async function PATCH(request: NextRequest) {
         if (data.siteGradientTo !== undefined) updateData.siteGradientTo = data.siteGradientTo
         if (data.siteBackgroundColor !== undefined) updateData.siteBackgroundColor = data.siteBackgroundColor
         if (data.siteBackgroundImage !== undefined) updateData.siteBackgroundImage = data.siteBackgroundImage || null
+        if (data.siteBackgroundStyle !== undefined) updateData.siteBackgroundStyle = data.siteBackgroundStyle
         if (data.calendarShow !== undefined) updateData.calendarShow = data.calendarShow
         if (data.calendarSize !== undefined) updateData.calendarSize = data.calendarSize
+        if (data.calendarViewType !== undefined) updateData.calendarViewType = data.calendarViewType
         if (data.calendarPosition !== undefined) updateData.calendarPosition = data.calendarPosition
         if (data.calendarColor !== undefined) updateData.calendarColor = data.calendarColor
         if (data.calendarPopupBackgroundImage !== undefined) updateData.calendarPopupBackgroundImage = data.calendarPopupBackgroundImage
@@ -97,7 +118,55 @@ export async function PATCH(request: NextRequest) {
         if (data.navMenuMainBold !== undefined) updateData.navMenuMainBold = data.navMenuMainBold
         if (data.navMenuTextColor !== undefined) updateData.navMenuTextColor = data.navMenuTextColor
         if (data.navMenuFontSize !== undefined) updateData.navMenuFontSize = data.navMenuFontSize
+        if (data.navMenuIsTransparent !== undefined) updateData.navMenuIsTransparent = data.navMenuIsTransparent
+        if (data.navMenuBackgroundImage !== undefined) updateData.navMenuBackgroundImage = data.navMenuBackgroundImage || null
+        if (data.navMenuVariant !== undefined) updateData.navMenuVariant = data.navMenuVariant
         if (data.ribbonColor !== undefined) updateData.ribbonColor = data.ribbonColor
+        if (data.useCustomLayout !== undefined) updateData.useCustomLayout = data.useCustomLayout
+        if (data.customLayout !== undefined) updateData.customLayout = data.customLayout
+        if (data.postitAppearance !== undefined) updateData.postitAppearance = data.postitAppearance
+
+        if (data.isOttActive !== undefined) updateData.isOttActive = data.isOttActive
+        if (data.ottItemsPerRow !== undefined) updateData.ottItemsPerRow = parseInt(data.ottItemsPerRow)
+        if (data.ottCardRatio !== undefined) updateData.ottCardRatio = data.ottCardRatio
+        if (data.ottAutoScrollSpeed !== undefined) updateData.ottAutoScrollSpeed = parseFloat(data.ottAutoScrollSpeed)
+        if (data.ottShowTopMenu !== undefined) updateData.ottShowTopMenu = data.ottShowTopMenu
+        if (data.ottShowHeroSlider !== undefined) updateData.ottShowHeroSlider = data.ottShowHeroSlider
+        if (data.ottTopMenuShape !== undefined) updateData.ottTopMenuShape = data.ottTopMenuShape
+        if (data.ottShowCategoryTitles !== undefined) updateData.ottShowCategoryTitles = data.ottShowCategoryTitles
+        if (data.ottCardStyle !== undefined) updateData.ottCardStyle = data.ottCardStyle
+        if (data.ottCategoryTitleSize !== undefined) updateData.ottCategoryTitleSize = data.ottCategoryTitleSize
+        if (data.ottCategoryHeaderGlassy !== undefined) updateData.ottCategoryHeaderGlassy = data.ottCategoryHeaderGlassy
+        if (data.ottCategoryTitleColor !== undefined) updateData.ottCategoryTitleColor = data.ottCategoryTitleColor
+        if (data.ottCategoryTitleAlignment !== undefined) updateData.ottCategoryTitleAlignment = data.ottCategoryTitleAlignment
+        if (data.ottCategoryTitleFont !== undefined) updateData.ottCategoryTitleFont = data.ottCategoryTitleFont
+        if (data.ottSeparatorStyle !== undefined) updateData.ottSeparatorStyle = data.ottSeparatorStyle
+        if (data.ottSeparatorColor !== undefined) updateData.ottSeparatorColor = data.ottSeparatorColor
+        if (data.ottTopMenuLabelBgColor !== undefined) updateData.ottTopMenuLabelBgColor = data.ottTopMenuLabelBgColor
+        if (data.ottTopMenuLabelHasBorder !== undefined) updateData.ottTopMenuLabelHasBorder = data.ottTopMenuLabelHasBorder
+        if (data.ottTopMenuIconBgColor !== undefined) updateData.ottTopMenuIconBgColor = data.ottTopMenuIconBgColor
+        if (data.ottCardBgType !== undefined) updateData.ottCardBgType = data.ottCardBgType
+        if (data.ottCardBgColor !== undefined) updateData.ottCardBgColor = data.ottCardBgColor
+        if (data.ottCardBgColorAlpha !== undefined) updateData.ottCardBgColorAlpha = parseInt(data.ottCardBgColorAlpha?.toString() || '100')
+        if (data.ottCardBgImage !== undefined) updateData.ottCardBgImage = data.ottCardBgImage
+        if (data.ottModalBgType !== undefined) updateData.ottModalBgType = data.ottModalBgType
+        if (data.ottModalBgColor !== undefined) updateData.ottModalBgColor = data.ottModalBgColor
+        if (data.ottModalBgColorAlpha !== undefined) updateData.ottModalBgColorAlpha = parseInt(data.ottModalBgColorAlpha?.toString() || '70')
+        if (data.ottModalBgImage !== undefined) updateData.ottModalBgImage = data.ottModalBgImage
+        if (data.ottModalTextColor !== undefined) updateData.ottModalTextColor = data.ottModalTextColor
+        if (data.ottTopMenuMarqueeActive !== undefined) updateData.ottTopMenuMarqueeActive = data.ottTopMenuMarqueeActive
+        if (data.ottTopMenuMarqueeSpeed !== undefined) updateData.ottTopMenuMarqueeSpeed = parseFloat(data.ottTopMenuMarqueeSpeed?.toString() || '30')
+        if (data.searchTitleSize !== undefined) updateData.searchTitleSize = data.searchTitleSize
+        if (data.searchTitleAlignment !== undefined) updateData.searchTitleAlignment = data.searchTitleAlignment
+        if (data.searchTitleColor !== undefined) updateData.searchTitleColor = data.searchTitleColor
+        if (data.searchTitleFont !== undefined) updateData.searchTitleFont = data.searchTitleFont
+        if (data.searchCategoryTitleSize !== undefined) updateData.searchCategoryTitleSize = data.searchCategoryTitleSize
+        if (data.searchCategoryTitleColor !== undefined) updateData.searchCategoryTitleColor = data.searchCategoryTitleColor
+        if (data.searchCategoryTitleFont !== undefined) updateData.searchCategoryTitleFont = data.searchCategoryTitleFont
+        if (data.searchBgColor !== undefined) updateData.searchBgColor = data.searchBgColor
+        if (data.searchBgColorAlpha !== undefined) updateData.searchBgColorAlpha = parseInt(data.searchBgColorAlpha?.toString() || '40')
+        if (data.searchBorderColor !== undefined) updateData.searchBorderColor = data.searchBorderColor
+        if (data.searchTextColor !== undefined) updateData.searchTextColor = data.searchTextColor
 
         const settings = await prisma.siteSettings.upsert({
             where: { id: 'global' },
@@ -107,6 +176,9 @@ export async function PATCH(request: NextRequest) {
                 ...updateData
             }
         })
+
+        revalidateTag('site-settings')
+        revalidateTag('all-categories-tree')
 
         return NextResponse.json({ settings })
     } catch (error) {

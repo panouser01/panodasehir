@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
         id: true,
         email: true,
         name: true,
+        image: true,
+        nickname: true,
         companyName: true,
         phone: true,
         taxId: true,
@@ -33,6 +35,29 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         cityId: true,
         districtId: true,
+        telegramChatId: true,
+        telegramConnectionToken: true,
+        telegramTokenExpiresAt: true,
+        receiveEmail: true,
+        receiveTelegram: true,
+        showAvatarInPostit: true,
+        wallSubscriptions: {
+          include: {
+            category: true
+          }
+        },
+        following: {
+          include: {
+            following: {
+              select: {
+                id: true,
+                name: true,
+                nickname: true,
+                image: true
+              }
+            }
+          }
+        },
         _count: {
           select: { postits: true }
         }
@@ -70,7 +95,7 @@ export async function PATCH(request: NextRequest) {
 
     const userId = (session.user as any).id
     const body = await request.json()
-    const { name, companyName, phone, taxId, email, cityId, districtId } = body
+    const { name, nickname, companyName, phone, taxId, email, cityId, districtId, receiveEmail, receiveTelegram, showAvatarInPostit, image } = body
 
     // Check if email is being changed and if it's already in use
     if (email) {
@@ -91,12 +116,17 @@ export async function PATCH(request: NextRequest) {
 
     const updateData: any = {}
     if (name !== undefined) updateData.name = name
+    if (image !== undefined) updateData.image = image
+    if (nickname !== undefined) updateData.nickname = nickname
     if (companyName !== undefined) updateData.companyName = companyName
     if (phone !== undefined) updateData.phone = phone
     if (taxId !== undefined) updateData.taxId = taxId
     if (email !== undefined) updateData.email = email
     if (cityId !== undefined) updateData.cityId = cityId || null
     if (districtId !== undefined) updateData.districtId = districtId || null
+    if (receiveEmail !== undefined) updateData.receiveEmail = receiveEmail
+    if (receiveTelegram !== undefined) updateData.receiveTelegram = receiveTelegram
+    if (showAvatarInPostit !== undefined) updateData.showAvatarInPostit = showAvatarInPostit
 
     const user = await prisma.user.update({
       where: { id: userId },
@@ -105,12 +135,17 @@ export async function PATCH(request: NextRequest) {
         id: true,
         email: true,
         name: true,
+        image: true,
+        nickname: true,
         companyName: true,
         phone: true,
         taxId: true,
         role: true,
         cityId: true,
-        districtId: true
+        districtId: true,
+        receiveEmail: true,
+        receiveTelegram: true,
+        showAvatarInPostit: true
       }
     })
 

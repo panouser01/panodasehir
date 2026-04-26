@@ -1,0 +1,648 @@
+'use client'
+
+import { PostItCard } from './postit-card'
+import React, { useState, useEffect, useRef } from 'react'
+import toast from 'react-hot-toast'
+import { ChevronLeft, ChevronRight, Eye, Heart, MessageSquare, Trash2, Flag, Share2, Sun, Moon, Cloud, CloudFog, CloudRain, CloudSnow, CloudLightning } from 'lucide-react'
+import { CustomLinkPreview } from './link-preview'
+
+const getConditionStr = (code: number) => {
+  if (code === 0 || code === 1) return 'sunny';
+  if (code === 2 || code === 3) return 'cloudy';
+  if (code >= 51 && code <= 67) return 'rainy';
+  if (code >= 71 && code <= 77) return 'snowy';
+  if (code >= 80 && code <= 82) return 'rainy';
+  if (code >= 85 && code <= 86) return 'snowy';
+  if (code >= 95 && code <= 99) return 'storm';
+  if (code === 45 || code === 48) return 'foggy';
+  return 'cloudy';
+}
+
+const getConditionDescTR = (code: number) => {
+  if (code === 0) return 'Açık ve sıcak.';
+  if (code === 1) return 'Güneşli hava etkili olacak.';
+  if (code === 2) return 'Az bulutlu ve sıcak.';
+  if (code === 3) return 'Parçalı bulutlu bir gün.';
+  if (code >= 51 && code <= 67) return 'Öğleden sonra yer yer kısa süreli sağanak geçişleri bekleniyor.';
+  if (code >= 71 && code <= 77) return 'Kar yağışlı bir gün.';
+  if (code >= 80 && code <= 82) return 'Sağanak yağış bekleniyor.';
+  if (code >= 85 && code <= 86) return 'Yoğun kar yağışlı.';
+  if (code >= 95 && code <= 99) return 'Gök gürültülü sağanak geçişleri bekleniyor.';
+  if (code === 45 || code === 48) return 'Yer yer yoğun sisli.';
+  return 'Genellikle bulutlu.';
+}
+
+const getSuffix = (word: string) => {
+  if (!word) return 'de';
+  const match = word.toLocaleLowerCase('tr-TR').match(/[aıoueiöü]/g);
+  const lastVowel = match ? match[match.length - 1] : 'e';
+  const lastChar = word.toLocaleLowerCase('tr-TR').slice(-1);
+  const isHardConsonant = ['f','s','t','k','ç','ş','h','p'].includes(lastChar);
+  const isFront = ['e','i','ö','ü'].includes(lastVowel);
+  if (isFront) return isHardConsonant ? 'te' : 'de';
+  return isHardConsonant ? 'ta' : 'da';
+};
+
+const getWeatherUI = (weatherBg: string, iconSet: string = 'default', appearance: any = {}) => {
+  if (!weatherBg) return { bg: '', icon: null, text: 'text-white', bgImage: null };
+  const parts = weatherBg.split('_');
+  const condition = parts[0];
+  const isNight = parts.length > 1 && parts[1] === 'night';
+  
+  let bgColClass = "bg-slate-800";
+  
+  if (condition === 'sunny') {
+    if (isNight) bgColClass = "bg-slate-900";
+    else bgColClass = "bg-sky-500";
+  } else if (condition === 'cloudy') {
+    if (isNight) bgColClass = "bg-slate-800";
+    else bgColClass = "bg-slate-600";
+  } else if (condition === 'rainy' || condition === 'storm') {
+    bgColClass = "bg-slate-700";
+  } else if (condition === 'snowy' || condition === 'foggy') {
+    bgColClass = "bg-slate-400";
+  }
+  
+  const bg = `${bgColClass}`;
+
+  const renderIcon = (defaultIcon: any, emoji: string) => {
+    if (iconSet === 'emoji') {
+       return <span className="text-3xl sm:text-5xl min-w-[32px] min-h-[32px] md:text-7xl leading-none drop-shadow-md flex items-center justify-center">{emoji}</span>;
+    } else if (iconSet === 'animated') {
+       return <span className="text-3xl sm:text-5xl min-w-[32px] min-h-[32px] md:text-7xl leading-none drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] animate-pulse flex items-center justify-center">{emoji}</span>;
+    }
+    return defaultIcon;
+  };
+
+  let bgImage = null;
+  if (condition === 'sunny' && appearance?.weatherBgSunny) bgImage = appearance.weatherBgSunny;
+  else if (condition === 'cloudy' && appearance?.weatherBgCloudy) bgImage = appearance.weatherBgCloudy;
+  else if (condition === 'rainy' && appearance?.weatherBgRainy) bgImage = appearance.weatherBgRainy;
+  else if (condition === 'snowy' && appearance?.weatherBgSnowy) bgImage = appearance.weatherBgSnowy;
+  else if (condition === 'foggy' && appearance?.weatherBgFoggy) bgImage = appearance.weatherBgFoggy;
+  else if ((condition === 'storm' || condition === 'stormy') && appearance?.weatherBgStormy) bgImage = appearance.weatherBgStormy;
+
+  if (condition === 'sunny') {
+    if (isNight) return { bg, text: 'text-indigo-100 drop-shadow-xl', bgImage, icon: renderIcon(<Moon className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-blue-100 drop-shadow-[0_0_25px_rgba(255,255,255,0.7)]" fill="currentColor" />, '🌙') };
+    return { bg, text: 'text-white drop-shadow-xl', bgImage, icon: renderIcon(<Sun className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-yellow-300 drop-shadow-[0_0_35px_rgba(253,224,71,1)]" fill="currentColor" />, '☀️') };
+  }
+  if (condition === 'cloudy') {
+    if (isNight) return { bg, text: 'text-indigo-50 drop-shadow-xl', bgImage, icon: renderIcon(<Cloud className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-gray-200 drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]" fill="currentColor" />, '☁️') };
+    return { bg, text: 'text-white drop-shadow-xl', bgImage, icon: renderIcon(<Cloud className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.9)]" fill="currentColor" />, '⛅') };
+  }
+  if (condition === 'rainy') {
+    if (isNight) return { bg, text: 'text-blue-100 drop-shadow-xl', bgImage, icon: renderIcon(<CloudRain className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-blue-200 drop-shadow-[0_0_25px_rgba(147,197,253,0.7)]" />, '🌧️') };
+    return { bg, text: 'text-blue-50 drop-shadow-xl', bgImage, icon: renderIcon(<CloudRain className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)]" />, '🌧️') };
+  }
+  if (condition === 'snowy') {
+    if (isNight) return { bg, text: 'text-indigo-50 drop-shadow-xl', bgImage, icon: renderIcon(<CloudSnow className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-white drop-shadow-[0_0_25px_rgba(255,255,255,0.8)]" />, '❄️') };
+    return { bg, text: 'text-white drop-shadow-xl', bgImage, icon: renderIcon(<CloudSnow className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)]" fill="currentColor" />, '❄️') };
+  }
+  if (condition === 'foggy') {
+    if (isNight) return { bg, text: 'text-gray-200 drop-shadow-xl', bgImage, icon: renderIcon(<CloudFog className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-gray-300 drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]" />, '🌫️') };
+    return { bg, text: 'text-white drop-shadow-xl', bgImage, icon: renderIcon(<CloudFog className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)]" fill="currentColor" />, '🌫️') };
+  }
+  // storm
+  return { bg, text: 'text-white drop-shadow-xl', bgImage, icon: renderIcon(<CloudLightning className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 min-w-[32px] min-h-[32px] text-yellow-400 drop-shadow-[0_0_35px_rgba(250,204,21,0.9)]" />, '⛈️') };
+}
+
+interface PostIt {
+  id: string
+  content: string
+  imageUrl?: string | null
+  link?: string | null
+  color: string
+  font?: string
+  pushpin?: string
+  rotation: number
+  user: {
+    id: string
+    name?: string | null
+    email?: string | null
+  }
+  category: {
+    id: string
+    name: string
+    postitAppearance?: any
+  }
+  createdAt: Date | string
+  PostItImage?: { url: string }[]
+  likesCount?: number
+  hasLiked?: boolean
+  views?: number
+  comments?: any[]
+  isWeather?: boolean
+  weatherTemp?: number
+  weatherCondition?: string
+  weatherBg?: string
+  weatherDaily?: any
+  weatherHourly?: any
+}
+
+interface OttSliderProps {
+  initialPostits: PostIt[]
+  canDelete?: boolean
+  currentUserId?: string
+  separatorAds?: any[]
+  postitAppearance?: any
+  ottItemsPerRow?: number
+  ottCardRatio?: string
+  ottAutoScrollSpeed?: number
+  ottCardStyle?: string
+  ottCardBgType?: string
+  ottCardBgColor?: string
+  ottCardBgImage?: string
+  ottModalBgType?: string
+  ottModalBgColor?: string
+  ottModalBgColorAlpha?: number
+  ottModalBgImage?: string
+  ottModalTextColor?: string
+}
+
+// Custom hook for interval
+function useInterval(callback: () => void, delay: number | null) {
+  const savedCallback = useRef(callback)
+  useEffect(() => {
+    savedCallback.current = callback
+  }, [callback])
+  useEffect(() => {
+    if (delay !== null && delay > 0) {
+      const id = setInterval(() => savedCallback.current(), delay)
+      return () => clearInterval(id)
+    }
+  }, [delay])
+}
+
+function OttSliderCard({ postit, getItemWidthClass, ratioStyles, ottCardStyle, canDelete, currentUserId, handleDelete, postitAppearance, ottCardBgType, ottCardBgColor, ottCardBgImage, ottModalBgType, ottModalBgColor, ottModalBgColorAlpha, ottModalBgImage, ottModalTextColor, ottCardRatio }: any) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const images = postit.PostItImage?.map((img: any) => img.url) || [];
+  const allImages = postit.imageUrl ? [postit.imageUrl, ...images] : images;
+  
+  useEffect(() => {
+    if (allImages.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % allImages.length);
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [allImages.length]);
+
+  const currentImageUrl = allImages.length > 0 ? allImages[currentImageIndex] : null;
+
+  const weatherUI = postit.isWeather ? getWeatherUI(postit.weatherBg || '', postitAppearance?.weatherIconSet, postitAppearance) : null;
+
+  return (
+    <div 
+      className={`snap-center shrink-0 flex flex-col justify-start overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-transform hover:scale-[1.03] duration-300 ${getItemWidthClass()}`}
+      style={{ ...ratioStyles, contentVisibility: 'auto', borderRadius: ottCardStyle === 'cover' ? '12px' : '0' }}
+    >
+      {ottCardStyle === 'cover' ? (
+        <div 
+          className={`w-full h-full relative ${weatherUI && (!ottCardBgType || ottCardBgType === 'postit') ? weatherUI.bg : ''}`} 
+          style={{ 
+            backgroundColor: (ottCardBgType === 'transparent' ? 'transparent' : ottCardBgType === 'color' ? (ottCardBgColor || 'transparent') : (ottCardBgType === 'gradient' || ottCardBgType === 'image') ? 'transparent' : (postit.isWeather ? 'transparent' : (postit.color === 'YELLOW' ? '#fdfd96' : postit.color === 'BLUE' ? '#a2cffe' : postit.color === 'PINK' ? '#ffb7b2' : postit.color === 'GREEN' ? '#b2e2b2' : '#fdfd96'))),
+            backgroundImage: (postit.isWeather && weatherUI?.bgImage && (!ottCardBgType || ottCardBgType === 'postit')) ? `url('${weatherUI.bgImage}')` : ((ottCardBgType === 'gradient' && ottCardBgColor) ? `linear-gradient(to right, ${ottCardBgColor.split(',')[0]}, ${ottCardBgColor.split(',')[1] || ottCardBgColor.split(',')[0]}, ${ottCardBgColor.split(',')[2] || ottCardBgColor.split(',')[0]})` : ((ottCardBgType === 'image' && ottCardBgImage) ? `url('${ottCardBgImage}')` : (postit.isWeather ? undefined : ((currentImageUrl && !currentImageUrl.match(/\.(mp4|webm|ogg)$/i)) ? `url('${currentImageUrl}')` : undefined)))),
+            backgroundSize: (postit.isWeather && weatherUI?.bgImage && (!ottCardBgType || ottCardBgType === 'postit')) ? 'cover' : ((ottCardBgType === 'image' && postitAppearance?.ottCardBgImageSize) ? postitAppearance.ottCardBgImageSize : (currentImageUrl && !postit.isWeather ? 'contain' : 'cover')),
+            backgroundPosition: (postit.isWeather && weatherUI?.bgImage && (!ottCardBgType || ottCardBgType === 'postit')) ? 'center' : ((ottCardBgType === 'image' && postitAppearance?.ottCardBgImagePosition) ? postitAppearance.ottCardBgImagePosition : 'center'),
+            backgroundRepeat: 'no-repeat',
+            borderRadius: '12px',
+            transition: 'background-image 0.5s ease-in-out'
+          }}
+        >
+          {currentImageUrl?.match(/\.(mp4|webm|ogg)$/i) && !postit.isWeather && (
+            <video
+              src={`${currentImageUrl}#t=0.1`}
+              className="absolute inset-0 w-full h-full object-contain"
+              style={{ borderRadius: '12px' }}
+              preload="metadata"
+              playsInline
+              muted
+            />
+          )}
+          {/* Fallback pattern if no image */}
+          {(!currentImageUrl && !postit.isWeather && ottCardBgType !== 'image') && (
+             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '16px 16px' }} />
+          )}
+          
+          {/* Link Preview as Background (if exists AND NO images are attached) */}
+          {(postit.link && allImages.length === 0) && (
+            <div className="absolute inset-0 w-full h-full overflow-hidden bg-black/90 pointer-events-none flex flex-col justify-center" style={{ borderRadius: '12px' }}>
+              {postit.link.match(/\.(jpeg|jpg|gif|png|webp|avif)$/i) ? (
+                 <img src={postit.link} className={`object-cover mx-auto block w-full h-full`} alt="Bağlantı Görseli" loading="lazy" />
+              ) : (
+                <CustomLinkPreview url={postit.link} fill={true} />
+              )}
+            </div>
+          )}
+
+          {/* Click overlay */}
+          <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => {
+               const postitBtn = document.getElementById(`postit-${postit.id}-front-cover`);
+               if (postitBtn) postitBtn.click();
+          }}></div>
+
+          <div 
+            className={`absolute z-20 pointer-events-none flex flex-col w-full h-full ${
+              postit.isWeather ? 'inset-0 justify-center items-center' :
+              (allImages.length === 0 && !postit.link) 
+                ? 'inset-0 justify-center items-center px-6 pb-16 pt-6 text-center bg-black/40 backdrop-blur-[2px]' 
+                : 'inset-x-0 bottom-0 justify-end bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-12 p-4 top-auto h-auto'
+            }`} 
+            style={{ 
+              color: postit.textColor || postitAppearance?.textColor || 'white',
+              containerType: postit.isWeather ? 'size' : 'normal', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px', borderTopLeftRadius: (allImages.length === 0 && !postit.link || postit.isWeather) ? '12px' : '0', borderTopRightRadius: (allImages.length === 0 && !postit.link || postit.isWeather) ? '12px' : '0' 
+            }}
+          >
+            {postit.isWeather && weatherUI ? (
+              <div className={`flex flex-col w-full h-full justify-start items-center p-2 sm:p-4 relative z-10 w-full ${weatherUI?.bgImage ? 'bg-black/30 backdrop-blur-[2px] rounded-xl' : ''}`}>
+                  <h3 className="font-bold text-center tracking-wide mb-3 drop-shadow-md text-sm sm:text-lg md:text-xl">
+                    {postit.content}&apos;{getSuffix(postit.content)} Haftalık<br/>Hava Durumu Tahmini
+                  </h3>
+                
+                {postit.weatherDaily && postit.weatherDaily.time && (
+                  <div className="grid grid-cols-5 w-full h-full gap-0 sm:gap-1 drop-shadow-md mt-1">
+                    {postit.weatherDaily.time.slice(0, 5).map((dateStr: string, index: number) => {
+                       const dateObj = new Date(dateStr);
+                       const dayNum = dateObj.getDate();
+                       const monthName = dateObj.toLocaleDateString('tr-TR', { month: 'long' });
+                       const dayName = dateObj.toLocaleDateString('tr-TR', { weekday: 'long' });
+                       
+                       const min = Math.round(postit.weatherDaily.temperature_2m_min[index]);
+                       const max = Math.round(postit.weatherDaily.temperature_2m_max[index]);
+                       const code = postit.weatherDaily.weather_code[index];
+                       const dayStr = getConditionStr(code);
+                       const dIcon = getWeatherUI(dayStr + '_day', postitAppearance?.weatherIconSet, postitAppearance).icon;
+                       
+                       return (
+                         <div key={dateStr} className="flex flex-col items-center justify-start text-center border-r border-white/30 last:border-0 px-1 sm:px-2 w-full h-full tracking-tight">
+                               <span className="font-bold leading-none text-base sm:text-xl">{dayNum}</span>
+                               <span className="font-bold opacity-90 leading-tight mt-1 capitalize text-[10px] sm:text-xs">{monthName}</span>
+                               <span className="font-bold opacity-90 leading-tight capitalize text-[10px] sm:text-xs">{dayName}</span>
+                           
+                           <div className="my-2 sm:my-3 scale-[0.4] sm:scale-[0.55] h-8 sm:h-12 flex items-center justify-center shrink-0">
+                              {dIcon}
+                           </div>
+                           
+                           <span className="font-medium opacity-90 leading-none sm:leading-tight flex-grow flex items-start justify-center mt-1 w-full text-center text-[9px] sm:text-xs">
+                              {getConditionDescTR(code)}
+                           </span>
+                           
+                           <div className="mt-auto flex flex-col items-center gap-[2px] w-full pt-2">
+                             <span className="font-bold text-xs sm:text-base">{max}°C</span>
+                             <span className="font-semibold opacity-80 mb-1 text-[10px] sm:text-sm">{min}°C</span>
+                           </div>
+                         </div>
+                       )
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <p className={`font-bold drop-shadow-md leading-relaxed ${
+                  (allImages.length === 0 && !postit.link) 
+                    ? `text-lg md:text-xl lg:text-3xl line-clamp-[8] ${postitAppearance?.font ? '' : 'font-handwriting'} tracking-wide` 
+                    : 'text-sm md:text-md lg:text-lg line-clamp-3'
+                }`}>
+                  {postit.content.replace(/<[^>]*>?/gm, '')}
+                </p>
+                <p className={`text-white/70 font-medium ${
+                  (allImages.length === 0 && !postit.link) 
+                    ? 'mt-4 text-sm tracking-widest uppercase' 
+                    : 'text-xs mt-1'
+                }`}>
+                  #{postit.category?.name}
+                </p>
+              </>
+            )}
+
+            {/* Interactive Icons */}
+            <div className={`flex items-center gap-3 pointer-events-auto relative z-30 w-full ${
+              (allImages.length === 0 && !postit.link && !postit.isWeather) 
+                ? 'justify-center border-t border-white/20 pt-3 mt-6 absolute bottom-4 px-4 text-white/90' 
+                : postit.isWeather ? 'justify-end pr-4 absolute bottom-4 right-0 text-white/60 drop-shadow-sm' : 'mt-3 pt-2 border-t border-white/20 text-white/90'
+            }`}>
+              {!postit.isWeather && (
+                <div className="flex items-center gap-1">
+                  <Eye className="w-3.5 h-3.5" />
+                  {(postit.views && postit.views > 0) ? <span className="font-medium text-xs font-sans">{postit.views}</span> : null}
+                </div>
+              )}
+              <div 
+                className={`flex items-center gap-1 cursor-pointer transition-colors ${postit.hasLiked ? 'text-red-500' : 'hover:text-red-400'}`}
+                onClick={(e) => { e.stopPropagation(); const btn = document.getElementById(`postit-${postit.id}-like-btn`); if(btn) btn.click(); }}
+              >
+                <Heart className={`w-3.5 h-3.5 ${postit.hasLiked ? 'fill-red-500' : ''}`} />
+                {(postit.likesCount && postit.likesCount > 0) ? <span className="font-medium text-xs font-sans">{postit.likesCount}</span> : null}
+              </div>
+              {postit.comments && postit.comments.length > 0 && !postit.isWeather && (
+                <div className="flex items-center gap-1 cursor-pointer hover:text-white" onClick={(e) => { e.stopPropagation(); document.getElementById(`postit-${postit.id}-front-cover`)?.click(); }}>
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span className="font-medium text-xs font-sans">{postit.comments.length}</span>
+                </div>
+              )}
+              <div 
+                className="flex items-center gap-1 cursor-pointer hover:text-white ml-1 transition-colors"
+                title="Paylaş / Kopyala"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    const url = window.location.href.split('#')[0] + '#postit-' + postit.id + '-front-cover';
+                    await navigator.clipboard.writeText(url);
+                    toast.success('Link kopyalandı');
+                  } catch (err) {
+                    toast.error('Kopyalanamadı');
+                  }
+                }}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </div>
+              {(canDelete && !postit.isWeather) ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(postit.id); }}
+                  className="ml-auto text-white/70 hover:text-red-500 transition-colors"
+                  title="Sil"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              ) : currentUserId && !postit.isWeather ? (
+                <button
+                  onClick={async (e) => { 
+                    e.stopPropagation(); 
+                    if(window.confirm('Bu notu şikayet etmek istiyor musunuz?')) {
+                      await fetch(`/api/postits/${postit.id}/report`, { method: 'POST' });
+                      toast.success('Şikayetiniz alındı');
+                    }
+                  }}
+                  className="ml-auto text-white/70 hover:text-red-400 transition-colors"
+                  title="Şikayet Et"
+                >
+                  <Flag className="w-4 h-4" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {/* Hidden real PostItCard to keep the exact same functional click trigger modal / likes sync functionality active */}
+          <div className="hidden">
+            <PostItCard
+                id={postit.id}
+                content={postit.content}
+                imageUrl={postit.imageUrl}
+                images={postit.PostItImage?.map((img: any) => img.url) || []}
+                link={postit.link}
+                color={postit.color}
+                font={postit.font}
+                pushpin={postit.pushpin}
+                rotation={0} 
+                userName={postit?.user?.name ?? 'Anonim'}
+                categoryName={postit?.category?.name ?? 'Genel'}
+                createdAt={postit.createdAt instanceof Date ? postit.createdAt : new Date(postit.createdAt)}
+                canDelete={postit.isWeather ? false : (canDelete ?? false)}
+                onDelete={handleDelete}
+                initialLikesCount={postit.likesCount ?? 0}
+                initialHasLiked={postit.hasLiked ?? false}
+                initialViewsCount={postit.views ?? 0}
+                isWeather={postit.isWeather}
+                weatherTemp={postit.weatherTemp}
+                weatherCondition={postit.weatherCondition}
+                weatherBg={postit.weatherBg}
+                weatherDaily={postit.weatherDaily}
+                weatherHourly={postit.weatherHourly}
+                currentUserId={currentUserId}
+                isLarge={false}
+                comments={postit.comments}
+                postitAppearance={postit.category?.postitAppearance || postitAppearance}
+
+                ottModalBgType={ottModalBgType}
+                ottModalBgColor={ottModalBgColor}
+                ottModalBgColorAlpha={ottModalBgColorAlpha}
+                ottModalBgImage={ottModalBgImage}
+                ottModalTextColor={ottModalTextColor}
+                ottCardRatio={ottCardRatio}
+                textColor={postit.textColor}
+                textSize={postit.textSize}
+                triggerComponent={<div id={`postit-${postit.id}-front-cover`}></div>}
+            />
+          </div>
+        </div>
+      ) : (
+        <div 
+          className={`w-full h-full p-2 rounded-xl overflow-hidden ${weatherUI && (!ottCardBgType || ottCardBgType === 'postit') ? weatherUI.bg : ''}`} 
+          style={{ 
+            backgroundColor: (ottCardBgType === 'transparent' ? 'transparent' : ottCardBgType === 'color' ? (ottCardBgColor || 'transparent') : (ottCardBgType === 'gradient' || ottCardBgType === 'image') ? 'transparent' : (postit.isWeather ? 'transparent' : (postit.color === 'YELLOW' ? '#fdfd96' : postit.color === 'BLUE' ? '#a2cffe' : postit.color === 'PINK' ? '#ffb7b2' : postit.color === 'GREEN' ? '#b2e2b2' : '#fdfd96'))),
+            backgroundImage: (ottCardBgType === 'gradient' && ottCardBgColor) ? `linear-gradient(to right, ${ottCardBgColor.split(',')[0]}, ${ottCardBgColor.split(',')[1] || ottCardBgColor.split(',')[0]}, ${ottCardBgColor.split(',')[2] || ottCardBgColor.split(',')[0]})` : ((ottCardBgType === 'image' && ottCardBgImage) ? `url(${ottCardBgImage})` : undefined),
+            backgroundSize: (ottCardBgType === 'image' && postitAppearance?.ottCardBgImageSize) ? postitAppearance.ottCardBgImageSize : 'cover',
+            backgroundPosition: (ottCardBgType === 'image' && postitAppearance?.ottCardBgImagePosition) ? postitAppearance.ottCardBgImagePosition : 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
+        >
+            <div className="w-full h-full scale-[0.95] transform origin-top-left pointer-events-none" style={{ willChange: 'transform' }}>
+               <PostItCard
+                  id={postit.id}
+                  content={postit.content}
+                  imageUrl={postit.imageUrl}
+                  images={postit.PostItImage?.map((img: any) => img.url) || []}
+                  link={postit.link}
+                  color={postit.color}
+                  font={postit.font}
+                  pushpin={postit.pushpin}
+                  rotation={0} 
+                  userName={postit?.user?.name ?? 'Anonim'}
+                  categoryName={postit?.category?.name ?? 'Genel'}
+                  createdAt={postit.createdAt instanceof Date ? postit.createdAt : new Date(postit.createdAt)}
+                  canDelete={postit.isWeather ? false : (canDelete ?? false)}
+                  onDelete={handleDelete}
+                  initialLikesCount={postit.likesCount ?? 0}
+                  initialHasLiked={postit.hasLiked ?? false}
+                  initialViewsCount={postit.views ?? 0}
+                  isWeather={postit.isWeather}
+                  weatherTemp={postit.weatherTemp}
+                  weatherCondition={postit.weatherCondition}
+                  weatherBg={postit.weatherBg}
+                  weatherDaily={postit.weatherDaily}
+                  weatherHourly={postit.weatherHourly}
+                  currentUserId={currentUserId}
+                  isLarge={false}
+                  comments={postit.comments}
+                  postitAppearance={postit.category?.postitAppearance || postitAppearance}
+
+                  ottModalBgType={ottModalBgType}
+                  ottModalBgColor={ottModalBgColor}
+                  ottModalBgColorAlpha={ottModalBgColorAlpha}
+                  ottModalBgImage={ottModalBgImage}
+                  ottModalTextColor={ottModalTextColor}
+                  ottCardRatio={ottCardRatio}
+                  textColor={postit.textColor}
+                  textSize={postit.textSize}
+                  triggerComponent={<div id={`postit-${postit.id}-front-cover`}></div>}
+                />
+            </div>
+            {/* Click overlay */}
+            <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => {
+                 const postitBtn = document.getElementById(`postit-${postit.id}-front-cover`);
+                 if (postitBtn) postitBtn.click();
+            }}></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function OttSlider({ 
+  initialPostits, 
+  canDelete, 
+  currentUserId, 
+  postitAppearance,
+  ottItemsPerRow = 4,
+  ottCardRatio = '16/9',
+  ottAutoScrollSpeed = 0,
+  ottCardStyle = 'cover',
+  ottCardBgType = 'postit',
+  ottCardBgColor,
+  ottCardBgImage,
+  ottModalBgType,
+  ottModalBgColor,
+  ottModalBgColorAlpha,
+  ottModalBgImage,
+  ottModalTextColor
+}: OttSliderProps) {
+  const [postits, setPostits] = useState<PostIt[]>(initialPostits)
+  const isHoveredRef = useRef(false)
+  
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setPostits(initialPostits)
+  }, [initialPostits])
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`/api/postits/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isApproved: false, isPublished: false })
+      })
+      if (!response.ok) throw new Error('Kaldırma işlemi başarısız')
+      setPostits(prev => prev.filter(p => p.id !== id))
+      toast.success('Post-it yayından kaldırıldı')
+    } catch (error) {
+      toast.error('Silme işlemi başarısız oldu')
+    }
+  }
+
+  // Auto scroll logic
+  useInterval(() => {
+    if (!isHoveredRef.current && scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
+      const itemWidth = scrollContainerRef.current.children[0]?.clientWidth || 300
+      
+      // If reached end, go back to start
+      if (scrollLeft + clientWidth >= scrollWidth - 10) {
+        scrollContainerRef.current.scrollTo({ left: 0, behavior: 'smooth' })
+      } else {
+        scrollContainerRef.current.scrollBy({ left: itemWidth, behavior: 'smooth' })
+      }
+    }
+  }, ottAutoScrollSpeed > 0 ? (ottAutoScrollSpeed > 50 ? ottAutoScrollSpeed : ottAutoScrollSpeed * 1000) : null)
+
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      const itemWidth = scrollContainerRef.current.children[0]?.clientWidth || 300
+      scrollContainerRef.current.scrollBy({ left: -itemWidth * 2, behavior: 'smooth' })
+    }
+  }
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      const itemWidth = scrollContainerRef.current.children[0]?.clientWidth || 300
+      scrollContainerRef.current.scrollBy({ left: itemWidth * 2, behavior: 'smooth' })
+    }
+  }
+
+  if (postits.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[300px] text-center w-full">
+        <div>
+          <p className="text-xl text-gray-400 font-semibold mb-2">Bu bölümde henüz içerik yok</p>
+          <p className="text-sm text-gray-500">İlk notu ekleyerek bu panoyu doldurabilirsiniz!</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Parse width mapping based on items per row
+  const getItemWidthClass = () => {
+    if (ottItemsPerRow === 1) return 'min-w-[90vw] md:min-w-[100%]'
+    if (ottItemsPerRow === 2) return 'min-w-[80vw] sm:min-w-[45%] md:min-w-[48%]'
+    if (ottItemsPerRow === 3) return 'min-w-[75vw] sm:min-w-[40%] md:min-w-[32%]'
+    if (ottItemsPerRow === 4) return 'min-w-[70vw] sm:min-w-[40%] md:min-w-[24%]'
+    if (ottItemsPerRow === 5) return 'min-w-[65vw] sm:min-w-[30%] md:min-w-[19%]'
+    if (ottItemsPerRow === 6) return 'min-w-[60vw] sm:min-w-[25%] md:min-w-[15.5%]'
+    return 'min-w-[70vw] sm:min-w-[40%] md:min-w-[24%]' // default 4
+  }
+
+  // Build aspect ratio class
+  const ratioStyles: React.CSSProperties = {}
+  if (ottCardRatio) {
+    if (ottCardRatio.includes('/')) {
+      ratioStyles.aspectRatio = ottCardRatio
+    } else {
+      ratioStyles.aspectRatio = '16/9'
+    }
+  }
+
+  return (
+    <div 
+      className="relative w-full pt-1 pb-2 group"
+      onMouseEnter={() => { isHoveredRef.current = true }}
+      onMouseLeave={() => { isHoveredRef.current = false }}
+    >
+      <button 
+        onClick={scrollLeft}
+        className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-black/80 text-white p-2 rounded-r-md backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
+      >
+        <ChevronLeft size={32} />
+      </button>
+
+      <div 
+        ref={scrollContainerRef}
+        className="flex overflow-x-auto hide-scrollbar gap-4 px-4 pb-4 snap-x snap-mandatory will-change-scroll scroll-smooth"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {postits.map((postit) => (
+          <OttSliderCard
+            key={postit.id}
+            postit={postit}
+            getItemWidthClass={getItemWidthClass}
+            ratioStyles={ratioStyles}
+            ottCardStyle={ottCardStyle}
+            canDelete={canDelete}
+            currentUserId={currentUserId}
+            handleDelete={handleDelete}
+            postitAppearance={postitAppearance}
+            ottCardBgType={ottCardBgType}
+            ottCardBgColor={ottCardBgColor}
+            ottCardBgImage={ottCardBgImage}
+            ottModalBgType={ottModalBgType}
+            ottModalBgColor={ottModalBgColor}
+            ottModalBgImage={ottModalBgImage}
+            ottCardRatio={ottCardRatio}
+          />
+        ))}
+      </div>
+
+      <button 
+        onClick={scrollRight}
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-black/80 text-white p-2 rounded-l-md backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <ChevronRight size={32} />
+      </button>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}} />
+    </div>
+  )
+}

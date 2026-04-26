@@ -11,7 +11,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         }
 
         const json = await req.json()
-        const { type, name, cityId } = json
+        const { type, name, cityId, showInWeather } = json
 
         if (!name) {
             return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -20,7 +20,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         if (type === 'CITY') {
             const city = await prisma.city.update({
                 where: { id: params.id },
-                data: { name }
+                data: { name, showInWeather: showInWeather !== undefined ? showInWeather : false }
             })
             return NextResponse.json(city)
         } else if (type === 'DISTRICT') {

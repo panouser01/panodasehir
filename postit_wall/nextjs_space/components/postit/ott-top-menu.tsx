@@ -1,0 +1,261 @@
+'use client';
+
+import React, { useRef, useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
+
+interface OttTopMenuProps {
+  displayItems: any[];
+  categoryId: string;
+  ottSettings: any;
+  boardAppearance: any;
+  topMenuAds?: any[];
+}
+
+export function OttTopMenu({ displayItems, categoryId, ottSettings, boardAppearance, topMenuAds = [] }: OttTopMenuProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [marqueeDirection, setMarqueeDirection] = useState<1 | -1>(1);
+  const requestRef = useRef<number>();
+
+  // Mouse / Touch Dragging Logic
+  const startDrag = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDragging(true);
+    const pageX = 'touches' in e ? e.touches[0].pageX : e.pageX;
+    setStartX(pageX - (scrollContainerRef.current?.offsetLeft || 0));
+    setScrollLeft(scrollContainerRef.current?.scrollLeft || 0);
+  };
+
+  const drag = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const pageX = 'touches' in e ? e.touches[0].pageX : e.pageX;
+    const x = pageX - (scrollContainerRef.current.offsetLeft || 0);
+    const walk = (x - startX) * 2; // Hızlandırılmış kaydırma
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+
+    // Sürükleme yönüne göre otomatik akış yönünü güncelle
+    if (walk > 5) {
+      setMarqueeDirection(-1);
+    } else if (walk < -5) {
+      setMarqueeDirection(1);
+    }
+  };
+
+  const stopDrag = () => {
+    setIsDragging(false);
+  };
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const scrollAmount = 400;
+      scrollContainerRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Auto-scroll (Marquee) Logic
+  useEffect(() => {
+    if (!ottSettings.topMenuMarqueeActive || isDragging || isHovered) return;
+    
+    const customSpeed = ottSettings.topMenuMarqueeSpeed || 30;
+    let lastTime = performance.now();
+
+    const scrollMenu = (time: number) => {
+      if (scrollContainerRef.current) {
+        const deltaTime = time - lastTime;
+        lastTime = time;
+        
+        // Eski CSS animasyonu transform: translateX(-50%) ile 30 saniyede bitiyordu.
+        // Yani toplam scrollContainer genisliginin yarisini customSpeed saniyede gitmeliyiz.
+        const halfWidth = scrollContainerRef.current.scrollWidth / 2;
+        
+        if (halfWidth > 0 && deltaTime < 100) { // 100ms'den buyuk dalgalanmalari onle (sekme degistirince vs.)
+          const pixelsPerMs = halfWidth / (customSpeed * 1000);
+          const step = pixelsPerMs * deltaTime * marqueeDirection;
+          
+          scrollContainerRef.current.scrollLeft += step;
+          
+          if (marqueeDirection === 1 && scrollContainerRef.current.scrollLeft >= halfWidth) {
+             scrollContainerRef.current.scrollLeft -= halfWidth;
+          } else if (marqueeDirection === -1 && scrollContainerRef.current.scrollLeft <= 0) {
+             // Sola giderken başa dayandığında yariya (tam ortasina) atla
+             scrollContainerRef.current.scrollLeft += halfWidth;
+          }
+        }
+      }
+      requestRef.current = requestAnimationFrame(scrollMenu);
+    };
+    
+    requestRef.current = requestAnimationFrame(scrollMenu);
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    }
+  }, [ottSettings.topMenuMarqueeActive, isDragging, isHovered, ottSettings.topMenuMarqueeSpeed, marqueeDirection]);
+
+  const combinedItems: any[] = [...displayItems];
+  if (topMenuAds && topMenuAds.length > 0) {
+    topMenuAds.forEach((ad, index) => {
+      const insertIndex = Math.min((index + 1) * 5, combinedItems.length);
+      if (insertIndex <= combinedItems.length && combinedItems.length > 0) {
+        combinedItems.splice(insertIndex, 0, {
+          id: `ad-${ad.id}`,
+          name: ad.title || 'Sponsorlu',
+          logoUrl: ad.imageUrl,
+          isAd: true,
+          link: ad.link
+        });
+      }
+    });
+  }
+
+  const renderItem = (child: any) => (
+    <a
+      key={child.id}
+      href={child.isAd ? child.link : `/?category=${child.id}&from=${categoryId || 'root'}`}
+      {...(child.isAd ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      className="flex flex-col items-center gap-2 group/item snap-start shrink-0 min-w-[90px] md:min-w-[115px]"
+    >
+      <div className={`w-[80px] h-[80px] md:w-[105px] md:h-[105px] ${ottSettings.topMenuShape === 'circle' ? 'rounded-full' : 'rounded-xl'} p-[3px] ${child.isAd ? 'bg-gradient-to-tr from-yellow-500 via-yellow-400 to-amber-600' : 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-indigo-500'} shadow-md transform transition-transform group-hover/item:scale-110 flex items-center justify-center relative`}>
+        {child.isAd && (
+           <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] md:text-[9px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap z-10 animate-pulse">Sponsorlu</span>
+        )}
+        <div 
+          className={`w-full h-full ${ottSettings.topMenuShape === 'circle' ? 'rounded-full' : 'rounded-lg'} p-[3px] overflow-hidden flex items-center justify-center relative`}
+          style={{ backgroundColor: ottSettings.topMenuIconBgColor || 'rgba(255, 255, 255, 0.1)' }}
+        >
+           {child.logoUrl ? (
+              <Image src={child.logoUrl} width={100} height={100} unoptimized={child.logoUrl.startsWith('data:')} alt={child.name} className={`w-full h-full ${ottSettings.topMenuShape === 'circle' ? 'rounded-full' : 'rounded-md'} object-cover`} draggable={false} />
+           ) : (
+              <div className={`w-full h-full ${ottSettings.topMenuShape === 'circle' ? 'rounded-full' : 'rounded-md'} bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center text-center p-2 text-[10px] md:text-sm font-bold text-indigo-900 leading-tight`}>
+                <span className="line-clamp-3 w-full break-words px-1 text-balance">{child.name}</span>
+              </div>
+           )}
+        </div>
+      </div>
+      <span className={`text-[10px] md:text-xs font-bold tracking-tight text-center w-full max-w-[85px] md:max-w-[100px] line-clamp-2 break-words drop-shadow-sm px-1.5 py-0.5 rounded-lg ${ottSettings.topMenuLabelHasBorder ? 'border border-white/80 shadow-sm' : ''} ${!ottSettings.topMenuLabelBgColor ? 'bg-white/70 text-gray-900' : ''}`}
+         style={{ 
+           backgroundColor: ottSettings.topMenuLabelBgColor || undefined,
+           color: ottSettings.topMenuLabelBgColor ? '#ffffff' : (boardAppearance.isWallTransparent ? '#1f2937' : '#ffffff'), 
+           textShadow: ottSettings.topMenuLabelBgColor || !boardAppearance.isWallTransparent ? '0 1px 3px rgba(0,0,0,0.8)' : 'none' 
+         }}
+      >
+        {child.name}
+      </span>
+    </a>
+  );
+
+  if (ottSettings.topMenuMarqueeActive && combinedItems.length > 4) {
+    const baseRepetitions = Math.max(1, Math.ceil(30 / Math.max(combinedItems.length, 1)));
+    const repeatCount = baseRepetitions * 2; // Çift sayı (Sonsuz loop için en ideali)
+
+    return (
+      <div className="w-full flex justify-center py-2 md:py-3 px-4 md:px-12 shadow-sm relative z-[60] group select-none"
+        style={{
+          backgroundColor: boardAppearance.isWallTransparent ? 'transparent' : (boardAppearance.backgroundColor || '#cca378'),
+          borderTop: boardAppearance.noBorder ? '0px' : `8px solid ${boardAppearance.borderTopColor || boardAppearance.borderColor}`,
+          borderBottom: boardAppearance.noBorder ? '0px' : `8px solid ${boardAppearance.borderBottomColor || boardAppearance.borderColor}`,
+        }}
+      >
+        {!boardAppearance.noBorder && !boardAppearance.isWallTransparent && (
+           <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
+        )}
+        
+        <div className="w-full max-w-[calc(100vw-2rem)] md:max-w-[95%] xl:max-w-[1400px] relative flex items-center">
+          {/* Left Arrow */}
+          <button
+            onClick={(e) => { e.preventDefault(); setMarqueeDirection(1); }}
+            className={`hidden md:flex absolute -left-4 lg:-left-12 xl:-left-16 z-30 opacity-50 hover:opacity-100 transition-all cursor-pointer items-center justify-center ${marqueeDirection === 1 ? 'text-white drop-shadow-md scale-125' : 'text-white/70 bg-transparent'}`}
+          >
+            <ChevronLeft className="w-8 h-8 md:w-10 md:h-10" />
+          </button>
+
+          <div 
+            className="relative flex overflow-x-hidden w-full select-none cursor-grab active:cursor-grabbing"
+            ref={scrollContainerRef}
+            onMouseDown={startDrag}
+            onMouseMove={drag}
+            onMouseUp={stopDrag}
+            onMouseLeave={() => { stopDrag(); setIsHovered(false); }}
+            onMouseEnter={() => setIsHovered(true)}
+            onTouchStart={startDrag}
+            onTouchMove={drag}
+            onTouchEnd={stopDrag}
+          >
+            <div className="flex w-max pl-4 py-4">
+              {[...Array(repeatCount)].map((_, i) => (
+                <div key={i} className="flex shrink-0 items-center justify-start gap-4 md:gap-8 mr-4 md:mr-8">
+                  {combinedItems.map((child: any) => (
+                    <React.Fragment key={`${i}-${child.id}`}>
+                      {renderItem(child)}
+                    </React.Fragment>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Arrow */}
+          <button
+            onClick={(e) => { e.preventDefault(); setMarqueeDirection(-1); }}
+            className={`hidden md:flex absolute -right-4 lg:-right-12 xl:-right-16 z-30 opacity-50 hover:opacity-100 transition-all cursor-pointer items-center justify-center ${marqueeDirection === -1 ? 'text-white drop-shadow-md scale-125' : 'text-white/70 bg-transparent'}`}
+          >
+            <ChevronRight className="w-8 h-8 md:w-10 md:h-10" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full flex justify-center py-2 md:py-3 px-4 md:px-12 shadow-sm relative z-[60] group select-none"
+      style={{
+        backgroundColor: boardAppearance.isWallTransparent ? 'transparent' : (boardAppearance.backgroundColor || '#cca378'),
+        borderTop: boardAppearance.noBorder ? '0px' : `8px solid ${boardAppearance.borderTopColor || boardAppearance.borderColor}`,
+        borderBottom: boardAppearance.noBorder ? '0px' : `8px solid ${boardAppearance.borderBottomColor || boardAppearance.borderColor}`,
+      }}
+    >
+      {!boardAppearance.noBorder && !boardAppearance.isWallTransparent && (
+         <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
+      )}
+
+      {/* Main layout container with arrow buttons */}
+      <div className="w-full max-w-[calc(100vw-2rem)] md:max-w-[95%] xl:max-w-[1400px] relative flex items-center">
+        {/* Left Arrow (only visible on md+ screens and on group hover or always) */}
+        <button
+          onClick={(e) => { e.preventDefault(); scroll('left'); }}
+          className="hidden md:flex absolute -left-4 lg:-left-12 xl:-left-16 z-30 opacity-30 hover:opacity-100 text-white drop-shadow-md transition-all items-center justify-center cursor-pointer hover:scale-110 bg-black/20 rounded-full w-10 h-10"
+        >
+          <ChevronLeft className="w-8 h-8" />
+        </button>
+
+        <div 
+          ref={scrollContainerRef}
+          className={`w-full flex overflow-x-auto gap-4 md:gap-8 hide-scrollbar snap-x relative z-10 items-center justify-start scroll-smooth p-2 py-4 cursor-grab active:cursor-grabbing ${isDragging ? 'snap-none' : ''}`}
+          onMouseDown={startDrag}
+          onMouseMove={drag}
+          onMouseUp={stopDrag}
+          onMouseLeave={stopDrag}
+          onTouchStart={startDrag}
+          onTouchMove={drag}
+          onTouchEnd={stopDrag}
+        >
+          {combinedItems.map((child: any) => renderItem(child))}
+        </div>
+
+        {/* Right Arrow (only visible on md+ screens and on group hover or always) */}
+        <button
+          onClick={(e) => { e.preventDefault(); scroll('right'); }}
+          className="hidden md:flex absolute -right-4 lg:-right-12 xl:-right-16 z-30 opacity-30 hover:opacity-100 text-white drop-shadow-md transition-all items-center justify-center cursor-pointer hover:scale-110 bg-black/20 rounded-full w-10 h-10"
+        >
+          <ChevronRight className="w-8 h-8" />
+        </button>
+      </div>
+    </div>
+  );
+}

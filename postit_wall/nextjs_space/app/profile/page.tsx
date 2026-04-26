@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'react-hot-toast'
-import { Loader2, User, Building2, Phone, CreditCard, Mail, Lock, Save, Eye, EyeOff, MapPin } from 'lucide-react'
+import { Loader2, User, Building2, Phone, CreditCard, Mail, Lock, Save, Eye, EyeOff, MapPin, Bell, Camera } from 'lucide-react'
 
 interface UserProfile {
   id: string
   email: string
   name: string | null
+  image: string | null
+  nickname: string | null
   companyName: string | null
   phone: string | null
   taxId: string | null
@@ -21,9 +23,34 @@ interface UserProfile {
   createdAt: string
   cityId: string | null
   districtId: string | null
+  telegramChatId: string | null
+  telegramConnectionToken: string | null
+  telegramTokenExpiresAt: string | null
+  receiveEmail: boolean
+  receiveTelegram: boolean
+  showAvatarInPostit: boolean
   _count: {
     postits: number
   }
+  wallSubscriptions?: {
+    id: string
+    categoryId: string
+    category: {
+      id: string
+      name: string
+      icon?: string | null
+    }
+  }[]
+  following?: {
+    id: string
+    followingId: string
+    following: {
+      id: string
+      name: string | null
+      nickname: string | null
+      image: string | null
+    }
+  }[]
 }
 
 interface City {
@@ -43,17 +70,23 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
+  const [telegramConnecting, setTelegramConnecting] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(null)
 
   // Profile form
   const [formData, setFormData] = useState({
     name: '',
+    nickname: '',
     companyName: '',
     phone: '',
     taxId: '',
     email: '',
     cityId: '',
-    districtId: ''
+    districtId: '',
+    receiveEmail: true,
+    receiveTelegram: true,
+    showAvatarInPostit: true,
+    image: ''
   })
 
   // Location data
@@ -99,12 +132,17 @@ export default function ProfilePage() {
         setProfile(profileData.user)
         setFormData({
           name: profileData.user.name || '',
+          nickname: profileData.user.nickname || '',
           companyName: profileData.user.companyName || '',
           phone: profileData.user.phone || '',
           taxId: profileData.user.taxId || '',
           email: profileData.user.email || '',
           cityId: profileData.user.cityId || '',
-          districtId: profileData.user.districtId || ''
+          districtId: profileData.user.districtId || '',
+          receiveEmail: profileData.user.receiveEmail ?? true,
+          receiveTelegram: profileData.user.receiveTelegram ?? true,
+          showAvatarInPostit: profileData.user.showAvatarInPostit ?? true,
+          image: profileData.user.image || ''
         })
       }
     } catch (error) {
@@ -119,10 +157,13 @@ export default function ProfilePage() {
     setSaving(true)
 
     try {
+      const payload = { ...formData };
+      if (!payload.image) delete (payload as any).image;
+
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       })
 
       const data = await res.json()
@@ -137,6 +178,38 @@ export default function ProfilePage() {
       toast.error(error.message || 'Bir hata oluştu')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('Dosya boyutu çok büyük (Max 50MB)')
+      return
+    }
+
+    const toastId = toast.loading('Fotoğraf yükleniyor...')
+    try {
+      const uploadData = new FormData()
+      uploadData.append('file', file)
+
+      const res = await fetch('/api/upload/local', {
+        method: 'POST',
+        body: uploadData
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Yükleme başarısız')
+      }
+
+      setFormData(prev => ({ ...prev, image: data.fileUrl }))
+      toast.success('Fotoğraf yüklendi', { id: toastId })
+    } catch (error: any) {
+      toast.error(error.message, { id: toastId })
     }
   }
 
@@ -178,6 +251,71 @@ export default function ProfilePage() {
       toast.error(error.message || 'Bir hata oluştu')
     } finally {
       setSavingPassword(false)
+    }
+  }
+
+  const handleConnectTelegram = async () => {
+    setTelegramConnecting(true)
+    try {
+      const res = await fetch('/api/telegram/connect', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Bağlantı oluşturulamadı')
+      
+      toast.success('Bağlantı tokenı oluşturuldu')
+      setProfile(prev => prev ? { ...prev, telegramConnectionToken: data.token, telegramTokenExpiresAt: data.expiresAt } : null)
+    } catch (error: any) {
+      toast.error(error.message)
+    } finally {
+      setTelegramConnecting(false)
+    }
+  }
+
+  const handleDisconnectTelegram = async () => {
+    try {
+      const res = await fetch('/api/telegram/connect', { method: 'DELETE' })
+      if (!res.ok) throw new Error('Bağlantı kaldırılamadı')
+      toast.success('Telegram bağlantısı kaldırıldı')
+      setProfile(prev => prev ? { ...prev, telegramChatId: null, telegramConnectionToken: null, telegramTokenExpiresAt: null } : null)
+    } catch (error: any) {
+      toast.error(error.message)
+    }
+  }
+
+  const handleUnsubscribe = async (categoryId: string) => {
+    try {
+      const res = await fetch(`/api/walls/${categoryId}/subscribe`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'İşlem başarısız')
+      toast.success(data.message)
+      // Remove from list immediately to reflect UI state
+      setProfile(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          wallSubscriptions: prev.wallSubscriptions?.filter(sub => sub.categoryId !== categoryId)
+        }
+      })
+    } catch (error: any) {
+      toast.error(error.message)
+    }
+  }
+
+  const handleUserUnsubscribe = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'İşlem başarısız')
+      toast.success("Takipten çıkıldı")
+      
+      setProfile(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          following: prev.following?.filter(sub => sub.followingId !== userId)
+        }
+      })
+    } catch (error: any) {
+      toast.error(error.message)
     }
   }
 
@@ -231,12 +369,115 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Subscriptions */}
+        {profile?.wallSubscriptions && profile.wallSubscriptions.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+              <Bell className="w-5 h-5 text-yellow-500" />
+              Abone Olduğum Duvarlar
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {profile.wallSubscriptions.map(sub => (
+                <div key={sub.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-purple-200 transition-colors">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-gray-800">{sub.category.name}</span>
+                    <span className="text-xs text-gray-500">Yeni bildirimler için abone</span>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200 shrink-0"
+                    onClick={() => handleUnsubscribe(sub.categoryId)}
+                  >
+                    Takipten Çık
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {profile?.following && profile.following.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+              <User className="w-5 h-5 text-purple-500" />
+              Takip Ettiğim Kullanıcılar
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {profile.following.map(sub => (
+                <div key={sub.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-purple-200 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold overflow-hidden shrink-0">
+                      {sub.following.image ? (
+                        <img src={sub.following.image} alt={sub.following.name || ''} className="object-cover w-full h-full" />
+                      ) : (
+                        (sub.following.nickname || sub.following.name || 'A')[0].toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-gray-800">{sub.following.nickname || sub.following.name || 'Anonim'}</span>
+                      <span className="text-xs text-gray-500">Kullanıcı gönderileri takip ediliyor</span>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200 shrink-0 ml-2"
+                    onClick={() => handleUserUnsubscribe(sub.followingId)}
+                  >
+                    Takipten Çık
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Profile Form */}
         <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
             <User className="w-5 h-5" />
             Kişisel Bilgiler
           </h2>
+
+          <div className="flex flex-col items-center justify-center mb-8 gap-4">
+            <div className="relative">
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-purple-100 bg-gray-100 flex items-center justify-center">
+                {formData.image ? (
+                  <img src={formData.image} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-12 h-12 text-gray-400" />
+                )}
+              </div>
+              <Label 
+                htmlFor="avatar-upload" 
+                className="absolute bottom-0 right-0 w-8 h-8 sm:w-10 sm:h-10 bg-purple-600 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-purple-700 shadow-lg border-2 border-white transition-transform hover:scale-105"
+                title="Fotoğraf Yükle"
+              >
+                <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
+              </Label>
+              <Input 
+                id="avatar-upload" 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleImageUpload}
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-lg border border-gray-100">
+              <input
+                type="checkbox"
+                id="showAvatarInPostit"
+                className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                checked={formData.showAvatarInPostit}
+                onChange={(e) => setFormData({ ...formData, showAvatarInPostit: e.target.checked })}
+              />
+              <Label htmlFor="showAvatarInPostit" className="font-normal cursor-pointer text-sm text-gray-600">
+                Profil fotoğrafımı yazdığım postitlerde göster
+              </Label>
+            </div>
+          </div>
 
           <form onSubmit={handleSaveProfile} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -250,6 +491,20 @@ export default function ProfilePage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Adınız Soyadınız"
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="nickname" className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-gray-400" />
+                  Takma Ad (Nickname)
+                </Label>
+                <Input
+                  id="nickname"
+                  value={formData.nickname}
+                  onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                  placeholder="Kullanıcı Takma Adı"
                   className="mt-1"
                 />
               </div>
@@ -362,6 +617,35 @@ export default function ProfilePage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="md:col-span-2 space-y-4 pt-4 border-t mt-2">
+                <h3 className="font-medium text-sm text-gray-700">Bildirim Tercihleri</h3>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="unsubscribeEmail"
+                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                    checked={!formData.receiveEmail}
+                    onChange={(e) => setFormData({ ...formData, receiveEmail: !e.target.checked })}
+                  />
+                  <Label htmlFor="unsubscribeEmail" className="font-normal cursor-pointer">
+                    Panodasehir den &quot;Mail almak istemiyorum&quot;
+                  </Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="unsubscribeTelegram"
+                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                    checked={!formData.receiveTelegram}
+                    onChange={(e) => setFormData({ ...formData, receiveTelegram: !e.target.checked })}
+                  />
+                  <Label htmlFor="unsubscribeTelegram" className="font-normal cursor-pointer">
+                    Bildirim Almak İstemiyorum (Telegram mesajları kapatılır)
+                  </Label>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end pt-4">
@@ -371,6 +655,55 @@ export default function ProfilePage() {
               </Button>
             </div>
           </form>
+        </div>
+
+        {/* Telegram Connection Form */}
+        <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-blue-500"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-18 8.019c-.93.414-1.22 1.638-.553 2.409l4.5 5.174 2.146 6.012a2.001 2.001 0 0 0 3.731.258l2.972-5.945 4.318 4.318c.84.84 2.29.351 2.476-.827l3.053-17.683a2.243 2.243 0 0 0-3.621-2.031v-.001h.001z"/><path d="m11 11 4-4"/></svg>
+            Telegram Bildirimleri
+          </h2>
+
+          <div className="space-y-4">
+            {profile?.telegramChatId ? (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                <div>
+                  <h3 className="font-semibold text-green-800">✅ Telegram Hesabınız Bağlı</h3>
+                  <p className="text-sm text-green-600">Platform üzerindeki bildirimleri ve onay taleplerini anında Telegram üzerinden alabilirsiniz.</p>
+                </div>
+                <Button type="button" variant="destructive" size="sm" onClick={handleDisconnectTelegram} className="mt-3 sm:mt-0">
+                  Bağlantıyı Kaldır
+                </Button>
+              </div>
+            ) : profile?.telegramConnectionToken ? (
+               <div className="flex flex-col items-center p-6 bg-blue-50 rounded-lg border border-blue-200 text-center">
+                  <h3 className="font-semibold text-blue-800 mb-2">Eşleştirme Bekleniyor</h3>
+                  <p className="text-sm text-blue-700 mb-4">Lütfen Telegram botumuza giderek aşağıdaki kodu mesaj olarak gönderin veya Bota Git butonuna tıklayın:</p>
+                  
+                  <div className="bg-white px-4 py-2 rounded font-mono text-lg font-bold border border-blue-300 shadow-sm mb-4">
+                    /start {profile.telegramConnectionToken}
+                  </div>
+                  
+                  <div className="flex gap-4">
+                     <a href={`https://t.me/Panodasehir_bot?start=${profile.telegramConnectionToken}`} target="_blank" rel="noopener noreferrer">
+                        <Button type="button" className="bg-[#0088cc] hover:bg-[#0077b5] text-white">Bota Git</Button>
+                     </a>
+                     <Button type="button" variant="outline" onClick={handleDisconnectTelegram}>İptal Et</Button>
+                  </div>
+                  <p className="text-xs text-blue-500 mt-4">Not: Bu bağlantının süresi 15 dakika içinde dolacaktır.</p>
+               </div>
+            ) : (
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-sm text-gray-600 mb-4">
+                    Telegram hesabınızı bağlayarak yeni postit ve yorumlardan anında haberdar olabilir, yetkili olduğunuz ağlardaki onay bekleyen içerikleri Telegram üzerinden yönetebilirsiniz.
+                  </p>
+                  <Button type="button" onClick={handleConnectTelegram} disabled={telegramConnecting} className="bg-[#0088cc] hover:bg-[#0077b5] text-white gap-2">
+                    {telegramConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    Telegram Hesabını Bağla
+                  </Button>
+                </div>
+            )}
+          </div>
         </div>
 
         {/* Password Change Form */}

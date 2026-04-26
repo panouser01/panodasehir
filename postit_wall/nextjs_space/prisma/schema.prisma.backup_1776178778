@@ -1,0 +1,717 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String             @id @default(cuid())
+  email                   String             @unique
+  emailVerified           DateTime?
+  password                String?
+  name                    String?
+  nickname                String?
+  image                   String?
+  role                    String             @default("USER")
+  companyName             String?
+  phone                   String?
+  taxId                   String?
+  receiveEmail            Boolean            @default(true)
+  receiveTelegram         Boolean            @default(true)
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  cityId                  String?
+  districtId              String?
+  telegramChatId          String?            @unique
+  telegramConnectionToken String?            @unique
+  telegramTokenExpiresAt  DateTime?
+  permissions             Json?
+  accounts                Account[]
+  ads                     Ad[]
+  commentLikes            CommentLike[]
+  postits                 PostIt[]
+  comments                PostItComment[]
+  likes                   PostItLike[]
+  sessions                Session[]
+  city                    City?              @relation(fields: [cityId], references: [id])
+  district                District?          @relation(fields: [districtId], references: [id])
+  userGroups              UserGroup[]        @relation("UserToUserGroup")
+  managedCategories       Category[]         @relation("WallManager")
+  wallSubscriptions       WallSubscription[]
+  following               UserSubscription[] @relation("UserFollowers")
+  followers               UserSubscription[] @relation("UserFollowing")
+
+  viewsRecord     PostItView[]
+  articles        Article[]
+  articleVersions ArticleVersion[]
+  articleRatings  ArticleRating[]
+  articleLikes    ArticleLike[]
+
+  @@index([cityId])
+  @@index([districtId])
+}
+
+model UserGroup {
+  id            String     @id @default(cuid())
+  name          String     @unique
+  description   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  assignedWalls Category[]
+  users         User[]     @relation("UserToUserGroup")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId], map: "Account_userId_fkey")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "Session_userId_fkey")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Category {
+  id                        String              @id @default(cuid())
+  name                      String
+  description               String?
+  parentId                  String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+  heroBackgroundImage       String?
+  heroSubtitle              String?
+  heroTitleFont             String?             @default("sans-serif")
+  heroTitleColor            String?             @default("#ffffff")
+  heroTitleSize             String?             @default("5xl")
+  heroTitleBgMode           String?             @default("none")
+  heroTitleBgColor          String?             @default("#000000")
+  heroTitleBgOpacity        Int?                @default(40)
+  heroTitleBgImage          String?
+  heroSubtitleFont          String?             @default("sans-serif")
+  heroSubtitleColor         String?             @default("#ffffff")
+  heroSubtitleSize          String?             @default("xl")
+  heroGradientFrom          String?             @default("#facc15")
+  heroGradientVia           String?             @default("#f472b6")
+  heroGradientTo            String?             @default("#a855f7")
+  categoryFont              String?             @default("sans-serif")
+  categoryColor             String?             @default("#1f2937")
+  categoryBgColor           String?             @default("#ffffff")
+  postCount                 Int                 @default(0)
+  userGroupId               String?
+  cityId                    String?
+  districtId                String?
+  heroAlignment             String?             @default("left")
+  backgroundColor           String?
+  backgroundImage           String?
+  borderBottomColor         String?
+  borderColor               String?
+  borderTopColor            String?
+  gradientFrom              String?             @default("#facc15")
+  gradientTo                String?             @default("#a855f7")
+  gradientVia               String?             @default("#f472b6")
+  isGradient                Boolean?            @default(false)
+  isWallTransparent         Boolean?            @default(false)
+  noBorder                  Boolean?            @default(false)
+  navMenuBgColor            String?
+  navMenuFont               String?
+  navMenuFontSize           Int?
+  navMenuMainBold           Boolean?
+  navMenuTextColor          String?
+  siteBackgroundColor       String?
+  siteBackgroundImage       String?
+  siteGradientFrom          String?
+  siteGradientTo            String?
+  siteGradientVia           String?
+  siteIsGradient            Boolean?
+  contactEmail              String?
+  contactName               String?
+  contactPhone              String?
+  isHeroTransparent         Boolean?            @default(false)
+  isWallBackgroundRepeat    Boolean?            @default(true)
+  ribbonColor               String?             @default("#502bb1")
+  homeCategoryIds           Json?
+  postitLimit               Int?                @default(0)
+  logoPosition              String?             @default("top-right")
+  logoSize                  String?             @default("medium")
+  logoUrl                   String?
+  useParentLogo             Boolean?            @default(false)
+  customLayout              Json?
+  useCustomLayout           Boolean?            @default(false)
+  order                     Int                 @default(0)
+  icon                      String?
+  postitAppearance          Json?
+  innerBackgroundColor      String?
+  isInnerTransparent        Boolean?            @default(false)
+  noInnerBorder             Boolean?            @default(false)
+  siteBackgroundStyle       String?             @default("repeat")
+  expirationDate            DateTime?
+  isActive                  Boolean             @default(true)
+  ribbonTextColor           String?             @default("#ffffff")
+  hideHeroText              Boolean?            @default(false)
+  ribbonImage               String?
+  hideWallRibbon            Boolean             @default(false)
+  hideWallTitle             Boolean             @default(false)
+  heroBackgroundStyle       String?             @default("cover")
+  isOttActive               Boolean?            @default(false)
+  ottAutoScrollSpeed        Float?              @default(0)
+  ottCardRatio              String?             @default("16/9")
+  ottItemsPerRow            Int?                @default(4)
+  ottCardStyle              String?             @default("cover")
+  ottShowCategoryTitles     Boolean?            @default(true)
+  ottShowTopMenu            Boolean?            @default(true)
+  ottTopMenuShape           String?             @default("circle")
+  ottShowHeroSlider         Boolean?            @default(true)
+  ottCategoryTitleAlignment String?             @default("left")
+  ottCategoryTitleFont      String?             @default("sans-serif")
+  ottCategoryTitleColor     String?
+  ottCategoryTitleSize      String?             @default("2xl")
+  ottSeparatorColor         String?
+  ottSeparatorStyle         String?             @default("none")
+  ribbonAlignment           String?             @default("center")
+  ottTopMenuLabelBgColor    String?
+  ottTopMenuLabelHasBorder  Boolean?            @default(false)
+  ottTopMenuIconBgColor     String?
+  ottCardBgColor            String?
+  ottCardBgImage            String?
+  ottCardBgType             String?             @default("postit")
+  ottModalBgColor           String?
+  ottModalBgColorAlpha      Int?
+  ottModalBgImage           String?
+  ottModalBgType            String?             @default("postit")
+  ottModalTextColor         String?
+  isSystem                  Boolean             @default(false)
+  customRibbonText          String?             @db.Text
+  ribbonTextFont            String?             @default("sans-serif")
+  hideHeroPushpin           Boolean             @default(false)
+  ottTopMenuMarqueeActive   Boolean?            @default(false)
+  ottTopMenuMarqueeSpeed    Float?              @default(30)
+  isEditorModeActive        Boolean?            @default(false)
+  ads                       Ad[]
+  city                      City?               @relation(fields: [cityId], references: [id])
+  district                  District?           @relation(fields: [districtId], references: [id])
+  parent                    Category?           @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children                  Category[]          @relation("CategoryHierarchy")
+  assignedGroup             UserGroup?          @relation(fields: [userGroupId], references: [id])
+  postits                   PostIt[]
+  articles                  Article[]
+  slider                    Slider?
+  calendarEntries           WallCalendarEntry[]
+  wallManagers              User[]              @relation("WallManager")
+  subscribers               WallSubscription[]
+
+  @@unique([name, parentId])
+  @@index([parentId], map: "Category_parentId_fkey")
+  @@index([userGroupId], map: "Category_userGroupId_fkey")
+  @@index([cityId])
+  @@index([districtId])
+}
+
+model UserRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  permissions Json?
+}
+
+model PostIt {
+  id               String          @id @default(cuid())
+  userId           String
+  categoryId       String
+  content          String          @db.Text
+  link             String?         @db.Text
+  color            PostIt_color    @default(YELLOW)
+  font             PostIt_font     @default(HANDWRITING)
+  pushpin          PostIt_pushpin  @default(RED)
+  rotation         Float           @default(0)
+  expiresAt        DateTime
+  isApproved       Boolean         @default(false)
+  isModerated      Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  imageUrl         String?
+  isPublished      Boolean         @default(true)
+  hasBeenPublished Boolean         @default(false)
+  views            Int             @default(0)
+  sharesCount      Int             @default(0)
+  reportCount      Int             @default(0)
+  reportedBy       Json?
+  textColor        String?
+  textSize         String?
+  category         Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments         PostItComment[]
+  PostItImage      PostItImage[]
+  likes            PostItLike[]
+
+  viewsRecord PostItView[]
+
+  @@index([categoryId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isApproved])
+  @@index([isPublished])
+  @@index([isApproved, isPublished, expiresAt, categoryId])
+}
+
+model Ad {
+  id          String     @id @default(cuid())
+  title       String
+  imageUrl    String     @db.Text
+  link        String     @db.Text
+  categoryId  String?
+  createdBy   String
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  positions   Json
+  endDate     DateTime?
+  startDate   DateTime?
+  categoryIds Json
+  frequency   Int        @default(1)
+  companyId   String?
+  category    Category?  @relation(fields: [categoryId], references: [id])
+  AdCompany   AdCompany? @relation(fields: [companyId], references: [id])
+  creator     User       @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@index([categoryId], map: "Ad_categoryId_fkey")
+  @@index([createdBy], map: "Ad_createdBy_fkey")
+  @@index([startDate, endDate])
+  @@index([companyId])
+}
+
+model PostItImage {
+  id        String   @id
+  url       String
+  postItId  String
+  createdAt DateTime @default(now())
+  PostIt    PostIt   @relation(fields: [postItId], references: [id], onDelete: Cascade)
+
+  @@index([postItId])
+}
+
+model Slider {
+  id               String    @id @default(cuid())
+  categoryId       String?   @unique
+  images           Json
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  links            Json?
+  backgroundColor  String?   @default("#f8f9fa")
+  heroGradientFrom String?   @default("#facc15")
+  heroGradientTo   String?   @default("#a855f7")
+  heroGradientVia  String?   @default("#f472b6")
+  isGradient       Boolean   @default(false)
+  isTransparent    Boolean   @default(false)
+  backgroundImage  String?
+  category         Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model City {
+  id            String     @id @default(cuid())
+  name          String     @unique
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  showInWeather Boolean    @default(false)
+  weatherOrder  Int        @default(0)
+  categories    Category[]
+  districts     District[]
+  users         User[]
+}
+
+model District {
+  id         String     @id @default(cuid())
+  name       String
+  cityId     String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  categories Category[]
+  city       City       @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  users      User[]
+
+  @@unique([name, cityId])
+  @@index([cityId])
+}
+
+model SiteSettings {
+  id                           String   @id @default("global")
+  backgroundColor              String   @default("#cca378")
+  backgroundImage              String   @default("https://www.transparenttextures.com/patterns/cork-board.png")
+  borderColor                  String   @default("#6b4423")
+  borderTopColor               String   @default("#8a5a2e")
+  borderBottomColor            String   @default("#4a2f18")
+  updatedAt                    DateTime @updatedAt
+  noBorder                     Boolean  @default(false)
+  heroBackgroundImage          String?
+  heroGradientFrom             String?  @default("#facc15")
+  heroGradientTo               String?  @default("#a855f7")
+  heroGradientVia              String?  @default("#f472b6")
+  heroSubtitle                 String?
+  heroSubtitleColor            String?  @default("#ffffff")
+  heroSubtitleFont             String?  @default("sans-serif")
+  heroSubtitleSize             String?  @default("xl")
+  heroTitleColor               String?  @default("#ffffff")
+  heroTitleFont                String?  @default("sans-serif")
+  heroTitleSize                String?  @default("5xl")
+  heroTitleBgMode              String?  @default("none")
+  heroTitleBgColor             String?  @default("#000000")
+  heroTitleBgOpacity           Int?     @default(40)
+  heroTitleBgImage             String?
+  heroAlignment                String?  @default("left")
+  gradientFrom                 String?  @default("#facc15")
+  gradientTo                   String?  @default("#a855f7")
+  gradientVia                  String?  @default("#f472b6")
+  isGradient                   Boolean  @default(false)
+  siteBackgroundColor          String?  @default("#fffbeb")
+  siteGradientFrom             String?  @default("#fffbeb")
+  siteGradientTo               String?  @default("#fff7ed")
+  siteGradientVia              String?  @default("#fefce8")
+  siteIsGradient               Boolean  @default(true)
+  calendarColor                String?  @default("#dc2626")
+  calendarPosition             String?  @default("right")
+  calendarShow                 Boolean? @default(true)
+  calendarSize                 String?  @default("medium")
+  calendarViewType             String?  @default("page")
+  aboutContent                 String?  @db.Text
+  contactContent               String?  @db.Text
+  cookiesContent               String?  @db.Text
+  helpContent                  String?  @db.Text
+  privacyContent               String?  @db.Text
+  termsContent                 String?  @db.Text
+  kvkkContent                  String?  @db.Text
+  popularLinks                 Json?
+  discoverLinks                Json?
+  socialLinks                  Json?
+  navMenuBgColor               String?  @default("#ffffff")
+  navMenuFont                  String?  @default("sans-serif")
+  navMenuMainBold              Boolean? @default(true)
+  navMenuTextColor             String?  @default("#111827")
+  navMenuFontSize              Int?     @default(14)
+  navMenuIsTransparent         Boolean? @default(false)
+  navMenuBackgroundImage       String?
+  navMenuVariant               String?  @default("classic")
+  siteBackgroundImage          String?
+  isWallTransparent            Boolean  @default(false)
+  isHeroTransparent            Boolean? @default(false)
+  isWallBackgroundRepeat       Boolean  @default(true)
+  homeCategoryIds              Json?
+  ribbonColor                  String?  @default("#502bb1")
+  postitLimit                  Int      @default(0)
+  calendarPopupBackgroundImage String?
+  customLayout                 Json?
+  useCustomLayout              Boolean? @default(false)
+  postitAppearance             Json?
+  innerBackgroundColor         String?
+  isInnerTransparent           Boolean  @default(false)
+  noInnerBorder                Boolean  @default(false)
+  siteBackgroundStyle          String?  @default("repeat")
+  hideHeroText                 Boolean? @default(false)
+  hideWallRibbon               Boolean  @default(false)
+  hideWallTitle                Boolean  @default(false)
+  ribbonImage                  String?
+  ribbonAlignment              String?  @default("center")
+  ribbonTextColor              String?  @default("#ffffff")
+  heroBackgroundStyle          String?  @default("cover")
+  isOttActive                  Boolean? @default(false)
+  ottAutoScrollSpeed           Float?   @default(0)
+  ottCardRatio                 String?  @default("16/9")
+  ottItemsPerRow               Int?     @default(4)
+  ottCardStyle                 String?  @default("cover")
+  ottShowCategoryTitles        Boolean? @default(true)
+  ottShowTopMenu               Boolean? @default(true)
+  ottTopMenuShape              String?  @default("circle")
+  ottShowHeroSlider            Boolean? @default(true)
+  ottCategoryTitleAlignment    String?  @default("left")
+  ottCategoryTitleFont         String?  @default("sans-serif")
+  ottCategoryTitleColor        String?
+  ottCategoryTitleSize         String?  @default("2xl")
+  ottSeparatorColor            String?
+  ottSeparatorStyle            String?  @default("none")
+  ottTopMenuLabelBgColor       String?
+  ottTopMenuLabelHasBorder     Boolean? @default(false)
+  ottTopMenuIconBgColor        String?
+  ottCardBgColor               String?
+  ottCardBgImage               String?
+  ottCardBgType                String?  @default("postit")
+  ottModalBgColor              String?
+  ottModalBgColorAlpha         Int?
+  ottModalBgImage              String?
+  ottModalBgType               String?  @default("postit")
+  ottModalTextColor            String?
+  customRibbonText             String?  @db.Text
+  ribbonTextFont               String?  @default("sans-serif")
+  hideHeroPushpin              Boolean  @default(false)
+  ottTopMenuMarqueeActive      Boolean? @default(false)
+  ottTopMenuMarqueeSpeed       Float?   @default(30)
+}
+
+model CalendarCategory {
+  id            String              @id @default(cuid())
+  name          String
+  order         Int                 @default(0)
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  globalEntries Json?
+  wallEntries   WallCalendarEntry[]
+}
+
+model WallCalendarEntry {
+  id                 String           @id @default(cuid())
+  categoryId         String
+  calendarCategoryId String
+  date               DateTime         @default(now())
+  content            String           @db.Text
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  calendarCategory   CalendarCategory @relation(fields: [calendarCategoryId], references: [id], onDelete: Cascade)
+  category           Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@index([calendarCategoryId])
+}
+
+model PostItLike {
+  id        String   @id @default(cuid())
+  userId    String
+  postItId  String
+  createdAt DateTime @default(now())
+  postIt    PostIt   @relation(fields: [postItId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postItId])
+  @@index([userId])
+  @@index([postItId])
+}
+
+model PostItComment {
+  id        String        @id @default(cuid())
+  content   String        @db.Text
+  userId    String
+  postItId  String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  likes     CommentLike[]
+  postIt    PostIt        @relation(fields: [postItId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postItId])
+  @@index([userId])
+}
+
+model CommentLike {
+  id        String        @id @default(cuid())
+  userId    String
+  commentId String
+  createdAt DateTime      @default(now())
+  comment   PostItComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+  @@index([userId])
+  @@index([commentId])
+}
+
+model AdCompany {
+  id          String   @id @default(cuid())
+  name        String
+  contactInfo String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Ad          Ad[]
+}
+
+enum PostIt_color {
+  YELLOW
+  PINK
+  BLUE
+  GREEN
+  ORANGE
+  PURPLE
+  TRANSPARENT
+  WHITE
+  DARK
+  GLASS
+}
+
+enum PostIt_font {
+  HANDWRITING
+  SERIF
+  SANS
+  MONO
+  CURSIVE
+  SYSTEM
+  COMIC
+  MODERN
+}
+
+enum PostIt_pushpin {
+  RED
+  BLUE
+  GOLD
+  GREEN
+  PINK
+  SILVER
+  NONE
+  BLACK
+  WHITE
+  TAPE
+  CLIP
+}
+
+model PostItView {
+  id        String   @id @default(cuid())
+  userId    String?
+  postItId  String
+  createdAt DateTime @default(now())
+
+  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  PostIt PostIt @relation(fields: [postItId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postItId])
+  @@index([userId])
+  @@index([postItId])
+}
+
+model WallSubscription {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId])
+  @@index([userId])
+  @@index([categoryId])
+}
+
+model UserSubscription {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Article {
+  id            String  @id @default(cuid())
+  title         String
+  content       String  @db.LongText
+  thumbnailUrl  String? @db.Text
+  averageRating Float   @default(0)
+  seoTags       String? @db.Text
+  seoSummary    String? @db.Text
+  isPublished   Boolean @default(true)
+  views         Int     @default(0)
+  likesCount    Int     @default(0)
+  commentsCount Int     @default(0)
+  sharesCount   Int     @default(0)
+  
+  images        Json?
+  documents     Json?
+  link          String? @db.Text
+
+  authorId   String
+  categoryId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  author   User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  versions ArticleVersion[]
+  ratings  ArticleRating[]
+  likes    ArticleLike[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([isPublished])
+}
+
+model ArticleVersion {
+  id            String   @id @default(cuid())
+  articleId     String
+  oldTitle      String?
+  oldContent    String?  @db.LongText
+  changeSummary String?  @db.Text
+  updatedById   String
+  createdAt     DateTime @default(now())
+
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  updatedBy User    @relation(fields: [updatedById], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([updatedById])
+}
+
+model ArticleRating {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String
+  rating    Int
+  createdAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, userId])
+  @@index([articleId])
+  @@index([userId])
+}
+
+model ArticleLike {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, userId])
+  @@index([articleId])
+  @@index([userId])
+}

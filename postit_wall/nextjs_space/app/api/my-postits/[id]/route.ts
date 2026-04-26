@@ -43,6 +43,15 @@ export async function PATCH(
       )
     }
 
+    const userRole = (session.user as any)?.role
+
+    if (existingPost.hasBeenPublished && userRole !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Yayınlanmış postitler düzenlenemez. Sadece görünürlüğünü kapatabilirsiniz.' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { content, color, font, pushpin, link, categoryId, imageUrl, imageUrls, createdAt, expiresAt } = body
 
@@ -50,9 +59,9 @@ export async function PATCH(
 
     // If content changed, moderate it
     if (content !== undefined && content !== existingPost.content) {
-      if (content.length > 500) {
+      if (content.length > 2500) {
         return NextResponse.json(
-          { error: 'İçerik en fazla 500 karakter olabilir' },
+          { error: 'İçerik en fazla 2500 karakter olabilir' },
           { status: 400 }
         )
       }
@@ -120,7 +129,11 @@ export async function PATCH(
       include: {
         user: { select: { id: true, name: true, email: true } },
         category: { select: { id: true, name: true } },
-        PostItImage: true
+        PostItImage: {
+          orderBy: {
+            id: 'asc'
+          }
+        }
       }
     })
 

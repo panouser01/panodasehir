@@ -3,83 +3,85 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { PostItWall } from '@/components/postit/postit-wall'
+import { PostitMasonryGrid } from '@/components/postit/postit-masonry-grid'
+import { OttSlider } from '@/components/postit/ott-slider'
 import { PostItStack } from '@/components/postit/postit-stack'
 import { ImageSlider } from '@/components/ui/image-slider'
 import { EczanePopup } from '@/components/postit/eczane-popup'
+import { HavaDurumuShortcut } from '@/components/postit/hava-durumu-shortcut'
+import { AccordionProvider, AccordionToggle, AccordionContent } from '@/components/postit/category-accordion-wrapper'
 import { redirect } from 'next/navigation'
-import { ChevronLeft, ListTree, StickyNote } from 'lucide-react'
+import { ChevronLeft, ListTree, StickyNote, CalendarDays, Plus, X } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
+import { OttTopMenu } from '@/components/postit/ott-top-menu'
 import { CalendarPopup } from '@/components/postit/calendar-popup'
+import { PostItForm } from '@/components/forms/postit-form'
+import { CategoryShareButton } from '@/components/postit/category-share-button'
+import { CategorySubscribeButton } from '@/components/postit/category-subscribe-button'
+import { CategoryMessageButton } from '@/components/postit/category-message-button'
+import { ModernWidgets } from '@/components/postit/modern-widgets'
+import ArticleGrid from '@/components/editor/ArticleGrid'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+import { getCachedCategories, filterActiveCategories, flattenCategories } from '@/lib/services/category.service'
+import { unstable_cache } from 'next/cache'
 
 interface HomePageProps {
-  searchParams: { category?: string; from?: string }
+  searchParams: { category?: string; from?: string; q?: string }
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const session = await getServerSession(authOptions)
   const categoryId = searchParams?.category
   const fromId = searchParams?.from
+  const searchQuery = searchParams?.q
 
-  // Fetch root categories (without parent) with their children
-  const allCategories = await prisma.category.findMany({
-    include: {
-      children: {
-        include: {
-          children: {
-            include: {
-              children: true // recursive include for depth 3
-            },
-            orderBy: { name: 'asc' }
-          }
-        },
-        orderBy: { name: 'asc' }
-      }
-    },
-    where: {
-      parentId: null // Only root categories
-    },
-    orderBy: { name: 'asc' }
-  })
+  // Fetch root categories (without parent) with their children (CACHED)
+  const allCategories = await getCachedCategories()
 
-  // Flatten categories for PostItForm with depth indicator
-  const flattenCategories = (cats: any[], depth: number = 0): any[] => {
-    const result: any[] = []
-    for (const cat of cats) {
-      result.push({ ...cat, depth })
-      if (cat.children?.length > 0) {
-        result.push(...flattenCategories(cat.children, depth + 1))
-      }
-    }
-    return result
-  }
-  const categories = flattenCategories(allCategories)
+  const activeCategoriesTree = filterActiveCategories(allCategories)
+  const categories = flattenCategories(activeCategoriesTree as any)
 
   // Get selected category for appearance settings
   let selectedCategory = categoryId
     ? categories.find(c => c.id === categoryId)
     : null
 
-  // Fetch active ads
-  const now = new Date()
-  const activeAds = await prisma.ad.findMany({
-    where: {
-      isActive: true,
-      AND: [
-        { OR: [{ startDate: null }, { startDate: { lte: now } }] },
-        { OR: [{ endDate: null }, { endDate: { gte: now } }] },
-        { OR: [{ categoryId: categoryId || null }, { categoryId: null }] }
-      ]
-    }
-  })
+  // If someone lands on an inactive or non-existent category URL, bounce them to home
+  if (categoryId && !selectedCategory) {
+    redirect('/')
+  }
 
-  // Fetch site settings
-  let siteSettings: any = await prisma.siteSettings.findUnique({
-    where: { id: 'global' }
-  })
+  const getCachedAdsAndSettings = unstable_cache(
+    async (catId: string | undefined) => {
+      const now = new Date()
+      const [activeAds, siteSettings, layoutConfig] = await Promise.all([
+        prisma.ad.findMany({
+          where: {
+            isActive: true,
+            AND: [
+              { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+              { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+              { OR: [{ categoryId: catId || null }, { categoryIds: { array_contains: catId || 'root' } }] }
+            ]
+          }
+        }),
+        prisma.siteSettings.findUnique({
+          where: { id: 'global' }
+        }),
+        (prisma as any).layoutConfig?.findUnique({
+          where: { id: 'global' }
+        }) || Promise.resolve({})
+      ])
+      return { activeAds, siteSettings, layoutConfig }
+    },
+    ['ads-and-settings'],
+    { revalidate: 5, tags: ['site-settings', 'ads-and-settings'] } // Cache for 5 secs
+  )
 
+  const { activeAds, siteSettings: fetchedSiteSettings, layoutConfig: fetchedLayoutConfig } = await getCachedAdsAndSettings(categoryId)
+
+  let siteSettings: any = fetchedSiteSettings
   if (!siteSettings) {
     siteSettings = {
       id: 'global',
@@ -96,7 +98,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       isHeroTransparent: false,
       heroSubtitle: 'Fikirlerinizi paylaşın, topluluktaki diğerlerinin görüşlerini keşfedin',
       heroTitleFont: 'sans-serif',
-      heroTitleColor: '#ffffff',
+      heroTitleColor: '#1f2937',
       heroTitleSize: '5xl',
       heroSubtitleFont: 'sans-serif',
       heroSubtitleColor: '#ffffff',
@@ -125,22 +127,28 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   const isSet = (val: any) => val !== null && val !== undefined && val !== ''
 
-  // Use selected category appearance or default (Fallback to SiteSettings ONLY for Home Page, NOT for other walls)
+  // Force appearance on the homepage to fallback entirely to Ana Duvar category, ensuring UI syncs
+  const resolvedActiveWall = selectedCategory || homeWall; 
+
+  // Use active wall appearance or fallback to SiteSettings
   const getValue = (prop: string, fallback: any) => {
-    if (selectedCategory) {
-      // For sub-walls: ONLY use its own value if set, NO inheritance from siteSettings/Ana Duvar
-      return isSet(selectedCategory[prop]) ? selectedCategory[prop] : fallback
-    } else {
-      // On Home Page: Use siteSettings (Ana Duvar)
-      return isSet(siteSettings[prop]) ? siteSettings[prop] : fallback
+    if (resolvedActiveWall && isSet(resolvedActiveWall[prop])) {
+      return resolvedActiveWall[prop];
     }
+    return isSet(siteSettings[prop]) ? siteSettings[prop] : fallback;
   }
 
   const appearance = {
     heroBackgroundImage: getValue('heroBackgroundImage', null),
+    heroBackgroundStyle: getValue('heroBackgroundStyle', 'cover'),
     isHeroTransparent: getValue('isHeroTransparent', false),
     heroSubtitle: getValue('heroSubtitle', 'Fikirlerinizi paylaşın, topluluktaki diğerlerinin görüşlerini keşfedin'),
+    hideHeroText: getValue('hideHeroText', false),
     heroTitleFont: getValue('heroTitleFont', 'sans-serif'),
+    heroTitleBgMode: getValue('heroTitleBgMode', 'default'),
+    heroTitleBgColor: getValue('heroTitleBgColor', '#000000'),
+    heroTitleBgOpacity: getValue('heroTitleBgOpacity', 40),
+    heroTitleBgImage: getValue('heroTitleBgImage', ''),
     heroTitleColor: getValue('heroTitleColor', '#ffffff'),
     heroTitleSize: getValue('heroTitleSize', '5xl'),
     heroSubtitleFont: getValue('heroSubtitleFont', 'sans-serif'),
@@ -153,7 +161,105 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     categoryFont: getValue('categoryFont', 'sans-serif'),
     categoryColor: getValue('categoryColor', '#1f2937'),
     categoryBgColor: getValue('categoryBgColor', '#ffffff'),
-    ribbonColor: getValue('ribbonColor', '#502bb1')
+    navMenuBgColor: getValue('navMenuBgColor', '#22c55e'),
+    navMenuFont: getValue('navMenuFont', ''),
+    navMenuTextColor: getValue('navMenuTextColor', '#ffffff'),
+    navMenuFontSize: getValue('navMenuFontSize', 'md'),
+    navMenuMainBold: getValue('navMenuMainBold', true),
+    hideWallTitle: getValue('hideWallTitle', false),
+    hideWallRibbon: getValue('hideWallRibbon', false),
+    hideHeroPushpin: getValue('hideHeroPushpin', false),
+    ribbonImage: getValue('ribbonImage', ''),
+    ribbonColor: getValue('ribbonColor', '#502bb1'),
+    ribbonTextColor: getValue('ribbonTextColor', '#ffffff'),
+    ribbonTextFont: getValue('ribbonTextFont', 'sans-serif'),
+    customRibbonText: getValue('customRibbonText', ''),
+    postitAppearance: (() => {
+      const raw = getValue('postitAppearance', null);
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch (e) { return null; }
+      }
+      return raw ? JSON.parse(JSON.stringify(raw)) : null;
+    })()
+  }
+
+  // Resolve OTT Settings
+  const getOttValue = (key: string, defaultValue: any) => {
+    const isStyleModeActiveProperty = key === 'isStyleModeActive' || key === 'isOttActive';
+
+    // Traverse from current selected category (or homeWall) up to the root
+    let current = resolvedActiveWall;
+    while (current) {
+      if (!isStyleModeActiveProperty && (current as any).isStyleModeActive) {
+        let styleSettings = (current as any).styleModeSettings;
+        if (typeof styleSettings === 'string') { 
+          try { styleSettings = JSON.parse(styleSettings); } catch(e) { styleSettings = {} } 
+        }
+        if (styleSettings) {
+           const styleKey = key.replace(/^ott/, '');
+           const lowerStyleKey = styleKey.charAt(0).toLowerCase() + styleKey.slice(1);
+           if (styleSettings[lowerStyleKey] !== undefined && styleSettings[lowerStyleKey] !== null && styleSettings[lowerStyleKey] !== '') {
+             return styleSettings[lowerStyleKey];
+           }
+        }
+      }
+
+      const val = (current as any)[key];
+      if (val !== undefined && val !== null && val !== '') return val;
+
+      let postitApp: any = (current as any).postitAppearance;
+      if (typeof postitApp === 'string') { try { postitApp = JSON.parse(postitApp); } catch(e) { postitApp = {}; } }
+      if (postitApp && postitApp[key] !== undefined && postitApp[key] !== null && postitApp[key] !== '') return postitApp[key];
+      
+      if (!current.parentId) break;
+      const parent = categories.find(c => c.id === current!.parentId);
+      if (!parent) break;
+      current = parent;
+    }
+    
+    // Fallback to global siteSettings
+    const globalVal = (siteSettings as any)[key];
+    if (globalVal !== undefined && globalVal !== null && globalVal !== '') return globalVal;
+
+    let globalPostitApp: any = (siteSettings as any).postitAppearance;
+    if (typeof globalPostitApp === 'string') { try { globalPostitApp = JSON.parse(globalPostitApp); } catch(e) { globalPostitApp = {}; } }
+    if (globalPostitApp && globalPostitApp[key] !== undefined && globalPostitApp[key] !== null && globalPostitApp[key] !== '') return globalPostitApp[key];
+
+    return defaultValue;
+  }
+  const isStyleModeActive = !!(resolvedActiveWall as any)?.isStyleModeActive;
+
+  const ottSettings = {
+    isActive: !!getOttValue('isOttActive', false),
+    itemsPerRow: getOttValue('ottItemsPerRow', 4),
+    cardRatio: getOttValue('ottCardRatio', '16/9'),
+    autoScrollSpeed: getOttValue('ottAutoScrollSpeed', 0),
+    showTopMenu: getOttValue('ottShowTopMenu', true),
+    showHeroSlider: getOttValue('ottShowHeroSlider', true),
+    topMenuShape: getOttValue('ottTopMenuShape', 'circle'),
+    showCategoryTitles: getOttValue('ottShowCategoryTitles', true),
+    cardStyle: getOttValue('ottCardStyle', 'cover'),
+    categoryTitleSize: getOttValue('ottCategoryTitleSize', '2xl'),
+    categoryHeaderGlassy: getOttValue('ottCategoryHeaderGlassy', false),
+    categoryTitleColor: getOttValue('ottCategoryTitleColor', ''),
+    categoryTitleAlignment: getOttValue('ottCategoryTitleAlignment', 'left'),
+    categoryTitleFont: getOttValue('ottCategoryTitleFont', 'sans-serif'),
+    separatorStyle: getOttValue('ottSeparatorStyle', 'none'),
+    separatorColor: getOttValue('ottSeparatorColor', '#cbd5e1'),
+    topMenuLabelBgColor: getOttValue('ottTopMenuLabelBgColor', ''),
+    topMenuLabelHasBorder: getOttValue('ottTopMenuLabelHasBorder', false),
+    topMenuIconBgColor: getOttValue('ottTopMenuIconBgColor', ''),
+    cardBgType: getOttValue('ottCardBgType', 'postit'),
+    cardBgColor: getOttValue('ottCardBgColor', ''),
+    cardBgColorAlpha: getOttValue('ottCardBgColorAlpha', 100),
+    cardBgImage: getOttValue('ottCardBgImage', ''),
+    modalBgType: getOttValue('ottModalBgType', 'postit'),
+    modalBgColor: getOttValue('ottModalBgColor', ''),
+    modalBgColorAlpha: getOttValue('ottModalBgColorAlpha', 70),
+    modalBgImage: getOttValue('ottModalBgImage', ''),
+    modalTextColor: getOttValue('ottModalTextColor', ''),
+    topMenuMarqueeActive: getOttValue('ottTopMenuMarqueeActive', false),
+    topMenuMarqueeSpeed: getOttValue('ottTopMenuMarqueeSpeed', 30)
   }
 
   // Resolve Logo Settings
@@ -161,6 +267,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   let resolvedLogoUrl = selectedCategory ? selectedCategory.logoUrl : (homeWall ? homeWall.logoUrl : null)
   let resolvedLogoPosition = selectedCategory ? selectedCategory.logoPosition : (homeWall ? homeWall.logoPosition : 'top-right')
   let resolvedLogoSize = selectedCategory ? selectedCategory.logoSize : (homeWall ? homeWall.logoSize : 'medium')
+  let resolvedLogoFrame = selectedCategory ? selectedCategory.logoFrame : (homeWall ? homeWall.logoFrame : 'original')
 
   if (selectedCategory && selectedCategory.useParentLogo && selectedCategory.parentId) {
     const parentWall = categories.find(c => c.id === selectedCategory.parentId)
@@ -168,13 +275,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       resolvedLogoUrl = parentWall.logoUrl || null
       resolvedLogoPosition = parentWall.logoPosition || 'top-right'
       resolvedLogoSize = parentWall.logoSize || 'medium'
+      resolvedLogoFrame = parentWall.logoFrame || 'original'
     }
   }
 
   const logoSettings = {
     url: resolvedLogoUrl,
     position: resolvedLogoPosition,
-    size: resolvedLogoSize
+    size: resolvedLogoSize,
+    frame: resolvedLogoFrame
   }
 
   // Pano (Board) Appearance settings - NO inheritance for sub-walls
@@ -188,6 +297,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     gradientVia: getValue('gradientVia', '#f472b6'),
     gradientTo: getValue('gradientTo', '#a855f7'),
     noBorder: getValue('noBorder', false),
+    noInnerBorder: getValue('noInnerBorder', false),
+    isInnerTransparent: getValue('isInnerTransparent', false),
+    innerBackgroundColor: getValue('innerBackgroundColor', '#E8DCC4'),
     borderColor: getValue('borderColor', '#6b4423'),
     borderTopColor: getValue('borderTopColor', '#8a5a2e'),
     borderBottomColor: getValue('borderBottomColor', '#4a2f18'),
@@ -197,6 +309,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const siteAppearance = {
     backgroundColor: getValue('siteBackgroundColor', '#fffbeb'),
     backgroundImage: getValue('siteBackgroundImage', null),
+    backgroundStyle: getValue('siteBackgroundStyle', 'repeat'),
     isGradient: getValue('siteIsGradient', true),
     gradientFrom: getValue('siteGradientFrom', '#fffbeb'),
     gradientVia: getValue('siteGradientVia', '#fefce8'),
@@ -222,12 +335,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   // Fetch post-its
   const where: any = {
     isApproved: true,
+    isPublished: true,
     expiresAt: {
       gt: new Date()
+    },
+    content: {
+      not: {
+        startsWith: '[ÖZEL MESAJ]'
+      }
     }
   }
 
-  if (categoryId) {
+  if (searchQuery) {
+    where.OR = [
+      { content: { contains: searchQuery } },
+      { detail: { contains: searchQuery } },
+      { category: { name: { contains: searchQuery } } }
+    ]
+  }
+
+  if (categoryId && !searchQuery) {
     const getSubIds = (cat: any): string[] => {
       const ids = [cat.id]
       if (cat.children && cat.children.length > 0) {
@@ -273,16 +400,37 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         select: {
           id: true,
           name: true,
-          email: true
+          nickname: true,
+          email: true,
+          image: true,
+          showAvatarInPostit: true
         }
       },
       category: {
         select: {
           id: true,
-          name: true
+          name: true,
+          postitAppearance: true,
+          ottModalBgType: true,
+          ottModalBgColor: true,
+          ottModalBgColorAlpha: true,
+          ottModalBgImage: true,
+          ottModalTextColor: true
         }
       },
-      PostItImage: true,
+      PostItImage: {
+        orderBy: {
+          id: 'asc'
+        }
+      },
+      comments: {
+        include: {
+          user: { select: { id: true, name: true, nickname: true, image: true } },
+          likes: { where: { userId: currentUserId } },
+          _count: { select: { likes: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      },
       likes: {
         where: {
           userId: currentUserId
@@ -301,11 +449,51 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     ]
   })
 
-  const organicPostits = postitData.map((postit: any) => ({
-    ...postit,
-    hasLiked: postit.likes.length > 0,
-    likesCount: postit._count.likes
-  }))
+  const organicPostits = postitData.map((postit: any) => {
+    let safeAppearance = null;
+    if (postit.category?.postitAppearance) {
+      if (typeof postit.category.postitAppearance === 'string') {
+        try { safeAppearance = JSON.parse(postit.category.postitAppearance); } catch(e) {}
+      } else {
+        safeAppearance = JSON.parse(JSON.stringify(postit.category.postitAppearance));
+      }
+    }
+    let mappedPostit = { ...postit };
+
+    // Apply showAvatarInPostit preference
+    if (mappedPostit.user && mappedPostit.user.showAvatarInPostit === false) {
+      mappedPostit.user.image = null;
+    }
+
+    // "ana sayfada yayınlanan postitler, parameterelerini 
+    // ana sayfa duvarındaki OTT mod sayfasındaki değerlerden dinamik olarak alırlar aska kendi parametrelerine kaydetmezler."
+    // Sadece ana sayfa (kategori filtresi yokken) görüntülendiğinde çalışır:
+    if (!categoryId) {
+       // Ana sayfanın genel OTT ayarlarından veya "Ana Duvar" postit Appearance'ından ezme işlemleri:
+       const homeAppearance = appearance.postitAppearance || {};
+       
+       mappedPostit.color = homeAppearance.backgroundColor || mappedPostit.color;
+       mappedPostit.font = homeAppearance.font || mappedPostit.font;
+       mappedPostit.pushpin = homeAppearance.pinColor || mappedPostit.pushpin;
+
+       // OTT modal ayarlarındaki text rengi önceliklidir, yoksa genel görünüm text rengi, o da yoksa postit kendi rengi.
+       mappedPostit.textColor = ottSettings.isActive && ottSettings.modalTextColor
+         ? ottSettings.modalTextColor
+         : (homeAppearance.textColor || mappedPostit.textColor);
+
+       mappedPostit.textSize = homeAppearance.textSize || mappedPostit.textSize;
+    }
+
+    return {
+      ...mappedPostit,
+      category: {
+        ...postit.category,
+        postitAppearance: safeAppearance
+      },
+      hasLiked: postit.likes.length > 0,
+      likesCount: postit._count.likes
+    };
+  })
 
   const hasPosition = (ad: any, pos: string) => {
     try {
@@ -328,28 +516,120 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const leftAds = activeAds.filter(ad => hasPosition(ad, 'SIDEBAR_LEFT'))
   const rightAds = activeAds.filter(ad => hasPosition(ad, 'SIDEBAR_RIGHT'))
   const marqueeAds = activeAds.filter(ad => hasPosition(ad, 'MARQUEE'))
+  const topMenuAds = activeAds.filter(ad => hasPosition(ad, 'TOP_MENU'))
 
-  // Inject NATIVE ads into postits randomly (e.g. 1 ad per 6 postits roughly)
   const postits: any[] = [...organicPostits]
-  nativeAds.forEach((ad, index) => {
-    const insertIndex = Math.min((index + 1) * 6, postits.length)
-    postits.splice(insertIndex, 0, {
-      id: ad.id,
-      content: ad.title,
-      link: ad.link,
-      isAd: true, // Identify as Ad
-      imageUrl: ad.imageUrl,
-      color: 'YELLOW',
-      font: 'HANDWRITING',
-      pushpin: 'RED',
-      rotation: (Math.random() - 0.5) * 10,
-      user: { name: 'Sponsorlu' },
-      category: { name: 'Reklam' },
-      createdAt: ad.createdAt,
-      // allow ad to bypass categoryId filter by explicitly mapping it if it has no category, or match current
-      categoryId: ad.categoryId || categoryId || 'all' 
-    })
-  })
+
+  const injectNativeAds = (targetPostits: any[]) => {
+    if (nativeAds.length === 0) return targetPostits;
+    const combined = [...targetPostits];
+    nativeAds.forEach((ad, index) => {
+      const insertIndex = Math.min((index + 1) * 6, combined.length);
+      if (insertIndex <= combined.length && combined.length > 0) {
+        combined.splice(insertIndex, 0, {
+          id: `ad-${ad.id}`,
+          content: ad.title,
+          link: ad.link,
+          isAd: true,
+          imageUrl: ad.imageUrl,
+          color: 'YELLOW',
+          font: 'HANDWRITING',
+          pushpin: 'RED',
+          rotation: (Math.random() - 0.5) * 10,
+          user: { name: 'Sponsorlu' },
+          category: { name: 'Reklam' },
+          createdAt: ad.createdAt,
+          categoryId: 'all'
+        })
+      }
+    });
+    return combined;
+  };
+
+  // Inject Weather ghosts if active wall is "Hava Durumu"
+  if (resolvedActiveWall?.isSystem && resolvedActiveWall.name === 'Hava Durumu') {
+    try {
+      const weatherCities = await prisma.city.findMany({
+        where: { showInWeather: true },
+        orderBy: [{ weatherOrder: 'asc' }, { name: 'asc' }]
+      })
+
+      if (weatherCities.length > 0) {
+        const { TURKEY_CITIES, getWeatherBackground, getWeatherConditionText } = await import('@/lib/weather')
+        const validCities: any[] = []
+        const lats: number[] = []
+        const lons: number[] = []
+
+        weatherCities.forEach(city => {
+          const coords = TURKEY_CITIES[city.name]
+          if (coords) {
+            validCities.push(city)
+            lats.push(coords.lat)
+            lons.push(coords.lon)
+          }
+        })
+
+        if (validCities.length > 0) {
+          const params = new URLSearchParams({
+            latitude: lats.join(','),
+            longitude: lons.join(','),
+            current: 'temperature_2m,weather_code,is_day',
+            hourly: 'temperature_2m,weather_code,precipitation_probability,wind_speed_10m',
+            daily: 'temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,wind_speed_10m_max',
+            timezone: 'Europe/Istanbul'
+          })
+          
+          const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, {
+            next: { revalidate: 3600 } // Cache API response for 1 hour to save hits
+          })
+
+          if (res.ok) {
+            const wData = await res.json()
+            const results = Array.isArray(wData) ? wData : [wData]
+            
+            validCities.forEach((city, idx) => {
+              const current = results[idx]?.current
+              if (current) {
+                const temp = current.temperature_2m
+                const code = current.weather_code
+                
+                postits.push({
+                   id: `weather-${city.id}`,
+                   content: `${city.name}`, // Title will be city name text
+                   isWeather: true,
+                   imageUrl: null, // No true image payload right now
+                   color: 'BLUE', // default backup
+                   font: 'SANS',
+                   pushpin: 'NONE', // Special CSS styling for weather postits
+                   rotation: (Math.random() - 0.5) * 6,
+                   user: { name: 'Meteoroloji' },
+                   category: { name: 'Hava Durumu', postitAppearance: appearance.postitAppearance },
+                   createdAt: new Date(),
+                   comments: [],
+                   categoryId: resolvedActiveWall.id, // match
+                   views: 0,
+                   reportCount: 0,
+                   likesCount: 0,
+                   hasLiked: false,
+                   textSize: 'xl',
+                   textColor: '#1f2937', 
+                   
+                   // Weather-specific custom fields to render on postit cards
+                   weatherTemp: temp,
+                   weatherCondition: getWeatherConditionText(code),
+                   weatherBg: `${getWeatherBackground(code)}_${current.is_day ? 'day' : 'night'}`,
+                   weatherDaily: results[idx]?.daily || null,
+                   weatherHourly: results[idx]?.hourly || null
+                })
+              }
+            })
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to generate weather postits', err)
+    }
+  }
 
   // Fetch slider for this category (or home page if category is null)
   // Fetch slider for this category (or home page if category is null)
@@ -379,11 +659,56 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     }
   }
   
-  const sliderImages = (activeSlider?.images as string[]) || []
-  const sliderLinks = (activeSlider?.links as string[]) || []
+  let sliderImages: string[] = []
+  let sliderLinks: string[] = []
+
+  if (activeSlider) {
+    if (typeof activeSlider.images === 'string') {
+      try { sliderImages = JSON.parse(activeSlider.images) } catch (e) {}
+    } else if (Array.isArray(activeSlider.images)) {
+      sliderImages = activeSlider.images
+    }
+
+    if (typeof activeSlider.links === 'string') {
+      try { sliderLinks = JSON.parse(activeSlider.links) } catch (e) {}
+    } else if (Array.isArray(activeSlider.links)) {
+      sliderLinks = activeSlider.links
+    }
+  }
 
   const userRole = (session?.user as any)?.role
+  const managedCategoryIds = (session?.user as any)?.managedCategoryIds || []
+  const userGroupIds = (session?.user as any)?.userGroupIds || []
+  
+
+  // Helper to check if current user can add postits
+  const checkCanAddPostit = (cat: any) => {
+    if (userRole === 'SUPER_ADMIN') return true;
+    if (!currentUserId) return false;
+    if (cat?.userGroupId) {
+      if (!userGroupIds.includes(cat.userGroupId)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  const getCanManage = (catId?: string, catUserGroupId?: string | null) => {
+    if (!session?.user) return false;
+    if (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'EDITOR' || userRole === 'AUTHOR') return true;
+    if (catId && managedCategoryIds.includes(catId)) return true;
+    if (catUserGroupId && userGroupIds.includes(catUserGroupId)) return true;
+    return false;
+  }
   const canDelete = userRole === 'SUPER_ADMIN'
+
+  // Filter out empty images/links so next/image doesn't crash on empty string
+  const validIndices = sliderImages.map((img, i) => img && img.trim() !== '' ? i : -1).filter(i => i !== -1)
+  sliderImages = validIndices.map(i => sliderImages[i])
+  sliderLinks = validIndices.map(i => sliderLinks[i] || '')
+
+  // Category sliders should NOT fall back to global slider. 
+  // Each category manages its own slider and its own background settings.
 
   // Fetch Calendar Data
   const today = new Date();
@@ -422,10 +747,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   });
 
   // Wall Specific Entries
-  if (selectedCategory) {
+  const activeWall = selectedCategory || homeWall;
+  if (activeWall) {
     const wallEntries = await prisma.wallCalendarEntry.findMany({
       where: {
-        categoryId: selectedCategory.id,
+        categoryId: activeWall.id,
         date: {
           gte: today,
           lt: tomorrow
@@ -448,87 +774,124 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   // Calendar JSX
   const calendarLeaf = (
     <div className="flex flex-col items-center gap-2">
-      <div className="select-none transform rotate-3 hover:rotate-0 transition-all duration-500 group cursor-pointer">
-        <div
-          className={`rounded-lg shadow-xl border-2 border-gray-100 flex flex-col items-center relative transition-all duration-500 group-hover:-translate-y-1 ${siteSettings.calendarSize === 'large' ? 'min-w-[140px]' :
-            siteSettings.calendarSize === 'small' ? 'min-w-[80px]' :
-              'min-w-[110px]'
-            }`}
-          style={{
-            backgroundColor: '#f4ecd8', // Samanlı kağıt rengi (Straw paper color)
-            backgroundImage: `
-              radial-gradient(circle at 2px 2px, rgba(0,0,0,0.02) 1px, transparent 0),
-              linear-gradient(to bottom, transparent, rgba(0,0,0,0.02))
-            `,
-            backgroundSize: '4px 4px, 100% 100%'
-          }}
-        >
-          {/* The curl triangle */}
-          <div className="absolute bottom-0 right-0 w-0 h-0 border-solid border-b-transparent border-l-transparent transition-all duration-300 group-hover:border-b-[25px] group-hover:border-l-[25px] group-hover:border-b-[#f4ecd8] group-hover:border-l-gray-300 z-30 drop-shadow-[-2px_-2px_3px_rgba(0,0,0,0.2)]"></div>
-
-          {/* The cut-out effect triangle */}
-          <div className="absolute bottom-0 right-0 w-0 h-0 border-solid border-t-transparent border-r-transparent transition-all duration-300 group-hover:border-t-[25px] group-hover:border-r-[25px] group-hover:border-t-black/5 group-hover:border-r-black/5 z-10"></div>
-
+      <CalendarPopup dailyData={calendarDailyData} backgroundImage={siteSettings.calendarPopupBackgroundImage}>
+        <div className="select-none transform rotate-3 hover:rotate-0 transition-all duration-500 group cursor-pointer">
           <div
-            className="w-full py-1.5 px-3 text-center overflow-hidden rounded-t-md"
-            style={{ backgroundColor: siteSettings.calendarColor || '#dc2626' }}
+            className={`rounded-lg shadow-xl border-2 border-gray-100 flex flex-col items-center relative transition-all duration-500 group-hover:-translate-y-1 ${siteSettings.calendarSize === 'large' ? 'min-w-[140px]' :
+              siteSettings.calendarSize === 'small' ? 'min-w-[80px]' :
+                'min-w-[110px]'
+              }`}
+            style={{
+              backgroundColor: '#f4ecd8', // Samanlı kağıt rengi (Straw paper color)
+              backgroundImage: `
+                radial-gradient(circle at 2px 2px, rgba(0,0,0,0.02) 1px, transparent 0),
+                linear-gradient(to bottom, transparent, rgba(0,0,0,0.02))
+              `,
+              backgroundSize: '4px 4px, 100% 100%'
+            }}
           >
-            <span className={`text-white font-bold uppercase tracking-wider ${siteSettings.calendarSize === 'large' ? 'text-xs' :
-              siteSettings.calendarSize === 'small' ? 'text-[8px]' :
-                'text-[10px]'
+            {/* The curl triangle */}
+            <div className="absolute bottom-0 right-0 w-0 h-0 border-solid border-b-transparent border-l-transparent transition-all duration-300 group-hover:border-b-[25px] group-hover:border-l-[25px] group-hover:border-b-[#f4ecd8] group-hover:border-l-gray-300 z-30 drop-shadow-[-2px_-2px_3px_rgba(0,0,0,0.2)]"></div>
+
+            {/* The cut-out effect triangle */}
+            <div className="absolute bottom-0 right-0 w-0 h-0 border-solid border-t-transparent border-r-transparent transition-all duration-300 group-hover:border-t-[25px] group-hover:border-r-[25px] group-hover:border-t-black/5 group-hover:border-r-black/5 z-10"></div>
+
+            <div
+              className="w-full py-1.5 px-3 text-center overflow-hidden rounded-t-md"
+              style={{ backgroundColor: siteSettings.calendarColor || '#dc2626' }}
+            >
+              <span className={`text-white font-bold uppercase tracking-wider ${siteSettings.calendarSize === 'large' ? 'text-xs' :
+                siteSettings.calendarSize === 'small' ? 'text-[8px]' :
+                  'text-[10px]'
+                }`}>
+                {['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][new Date().getMonth()]}
+              </span>
+            </div>
+            <div className={`flex flex-col items-center pb-2 ${siteSettings.calendarSize === 'large' ? 'py-4 px-6' :
+              siteSettings.calendarSize === 'small' ? 'py-1.5 px-3' :
+                'py-3 px-4'
               }`}>
-              {new Intl.DateTimeFormat('tr-TR', { month: 'long' }).format(new Date())}
-            </span>
-          </div>
-          <div className={`flex flex-col items-center pb-2 ${siteSettings.calendarSize === 'large' ? 'py-4 px-6' :
-            siteSettings.calendarSize === 'small' ? 'py-1.5 px-3' :
-              'py-3 px-4'
-            }`}>
-            <span className={`font-black text-amber-900/80 leading-none ${siteSettings.calendarSize === 'large' ? 'text-6xl' :
-              siteSettings.calendarSize === 'small' ? 'text-3xl' :
-                'text-5xl'
-              }`}>
-              {new Date().getDate()}
-            </span>
-            <span className={`font-bold text-amber-800/60 uppercase ${siteSettings.calendarSize === 'large' ? 'text-sm mt-3' :
-              siteSettings.calendarSize === 'small' ? 'text-[9px] mt-1' :
-                'text-[11px] mt-2'
-              }`}>
-              {new Intl.DateTimeFormat('tr-TR', { weekday: 'long' }).format(new Date())}
-            </span>
-          </div>
-          {/* Spiral elements */}
-          <div className="absolute -top-1 left-0 right-0 flex justify-around px-2">
-            {[...Array(siteSettings.calendarSize === 'large' ? 5 : siteSettings.calendarSize === 'small' ? 3 : 4)].map((_, i) => (
-              <div
-                key={i}
-                className={`${siteSettings.calendarSize === 'large' ? 'w-3 h-5' :
-                  siteSettings.calendarSize === 'small' ? 'w-1.5 h-3' :
-                    'w-2.5 h-4'
-                  } bg-gray-400/50 rounded-full border border-gray-500/30 -mt-2 shadow-sm`}
-              />
-            ))}
+              <span className={`font-black text-amber-900/80 leading-none ${siteSettings.calendarSize === 'large' ? 'text-6xl' :
+                siteSettings.calendarSize === 'small' ? 'text-3xl' :
+                  'text-5xl'
+                }`}>
+                {new Date().getDate()}
+              </span>
+              <span className={`font-bold text-amber-800/60 uppercase ${siteSettings.calendarSize === 'large' ? 'text-sm mt-3' :
+                siteSettings.calendarSize === 'small' ? 'text-[9px] mt-1' :
+                  'text-[11px] mt-2'
+                }`}>
+                {['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][new Date().getDay()]}
+              </span>
+            </div>
+            {/* Spiral elements */}
+            <div className="absolute -top-1 left-0 right-0 flex justify-around px-2">
+              {[...Array(siteSettings.calendarSize === 'large' ? 5 : siteSettings.calendarSize === 'small' ? 3 : 4)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`${siteSettings.calendarSize === 'large' ? 'w-3 h-5' :
+                    siteSettings.calendarSize === 'small' ? 'w-1.5 h-3' :
+                      'w-2.5 h-4'
+                    } bg-gray-400/50 rounded-full border border-gray-500/30 -mt-2 shadow-sm`}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </CalendarPopup>
 
       {/* Nöbetçi Eczaneler Linki / Pop-up */}
       <EczanePopup calendarSize={siteSettings.calendarSize} />
+      {/* Hava Durumu Duvarı Hızlı Erişim (Masaüstü) */}
+      <div className="mt-1">
+        <HavaDurumuShortcut mobile={false} />
+      </div>
     </div>
   );
 
-  const clickableCalendarLeaf = (
-    <CalendarPopup dailyData={calendarDailyData} backgroundImage={siteSettings.calendarPopupBackgroundImage}>
-      {calendarLeaf}
-    </CalendarPopup>
+  const clickableCalendarLeaf = calendarLeaf;
+
+  const mobileCalendarBar = (
+    <div className="sm:hidden w-full bg-gradient-to-r from-red-600 to-red-700 text-white shadow-md border-b-2 border-red-800 flex justify-between items-center px-4 py-2 relative z-[45]">
+      <CalendarPopup dailyData={calendarDailyData} backgroundImage={siteSettings.calendarPopupBackgroundImage}>
+        <div className="flex items-center gap-3 cursor-pointer group py-1">
+          <CalendarDays className="w-7 h-7 text-white drop-shadow-md group-hover:scale-110 transition-transform pb-1" />
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-red-200 leading-none mb-0.5">Takvim & Etkinlikler</span>
+            <span className="text-sm font-extrabold tracking-wide leading-none drop-shadow-sm">
+              {`${new Date().getDate()} ${['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'][new Date().getMonth()]} ${['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][new Date().getDay()]}`}
+            </span>
+          </div>
+        </div>
+      </CalendarPopup>
+      <div className="flex items-center gap-2">
+        <EczanePopup calendarSize="large" />
+        <div className="w-px h-6 bg-red-400/50 mx-1"></div>
+        <HavaDurumuShortcut mobile={true} />
+      </div>
+    </div>
   )
 
-  // Compute hero background style
-  const heroBackground = appearance.isHeroTransparent
-    ? 'transparent'
+  // Compute hero background style inline since we separate style properties
+  const heroBackgroundImageValue = appearance.isHeroTransparent
+    ? 'none'
     : (appearance.heroBackgroundImage
-      ? `url('${appearance.heroBackgroundImage}') center / cover no-repeat`
+      ? `url('${appearance.heroBackgroundImage}')`
       : `linear-gradient(to right, ${appearance.heroGradientFrom}, ${appearance.heroGradientVia}, ${appearance.heroGradientTo})`)
+
+  const bgStyle = appearance.heroBackgroundStyle || 'cover'
+  const isCover = bgStyle.startsWith('cover')
+
+  const heroBackgroundSizeValue = bgStyle === 'stretch' 
+    ? '100% 100%' 
+    : (isCover ? 'cover' : bgStyle === 'contain' ? 'contain' : 'auto')
+
+  const heroBackgroundPositionValue = bgStyle === 'cover-top' ? 'top center'
+    : bgStyle === 'cover-bottom' ? 'bottom center'
+    : bgStyle === 'center' ? 'center'
+    : (bgStyle === 'repeat' ? 'auto' : 'center')
+  
+  const heroBackgroundRepeatValue = bgStyle === 'repeat' ? 'repeat' : 'no-repeat'
 
 
 
@@ -544,29 +907,64 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     if (!pos.startsWith(context + '-')) return null;
 
     let posClasses = '';
-    if (pos.endsWith('-top-left')) posClasses = 'top-0 left-0';
-    else if (pos.endsWith('-top-center')) posClasses = 'top-0 left-1/2 -translate-x-1/2';
+    if (pos.endsWith('-top-left')) posClasses = 'top-0 right-0 md:right-auto md:left-0';
+    else if (pos.endsWith('-top-center')) posClasses = 'top-0 right-0 md:right-auto md:left-1/2 md:-translate-x-1/2';
     else if (pos.endsWith('-top-right')) posClasses = 'top-0 right-0';
-    else if (pos.endsWith('-bottom-left')) posClasses = 'bottom-0 left-0';
-    else if (pos.endsWith('-bottom-right')) posClasses = 'bottom-0 right-0';
-    else posClasses = 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20'; // center fallback
+    else if (pos.endsWith('-bottom-left')) posClasses = 'top-0 right-0 md:top-auto md:right-auto md:bottom-0 md:left-0';
+    else if (pos.endsWith('-bottom-right')) posClasses = 'top-0 right-0 md:top-auto md:bottom-0';
+    else posClasses = 'top-0 right-0 md:top-1/2 md:right-auto md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 opacity-100 md:opacity-20'; // center fallback
 
-    const sizeClasses = logoSettings.size === 'small' ? 'h-12 md:h-16' :
-      logoSettings.size === 'large' ? 'h-32 md:h-44' :
-        logoSettings.size === 'xlarge' ? 'h-48 md:h-64' :
-          logoSettings.size === 'mega' ? 'h-64 md:h-96' :
-            'h-20 md:h-28'; // medium / fallback
+    const sizeClasses = logoSettings.size === 'small' ? 'h-8 md:h-16' :
+      logoSettings.size === 'large' ? 'h-16 md:h-44' :
+        logoSettings.size === 'xlarge' ? 'h-20 md:h-64' :
+          logoSettings.size === 'mega' ? 'h-24 md:h-96' :
+            'h-12 md:h-28'; // medium / fallback
 
-    // Page is fixed, Hero/Board is absolute
-    const baseClasses = context === 'page' ? 'fixed z-[120] p-4 md:p-6' : 'absolute z-40 p-4 md:p-6';
+    const frameClasses = logoSettings.frame === 'oval' ? 'rounded-2xl object-cover' :
+                         logoSettings.frame === 'circle' ? 'rounded-full aspect-square object-cover' :
+                         logoSettings.frame === 'square' ? 'aspect-square object-cover' : '';
+
+    // Page is fixed on desktop. Hero/Board is absolute. Hide them entirely on mobile since we show the logo inline next to the title instead.
+    const baseClasses = context === 'page' ? 'hidden md:block fixed z-[99999] p-4 md:p-6' : 'hidden md:block absolute z-[99999] p-4 md:p-6';
 
     return (
       <div className={`${baseClasses} pointer-events-none ${posClasses}`}>
         <img
           src={logoSettings.url}
           alt="Duvar Logosu"
-          className={`object-contain ${sizeClasses}`}
+          className={`object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.7)] ${sizeClasses} ${frameClasses} ${logoSettings.frame && logoSettings.frame !== 'original' ? 'bg-white/10' : ''}`}
         />
+      </div>
+    );
+  };
+
+  const renderStickyCalendar = (context: 'page' | 'hero' | 'board') => {
+    if (siteSettings.calendarShow === false) return null;
+    let pos = siteSettings.calendarPosition || 'right';
+    
+    // Sidebars are handled in the main flex container, not here
+    if (pos === 'left' || pos === 'right') return null;
+
+    if (!pos.startsWith(context + '-')) {
+      if (context === 'page' && pos.startsWith('top-')) {
+        // top-left, top-center, top-right map to 'page'
+      } else {
+        return null;
+      }
+    }
+
+    let posClasses = '';
+    if (pos.endsWith('-top-left') || pos === 'top-left') posClasses = 'top-4 left-4';
+    else if (pos.endsWith('-top-center') || pos === 'top-center') posClasses = 'top-4 left-1/2 -translate-x-1/2';
+    else if (pos.endsWith('-top-right') || pos === 'top-right') posClasses = 'top-4 right-4';
+    else if (pos.endsWith('-bottom-left') || pos === 'bottom-left') posClasses = 'bottom-4 left-4';
+    else if (pos.endsWith('-bottom-right') || pos === 'bottom-right') posClasses = 'bottom-4 right-4';
+
+    const baseClasses = context === 'page' ? 'fixed z-[100]' : 'absolute z-40';
+
+    return (
+      <div className={`hidden sm:block ${baseClasses} ${posClasses}`}>
+        {clickableCalendarLeaf}
       </div>
     );
   };
@@ -576,12 +974,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       className="min-h-screen"
       style={(() => {
         if (siteAppearance.backgroundImage) {
+          const styleType = siteAppearance.backgroundStyle || 'repeat';
+          let bgSize = 'auto';
+          let bgRepeat = 'repeat';
+          if (styleType === 'cover') { bgSize = 'cover'; bgRepeat = 'no-repeat'; }
+          else if (styleType === 'stretch') { bgSize = '100% 100%'; bgRepeat = 'no-repeat'; }
+          
           return {
             backgroundColor: siteAppearance.backgroundColor || '#fffbeb',
             backgroundImage: `url('${siteAppearance.backgroundImage}')`,
             backgroundPosition: 'top center',
-            backgroundSize: '100% auto',
-            backgroundRepeat: 'no-repeat',
+            backgroundSize: bgSize,
+            backgroundRepeat: bgRepeat,
             backgroundAttachment: 'fixed',
           }
         } else if (siteAppearance.isGradient) {
@@ -598,76 +1002,131 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       {/* Page Logo Render */}
       {renderLogo('page')}
 
-      {/* Top Fixed Calendar Section */}
-      {siteSettings.calendarShow !== false && siteSettings.calendarPosition?.startsWith('top-') && (
-        <div className={`fixed top-4 z-[100] transition-all duration-500 ${siteSettings.calendarPosition === 'top-left' ? 'left-4' : 'right-4'}`}>
-          {clickableCalendarLeaf}
-        </div>
-      )}
+      {/* Top Fixed Calendar Section (Desktop Only) */}
+      {renderStickyCalendar('page')}
+
+      {/* Inline Calendar Bar (Mobile Only) */}
+      {siteSettings.calendarShow !== false && siteSettings.calendarPosition !== 'slider-side' && mobileCalendarBar}
 
       {/* Hero / Slider Section */}
-      <div
-        className={`relative w-full overflow-hidden ${((activeSlider as any)?.isTransparent || (appearance.isHeroTransparent && !activeSlider)) ? '' : 'shadow-md'}`}
+      {(!(ottSettings.isActive || isStyleModeActive) || ottSettings.showHeroSlider) && (
+        <div
+          className={`relative w-full overflow-hidden ${((activeSlider as any)?.isTransparent || (appearance.isHeroTransparent && !activeSlider)) ? '' : 'shadow-md'}`}
         style={{
-          background: activeSlider
+          backgroundColor: activeSlider 
+            ? ((activeSlider as any)?.isTransparent ? 'transparent' : ((activeSlider as any)?.backgroundColor || '#f8f9fa'))
+            : (appearance.isHeroTransparent ? 'transparent' : (boardAppearance.backgroundColor || undefined)),
+          backgroundImage: activeSlider
             ? ((activeSlider as any)?.isTransparent
-              ? 'transparent'
+              ? 'none'
               : ((activeSlider as any)?.backgroundImage
-                ? `url('${(activeSlider as any).backgroundImage}') center / cover no-repeat`
+                ? `url('${(activeSlider as any).backgroundImage}')`
                 : ((activeSlider as any)?.isGradient
                   ? `linear-gradient(to right, ${(activeSlider as any)?.heroGradientFrom || '#facc15'}, ${(activeSlider as any)?.heroGradientVia || '#f472b6'}, ${(activeSlider as any)?.heroGradientTo || '#a855f7'})`
-                  : ((activeSlider as any)?.backgroundColor || '#f8f9fa'))))
-            : heroBackground
+                  : 'none')))
+            : heroBackgroundImageValue,
+          backgroundSize: activeSlider ? (((activeSlider as any)?.backgroundImage) ? 'cover' : 'auto') : heroBackgroundSizeValue,
+          backgroundPosition: activeSlider ? 'center' : heroBackgroundPositionValue,
+          backgroundRepeat: activeSlider ? 'no-repeat' : heroBackgroundRepeatValue,
+          borderTop: boardAppearance.noBorder ? 'none' : `12px solid ${boardAppearance.borderTopColor || boardAppearance.borderColor}`,
+          borderBottom: boardAppearance.noBorder ? 'none' : `12px solid ${boardAppearance.borderBottomColor || boardAppearance.borderColor}`,
         }}
       >
         {/* Logo Render in Hero Section */}
         {renderLogo('hero')}
+        {renderStickyCalendar('hero')}
         {activeSlider ? (
-          <div className="w-full flex justify-center py-4 min-h-[160px]">
+          <div className={`w-full flex ${siteSettings.calendarPosition === 'slider-side' ? 'flex-col xl:flex-row items-stretch' : 'justify-center'} py-4 min-h-[200px] px-4 max-w-[1536px] mx-auto gap-6`}>
             {sliderImages.length > 0 && (
-              <ImageSlider
-                images={sliderImages}
-                links={sliderLinks}
-                className={`relative w-full max-w-[1170px] mx-auto h-[130px] sm:h-[160px] md:h-[200px] lg:h-[300px] rounded-xl ${((activeSlider as any)?.isTransparent) ? '' : 'shadow-md'}`}
-              />
+              <div className={siteSettings.calendarPosition === 'slider-side' ? 'flex-1 min-w-0 xl:flex xl:flex-col' : 'w-full max-w-[1170px]'}>
+                <ImageSlider
+                  images={sliderImages}
+                  links={sliderLinks}
+                  className={`relative w-full flex-1 ${siteSettings.calendarPosition === 'slider-side' ? 'h-[162px] sm:h-[200px] md:h-[250px] lg:h-[375px] xl:h-[412px]' : 'h-[162px] sm:h-[200px] md:h-[250px] lg:h-[375px]'} rounded-xl ${((activeSlider as any)?.isTransparent) ? '' : 'shadow-[0_8px_30px_rgb(0,0,0,0.12)]'}`}
+                />
+              </div>
+            )}
+            
+            {siteSettings.calendarPosition === 'slider-side' && (
+              <div className="flex xl:flex-col justify-center gap-4 w-full xl:w-[320px] shrink-0">
+                {siteSettings.calendarViewType === 'modern' ? (
+                  <ModernWidgets dailyData={calendarDailyData} popupBg={siteSettings.calendarPopupBackgroundImage} />
+                ) : (
+                  <div className="flex flex-col gap-2 w-full max-w-[320px] mx-auto items-center">
+                     {clickableCalendarLeaf}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         ) : (
-          <div className={`relative py-12 flex flex-col justify-center h-full min-h-[160px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full ${appearance.heroAlignment === 'center' ? 'items-center' :
+          <div className={`relative py-[60px] flex flex-col justify-center h-full min-h-[200px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full ${appearance.heroAlignment === 'center' ? 'items-center' :
             appearance.heroAlignment === 'right' ? 'items-end' :
               'items-start'
             }`}>
-            <div className={`relative z-10 bg-black/10 backdrop-blur-sm p-6 rounded-2xl inline-block max-w-3xl ${appearance.heroAlignment === 'center' ? 'text-center' :
-              appearance.heroAlignment === 'right' ? 'text-right' :
-                'text-left'
-              }`}>
-              <h1
-                className="font-bold mb-4 drop-shadow-md"
-                style={{
-                  fontFamily: appearance.heroTitleFont,
-                  color: appearance.heroTitleColor,
-                  fontSize: titleSizeMap[appearance.heroTitleSize] || '3rem'
-                }}
-              >
-                📌 {heroTitle}
-              </h1>
-              <p
-                className="mb-6 opacity-95 drop-shadow-md"
-                style={{
-                  fontFamily: appearance.heroSubtitleFont,
-                  color: appearance.heroSubtitleColor,
-                  fontSize: subtitleSizeMap[appearance.heroSubtitleSize] || '1.25rem'
-                }}
-              >
-                {selectedCategory?.description || appearance.heroSubtitle}
-              </p>
-            </div>
+            {!appearance.hideHeroText && (
+              <div className={`relative z-10 p-6 sm:p-8 rounded-2xl inline-block max-w-3xl ${
+                  appearance.heroTitleBgMode === 'none' ? 'bg-transparent border-none shadow-none' :
+                  appearance.heroTitleBgMode === 'color' || appearance.heroTitleBgMode === 'transparent' || appearance.heroTitleBgMode === 'image' ? 'border overflow-hidden shadow-2xl' :
+                  'bg-black/20 backdrop-blur-md border border-white/10 shadow-2xl'
+                } ${appearance.heroAlignment === 'center' ? 'text-center' :
+                appearance.heroAlignment === 'right' ? 'text-right' :
+                  'text-left'
+                }`}
+                style={
+                  appearance.heroTitleBgMode === 'color' || appearance.heroTitleBgMode === 'transparent' 
+                    ? { backgroundColor: appearance.heroTitleBgMode === 'color' ? appearance.heroTitleBgColor : `${appearance.heroTitleBgColor}${Math.round((appearance.heroTitleBgOpacity ?? 40) * 2.55).toString(16).padStart(2, '0')}`, borderColor: appearance.heroTitleBgMode === 'color' ? appearance.heroTitleBgColor : 'rgba(255,255,255,0.1)' } 
+                    : appearance.heroTitleBgMode === 'image'
+                    ? { backgroundImage: `url(${appearance.heroTitleBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center', borderColor: 'rgba(255,255,255,0.1)' }
+                    : {}
+                }>
+                <div className={`mb-4 flex items-center md:block flex-wrap gap-3 ${appearance.heroAlignment === 'center' ? 'justify-center' : appearance.heroAlignment === 'right' ? 'justify-end' : 'justify-start'}`}>
+                  {logoSettings.url && (
+                    <img 
+                      src={logoSettings.url} 
+                      className={`h-10 w-auto md:hidden object-contain ${logoSettings.frame === 'oval' ? 'rounded-xl object-cover' : logoSettings.frame === 'circle' ? 'rounded-full aspect-square object-cover' : logoSettings.frame === 'square' ? 'aspect-square object-cover' : ''} ${logoSettings.frame && logoSettings.frame !== 'original' ? 'bg-white/10' : ''}`} 
+                      alt="Logo" 
+                    />
+                  )}
+                  <h1
+                    className="font-bold drop-shadow-xl md:mb-0 flex items-center gap-3 w-fit"
+                    style={{
+                      fontFamily: appearance.heroTitleFont,
+                      color: appearance.heroTitleColor,
+                      fontSize: titleSizeMap[appearance.heroTitleSize] || '3rem',
+                      textShadow: '0 2px 4px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3)',
+                      margin: appearance.heroAlignment === 'center' ? '0 auto' : appearance.heroAlignment === 'right' ? '0 0 0 auto' : '0'
+                    }}
+                  >
+                    {!appearance.hideHeroPushpin && "📌 "}{heroTitle}
+                    {(selectedCategory || homeWall) && (
+                      <div className="flex items-center gap-2">
+                        <CategorySubscribeButton categoryId={selectedCategory?.id || homeWall?.id!} className="ml-2" />
+                        <CategoryShareButton categoryId={selectedCategory?.id || homeWall?.id!} variant="large" />
+                      </div>
+                    )}
+                  </h1>
+                </div>
+                <p
+                  className="mb-2 opacity-95 drop-shadow-lg font-medium"
+                  style={{
+                    fontFamily: appearance.heroSubtitleFont,
+                    color: appearance.heroSubtitleColor,
+                    fontSize: subtitleSizeMap[appearance.heroSubtitleSize] || '1.25rem',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.8)'
+                  }}
+                >
+                  {selectedCategory?.description || appearance.heroSubtitle}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
+      )}
 
       {/* Main Content */}
-      <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 py-6">
+      <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 pt-2 md:pt-4 pb-8">
         <div className={`flex flex-col gap-6 lg:gap-8 ${siteSettings.calendarPosition === 'left' ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
           {/* Left Sidebar Ads */}
           {leftAds.length > 0 && (
@@ -676,7 +1135,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 {leftAds.map((ad: any) => (
                   <a key={ad.id} href={ad.link} target="_blank" rel="noopener noreferrer" className="block relative bg-white border p-1 border-gray-200 shadow-sm rounded-md transition-transform hover:scale-105 group">
                     <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded shadow z-10">Sponsorlu</span>
-                    <img src={ad.imageUrl} alt={ad.title} className="w-full h-auto rounded" />
+                    <Image src={ad.imageUrl} width={1200} height={600} unoptimized={ad.imageUrl.startsWith('data:')} style={{ width: '100%', height: 'auto' }} alt={ad.title} className="rounded object-cover" />
                   </a>
                 ))}
               </div>
@@ -691,7 +1150,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 {topAds.map((ad: any) => (
                   <a key={ad.id} href={ad.link} target="_blank" rel="noopener noreferrer" className="relative block w-full bg-white border border-gray-200 p-1 shadow-sm rounded-md transition-transform hover:scale-[1.01]">
                     <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded shadow z-10">Sponsorlu</span>
-                    <img src={ad.imageUrl} alt={ad.title} className="w-full max-h-[120px] md:max-h-[200px] object-cover rounded" />
+                    <Image src={ad.imageUrl} width={1200} height={600} unoptimized={ad.imageUrl.startsWith('data:')} style={{ width: '100%', height: 'auto', maxHeight: '200px' }} alt={ad.title} className="object-cover rounded" />
                   </a>
                 ))}
               </div>
@@ -699,7 +1158,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
             {/* Sub-walls Marquee */}
             {(() => {
-              const items = (selectedCategory ? selectedCategory.children : allCategories) || [];
+              const items = (selectedCategory ? selectedCategory.children : activeCategoriesTree) || [];
               let displayItems = items.filter((c: any) => c.name !== 'Ana Duvar');
 
               // Ana sayfa için TÜM ana kategorileri göster (orderedIds'yi yok say). 
@@ -724,8 +1183,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               const baseRepetitions = Math.max(1, Math.ceil(30 / displayItems.length));
               const repeatCount = baseRepetitions * 2;
 
+              if ((ottSettings.isActive || isStyleModeActive) && ottSettings.showTopMenu) {
+                return (
+                  <OttTopMenu 
+                    displayItems={displayItems}
+                    categoryId={categoryId || 'root'}
+                    ottSettings={ottSettings}
+                    boardAppearance={boardAppearance}
+                    topMenuAds={topMenuAds}
+                  />
+                );
+              } else if ((ottSettings.isActive || isStyleModeActive) && !ottSettings.showTopMenu) {
+                return null;
+              }
+
               return (
-                <div className="w-full bg-white/40 backdrop-blur-sm border-y border-black/10 py-1.5 overflow-hidden group">
+                <div className="w-full bg-white/40 backdrop-blur-sm border-y border-black/10 py-2.5 overflow-hidden group">
                   <div className="relative flex overflow-x-hidden">
                     <div className="animate-marquee whitespace-nowrap">
                       {[...Array(repeatCount)].map((_, i) => (
@@ -734,9 +1207,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                             <a
                               key={`${i}-${child.id}`}
                               href={`/?category=${child.id}&from=${categoryId || 'root'}`}
-                              className="mx-8 text-sm font-bold text-gray-700 hover:text-blue-600 transition-colors flex items-center gap-1.5"
+                              className="mx-10 text-lg font-bold text-gray-700 hover:text-blue-600 transition-colors flex items-center gap-2.5"
                             >
-                              <span className="text-yellow-500 text-lg">📌</span>
+                              <span className="text-yellow-500 text-2xl">📌</span>
                               {child.name}
                             </a>
                           ))}
@@ -746,9 +1219,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                               href={ad.link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="mx-8 text-sm font-bold text-indigo-700 hover:text-indigo-900 transition-colors flex items-center gap-1.5"
+                              className="mx-8 text-lg font-bold text-indigo-700 hover:text-indigo-900 transition-colors flex items-center gap-2.5"
                             >
-                              <span className="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.5 rounded shadow-sm border border-indigo-200">Sponsorlu</span>
+                              <span className="bg-indigo-100 text-indigo-800 text-[13px] font-bold px-2.5 py-1 rounded shadow-sm border border-indigo-200">Sponsorlu</span>
                               {ad.title}
                             </a>
                           ))}
@@ -804,19 +1277,142 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
               {/* Logo Render in Board Section */}
               {renderLogo('board')}
+              {renderStickyCalendar('board')}
 
               {(() => {
-                const isCustomLayoutEnabled = categoryId
-                  ? selectedCategory?.useCustomLayout
-                  : (homeWall?.useCustomLayout || siteSettings.useCustomLayout);
+                if (searchQuery) {
+                  return (
+                    <div className="w-full mt-4 p-4 md:p-8 backdrop-blur-sm rounded-xl mb-12 shadow-sm"
+                         style={{
+                           backgroundColor: siteSettings.searchBgColor ? `${siteSettings.searchBgColor}${Math.round((siteSettings.searchBgColorAlpha ?? 40) * 2.55).toString(16).padStart(2, '0')}` : 'rgba(255,255,255,0.4)',
+                           border: siteSettings.searchBorderColor ? `1px solid ${siteSettings.searchBorderColor}30` : 'none',
+                         }}>
+                      <div className={`relative mb-8 border-b-2 pb-4 pr-12 md:pr-16 ${siteSettings.searchTitleAlignment === 'center' ? 'text-center' : siteSettings.searchTitleAlignment === 'right' ? 'text-right' : 'text-left'}`}
+                           style={{ borderColor: siteSettings.searchBorderColor ? `${siteSettings.searchBorderColor}33` : 'rgba(0,0,0,0.2)' }}>
+                        
+                        <Link href={categoryId ? `/?category=${categoryId}` : '/'} className="absolute top-0 right-0 p-2 bg-black/5 hover:bg-red-500/10 rounded-full transition-colors group z-10" title="Aramayı Kapat">
+                           <X className="w-6 h-6 text-gray-500 group-hover:text-red-600 transition-colors" />
+                        </Link>
+
+                        <h2 className={`${siteSettings.searchTitleSize === 'xl' ? 'text-xl' : siteSettings.searchTitleSize === '2xl' ? 'text-2xl' : siteSettings.searchTitleSize === '3xl' ? 'text-3xl' : siteSettings.searchTitleSize === '4xl' ? 'text-4xl' : siteSettings.searchTitleSize === '5xl' ? 'text-5xl' : siteSettings.searchTitleSize === '6xl' ? 'text-6xl md:text-7xl' : 'text-3xl md:text-5xl'} font-black tracking-tight`} 
+                            style={{ 
+                              fontFamily: siteSettings.searchTitleFont === 'cursive' ? "'Caveat', cursive" : siteSettings.searchTitleFont === 'london' ? "'London Presley', sans-serif" : siteSettings.searchTitleFont === 'puerto' ? "'Puerto', sans-serif" : siteSettings.searchTitleFont === 'retosta' ? "'Retosta', sans-serif" : siteSettings.searchTitleFont === 'Dancing Script, cursive' ? "'Dancing Script', cursive" : siteSettings.searchTitleFont === 'calibri' ? "'Calibri', sans-serif" : siteSettings.searchTitleFont === 'arial' ? "Arial, sans-serif" : siteSettings.searchTitleFont === 'sans-serif-generic' ? "sans-serif" : "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                              color: siteSettings.searchTitleColor || '#1f2937'
+                            }}>
+                          &quot;{searchQuery}&quot; Arama Sonuçları
+                        </h2>
+                        <p className="text-lg md:text-xl mt-2 font-semibold" style={{ color: siteSettings.searchTextColor || '#374151' }}>
+                          Tüm panolardan toplam {postits.length} eşleşen kayıt bulundu.
+                        </p>
+                      </div>
+                      {(() => {
+                        const grouped = postits.reduce((acc, postit) => {
+                          const catId = postit.categoryId || 'uncategorized';
+                          if (!acc[catId]) {
+                            acc[catId] = {
+                              categoryName: postit.category ? postit.category.name : 'Diğer',
+                              categoryId: postit.category ? postit.category.id : null,
+                              items: []
+                            };
+                          }
+                          acc[catId].items.push(postit);
+                          return acc;
+                        }, {} as Record<string, { categoryName: string, categoryId: string | null, items: typeof postits }>);
+
+                        return Object.values(grouped).map((group: any) => (
+                          <div key={group.categoryId || 'other'} className="mb-14">
+                            <Link href={group.categoryId ? `/?category=${group.categoryId}` : '#'}>
+                              <h3 className={`${siteSettings.searchCategoryTitleSize === 'lg' ? 'text-lg' : siteSettings.searchCategoryTitleSize === 'xl' ? 'text-xl' : siteSettings.searchCategoryTitleSize === '2xl' ? 'text-2xl' : siteSettings.searchCategoryTitleSize === '3xl' ? 'text-3xl' : siteSettings.searchCategoryTitleSize === '4xl' ? 'text-4xl' : siteSettings.searchCategoryTitleSize === '5xl' ? 'text-5xl md:text-6xl' : 'text-2xl md:text-3xl'} font-extrabold mb-5 hover:opacity-80 transition-all border-b border-gray-200/50 pb-3 inline-block w-full drop-shadow-sm flex items-center justify-between`}
+                                  style={{ 
+                                    fontFamily: siteSettings.searchCategoryTitleFont === 'cursive' ? "'Caveat', cursive" : siteSettings.searchCategoryTitleFont === 'london' ? "'London Presley', sans-serif" : siteSettings.searchCategoryTitleFont === 'puerto' ? "'Puerto', sans-serif" : siteSettings.searchCategoryTitleFont === 'retosta' ? "'Retosta', sans-serif" : siteSettings.searchCategoryTitleFont === 'Dancing Script, cursive' ? "'Dancing Script', cursive" : siteSettings.searchCategoryTitleFont === 'calibri' ? "'Calibri', sans-serif" : siteSettings.searchCategoryTitleFont === 'arial' ? "Arial, sans-serif" : siteSettings.searchCategoryTitleFont === 'sans-serif-generic' ? "sans-serif" : "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                                    color: siteSettings.searchCategoryTitleColor || '#1f2937'
+                                  }}>
+                                <span>{group.categoryName}</span>
+                                <span className="text-sm font-medium opacity-60 bg-black/5 px-3 py-1 rounded-full">
+                                  {group.items.length} kayıt
+                                </span>
+                              </h3>
+                            </Link>
+
+                            {ottSettings.isActive ? (
+                              <OttSlider
+                                initialPostits={group.items as any}
+                                canDelete={canDelete}
+                                currentUserId={(session?.user as any)?.id}
+                                postitAppearance={{ 
+                                  ...(appearance.postitAppearance || {}),
+                                  magazineTitleFont: getOttValue('magazineTitleFont', 'serif'),
+                                  magazineTitleSize: getOttValue('magazineTitleSize', 'xl'),
+                                  magazineTitleColor: getOttValue('magazineTitleColor', '#1f2937'),
+                                  magazineDescFont: getOttValue('magazineDescFont', 'sans-serif')
+                                }}
+                                ottItemsPerRow={ottSettings.itemsPerRow}
+                                ottCardRatio={ottSettings.cardRatio}
+                                ottAutoScrollSpeed={ottSettings.autoScrollSpeed}
+                                ottCardStyle={ottSettings.cardStyle}
+                                ottCardBgType={ottSettings.cardBgType}
+                                ottCardBgColor={ottSettings.cardBgColor}
+                                ottCardBgColorAlpha={ottSettings.cardBgColorAlpha}
+                                ottCardBgImage={ottSettings.cardBgImage}
+                                ottModalBgType={ottSettings.modalBgType}
+                                ottModalBgColor={ottSettings.modalBgColor}
+                                ottModalBgColorAlpha={ottSettings.modalBgColorAlpha}
+                                ottModalBgImage={ottSettings.modalBgImage}
+                                ottModalTextColor={ottSettings.modalTextColor}
+                              />
+                            ) : ottSettings.cardStyle === 'magazine' ? (
+                              <PostitMasonryGrid 
+                                postits={group.items as any}
+                                itemsPerRow={ottSettings.itemsPerRow}
+                                cardRatio={ottSettings.cardRatio}
+                                ottModalBgType={ottSettings.modalBgType}
+                                ottModalBgColor={ottSettings.modalBgColor}
+                                ottModalBgColorAlpha={ottSettings.modalBgColorAlpha}
+                                ottModalBgImage={ottSettings.modalBgImage}
+                                ottModalTextColor={ottSettings.modalTextColor}
+                                canDelete={canDelete}
+                                currentUserId={(session?.user as any)?.id}
+                                postitAppearance={{
+                                  ...appearance.postitAppearance,
+                                  editorItemsPerRow: ottSettings.itemsPerRow,
+                                  editorImageRatio: ottSettings.cardRatio,
+                                  editorCardBgColor: ottSettings.cardBgType === 'transparent' ? 'transparent' : (ottSettings.cardBgColor || '#ffffff'),
+                                  editorTitleColor: getOttValue('magazineTitleColor', '#1f2937'),
+                                  editorTitleFont: getOttValue('magazineTitleFont', 'serif'),
+                                  editorTitleSize: getOttValue('magazineTitleSize', 'xl'),
+                                  font: getOttValue('magazineDescFont', 'sans-serif'),
+                                  editorCardStyle: 'modern',
+                                  editorTextLinesClamp: '8'
+                                }}
+                              />
+                            ) : (
+                              <PostItWall
+                                initialPostits={group.items as any}
+                                canDelete={canDelete}
+                                currentUserId={(session?.user as any)?.id}
+                                postitAppearance={appearance.postitAppearance}
+                                ottModalBgType={ottSettings.modalBgType}
+                                ottModalBgColor={ottSettings.modalBgColor}
+                                ottModalBgColorAlpha={ottSettings.modalBgColorAlpha}
+                                ottModalBgImage={ottSettings.modalBgImage}
+                                ottModalTextColor={ottSettings.modalTextColor}
+                                ottCardRatio={ottSettings.cardRatio}
+                              />
+                            )}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  );
+                }
+
+                const isCustomLayoutEnabled = !!getOttValue('useCustomLayout', false);
+                const customLayoutData = getOttValue('customLayout', []);
 
                 if (isCustomLayoutEnabled) {
-                  const customLayoutStr = categoryId
-                    ? selectedCategory?.customLayout
-                    : (homeWall?.useCustomLayout ? homeWall.customLayout : siteSettings.customLayout);
                   let customLayout: any[] = [];
                   try {
-                    customLayout = typeof customLayoutStr === 'string' ? JSON.parse(customLayoutStr) : (customLayoutStr || []);
+                    customLayout = typeof customLayoutData === 'string' ? JSON.parse(customLayoutData) : (customLayoutData || []);
                   } catch (e) {
                     customLayout = [];
                   }
@@ -829,7 +1425,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                           let needsCorkFrame = false;
 
                           if (block.type === 'category_posts') {
-                            const catPostitsRaw = block.categoryId ? organicPostits.filter((p: any) => p.categoryId === block.categoryId) : [];
+                            const catPostitsRaw = block.categoryId ? injectNativeAds(organicPostits.filter((p: any) => p.categoryId === block.categoryId)) : [];
                             const catLimit = block.limit || 0;
                             const catPostits = catLimit > 0 ? catPostitsRaw.slice(0, catLimit) : catPostitsRaw;
 
@@ -855,7 +1451,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                             })
 
                             content = <PostItStack postits={injectedPostits as any} canDelete={canDelete} currentUserId={currentUserId} />;
-                            needsCorkFrame = !block.noBorder;
+                            needsCorkFrame = !block.noInnerBorder;
                           } else if (block.type === 'custom_html') {
                             content = <div dangerouslySetInnerHTML={{ __html: block.htmlContent || '' }} className="w-full h-full p-4" />;
                           } else if (block.type === 'pharmacy_plugin') {
@@ -887,6 +1483,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                           if (idx === customLayout.length - 1 && cumW > 0) showBanner = true;
 
                           const currentRibbonColor = block.ribbonColor || appearance.ribbonColor || '#c40000';
+                          const mappedCat = block.categoryId ? categories.find(c => c.id === block.categoryId) : null;
+                          const currentRibbonImage = mappedCat?.ribbonImage || undefined;
                           const defaultBorderColor = '#8B5A2B';
                           const dynamicBorderColor = block.borderColor || defaultBorderColor;
 
@@ -906,9 +1504,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                 <div className="relative flex justify-center w-full mt-2 mb-0 z-10">
                                   {block.titleImage ? (
                                     <Link href={block.categoryId ? `/?category=${block.categoryId}` : '#'} className="relative inline-flex items-center justify-center transform transition-transform duration-300 hover:scale-[1.05] -mt-2 cursor-pointer z-20">
-                                      <img src={block.titleImage} alt={block.title || 'Başlık'} className="max-h-24 w-auto object-contain drop-shadow-lg" />
+                                      <Image src={block.titleImage} width={800} height={400} unoptimized={block.titleImage.startsWith('data:')} style={{ width: 'auto', height: 'auto', maxHeight: '6rem' }} alt={block.title || 'Başlık'} className="object-contain drop-shadow-lg" />
                                       {block.title && (
-                                        <h3 className="absolute inset-0 flex items-center justify-center text-lg md:text-2xl font-black tracking-wide text-white px-4 text-center leading-tight" style={{ fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif", textShadow: '0 2px 4px rgba(0,0,0,0.8), 0 -1px 2px rgba(255,255,255,0.4)' }}>
+                                        <h3 className="absolute inset-0 flex items-center justify-center text-lg md:text-2xl font-black tracking-wide px-4 text-center leading-tight" style={{ color: block.ribbonTextColor || '#ffffff', fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif", textShadow: '0 2px 4px rgba(0,0,0,0.8), 0 -1px 2px rgba(255,255,255,0.4)' }}>
                                           {block.title}
                                         </h3>
                                       )}
@@ -916,13 +1514,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                   ) : (
                                     <Link href={block.categoryId ? `/?category=${block.categoryId}` : '#'} className="relative inline-flex items-center justify-center group transform transition-transform duration-300 hover:scale-[1.05] cursor-pointer z-20">
                                       {/* Ribbon side folds */}
-                                      <div className="absolute top-2 -left-8 w-12 h-full -z-20 drop-shadow-md brightness-[0.65]" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
-                                      <div className="absolute top-2 -right-8 w-12 h-full -z-20 drop-shadow-md brightness-[0.65]" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
-                                      <div className="absolute -bottom-2 left-0 w-4 h-2 -z-10 brightness-50" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
-                                      <div className="absolute -bottom-2 right-0 w-4 h-2 -z-10 brightness-50" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                                      {currentRibbonColor !== 'none' && (
+                                        <>
+                                          <div className="absolute top-2 -left-8 w-12 h-full -z-20 drop-shadow-md brightness-[0.65]" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+                                          <div className="absolute top-2 -right-8 w-12 h-full -z-20 drop-shadow-md brightness-[0.65]" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+                                          <div className="absolute -bottom-2 left-0 w-4 h-2 -z-10 brightness-50" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                                          <div className="absolute -bottom-2 right-0 w-4 h-2 -z-10 brightness-50" style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                                        </>
+                                      )}
 
-                                      <div className="relative px-6 md:px-12 py-2 rounded-sm border-b-4 border-r-[3px] border-black/30 shadow-xl flex items-center gap-2" style={{ backgroundColor: currentRibbonColor }}>
-                                        <h3 className="text-xl md:text-3xl font-black tracking-wide text-white group-hover:text-yellow-200 transition-colors duration-200" style={{ fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif", textShadow: '0 2px 4px rgba(0,0,0,0.4), 0 -1px 1px rgba(255,255,255,0.2)' }}>
+                                      <div className={currentRibbonColor !== 'none' ? "relative px-6 md:px-12 py-2 rounded-sm border-b-4 border-r-[3px] border-black/30 shadow-xl flex items-center gap-2" : "relative px-6 md:px-12 py-2 flex items-center gap-2"} style={currentRibbonColor !== 'none' ? { backgroundColor: currentRibbonColor, backgroundImage: currentRibbonImage ? `url('${currentRibbonImage}')` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
+                                        <h3 className="text-xl md:text-3xl font-black tracking-wide transition-colors duration-200" style={{ color: block.ribbonTextColor || (currentRibbonColor !== 'none' ? '#ffffff' : '#374151'), fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif", textShadow: currentRibbonColor !== 'none' ? '0 2px 4px rgba(0,0,0,0.4), 0 -1px 1px rgba(255,255,255,0.2)' : 'none' }}>
                                           {block.title}
                                         </h3>
                                       </div>
@@ -948,11 +1550,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                             </div>
 
                             {/* Render SEPARATOR Ad after block if it completed a visual row */}
-                            {separatorAds.length > 0 && showBanner && (
+                            {separatorAds.length > 0 && showBanner && ((idx + 1) % ((separatorAds[idx % separatorAds.length] as any).frequency || 1) === 0) && (
                               <div className="w-full flex justify-center py-4 mb-2 -mt-2">
                                 <a href={separatorAds[idx % separatorAds.length].link} target="_blank" rel="noopener noreferrer" className="relative block w-full bg-white border border-gray-200 p-1 shadow-sm rounded-md transition-transform hover:scale-[1.01]">
                                   <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded shadow z-10">Sponsorlu</span>
-                                  <img src={separatorAds[idx % separatorAds.length].imageUrl} alt="Sponsor" className="w-full max-h-[120px] md:max-h-[180px] object-cover rounded" />
+                                  <Image src={separatorAds[idx % separatorAds.length].imageUrl} width={1200} height={600} unoptimized={separatorAds[idx % separatorAds.length].imageUrl.startsWith('data:')} style={{ width: '100%', height: 'auto', maxHeight: '180px' }} alt="Sponsor" className="object-cover rounded" />
                                 </a>
                               </div>
                             )}
@@ -964,69 +1566,276 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   }
                 } // End Custom Layout Logic
 
+                let isAutoGrouped = false;
+                const ottGroupBySubwalls = getOttValue('ottGroupBySubwalls', true);
+                
                 let wallSettingsIds = categoryId
                   ? (selectedCategory?.homeCategoryIds || [])
-                  : (siteSettings.homeCategoryIds || []);
+                  : (homeWall?.homeCategoryIds || []);
 
                 if (typeof wallSettingsIds === 'string') {
                   try { wallSettingsIds = JSON.parse(wallSettingsIds); } catch (e) { wallSettingsIds = []; }
                 }
                 if (!Array.isArray(wallSettingsIds)) wallSettingsIds = [];
 
+                if (wallSettingsIds.length === 0 && ottGroupBySubwalls) {
+                  const currentCat = selectedCategory || homeWall;
+                  if (currentCat && currentCat.children && currentCat.children.length > 0) {
+                    wallSettingsIds = currentCat.children.map((child: any) => child.id);
+                    isAutoGrouped = true;
+                  }
+                }
+
                 if (wallSettingsIds.length > 0) {
-                  const directPostits = categoryId ? postits.filter((p: any) => p.categoryId === categoryId) : [];
-                  const currentWallLimit = categoryId ? (selectedCategory?.postitLimit || 0) : (siteSettings.postitLimit || 0);
-                  const limitedDirectPostits = currentWallLimit > 0 ? directPostits.slice(0, currentWallLimit) : directPostits;
+                  const currentWallId = categoryId || homeWall?.id;
+                  const directPostits = currentWallId ? postits.filter((p: any) => p.categoryId === currentWallId) : [];
+                  const currentWallLimit = categoryId ? (selectedCategory?.postitLimit || 0) : (homeWall?.postitLimit || 0);
+                  let limitedDirectPostits = currentWallLimit > 0 ? directPostits.slice(0, currentWallLimit) : directPostits;
+
+                  const virtualGenCat = selectedCategory || homeWall;
+                  if (limitedDirectPostits.length === 0 && virtualGenCat && virtualGenCat.children && virtualGenCat.children.length > 0 && virtualGenCat.showVirtualPostitsIfEmpty !== false) {
+                     limitedDirectPostits = virtualGenCat.children.map((child: any) => ({
+                         id: `virtual-${child.id}`,
+                         content: child.name,
+                         categoryId: currentWallId,
+                         authorId: 'system',
+                         createdAt: new Date(),
+                         updatedAt: new Date(),
+                         user: { name: child.name, image: null },
+                         author: { name: child.name, image: null },
+                         imageUrl: virtualGenCat.showVirtualPostitLogos === true ? child.logoUrl : null,
+                         PostItImage: (virtualGenCat.showVirtualPostitLogos === true && child.logoUrl) ? [{ url: child.logoUrl, type: 'image' }] : [],
+                         tags: [],
+                         likes: [],
+                         views: [],
+                         _count: { comments: 0, likes: 0, views: 0 },
+                         isVirtualNav: true,
+                         categoryTargetId: child.id
+                     }));
+                  }
 
                   return (
-                    <div className="space-y-12 w-full mt-4">
+                    <div className={`w-full mt-4 ${ottSettings.isActive ? 'flex flex-col gap-2' : 'space-y-12'}`}>
                       {limitedDirectPostits.length > 0 && (
-                        <div className="mb-12">
-                          <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
-                            <div className="relative inline-flex items-center justify-center group">
-                              <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
-                                style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
-                              <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
-                                style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
-                              <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
-                                style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
-                              <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
-                                style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
-                              <div className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: appearance.ribbonColor }}>
-                                <h2 className="text-3xl md:text-5xl tracking-normal text-white mb-0"
-                                  style={{
-                                    textShadow: '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)',
-                                    fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
-                                    fontWeight: 900
-                                  }}>
-                                  {selectedCategory?.name || 'Ana Duvar'}
-                                </h2>
+                        <div className={ottSettings.isActive ? "mb-2" : "mb-12"}>
+                          {ottSettings.isActive ? (
+                            ottSettings.showCategoryTitles && (
+                              <>
+                                <div className={`relative flex items-center w-full z-10 transition-transform hover:scale-[1.02] duration-300 ${ottSettings.categoryHeaderGlassy ? 'bg-white/10 backdrop-blur-md shadow-lg border border-white/20 rounded-xl py-2 px-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] mt-3 mb-2 mx-1' : (appearance.ribbonColor === 'none' ? 'mt-3 mb-1' : 'mt-4 mb-2')}`}>
+                                  {ottSettings.separatorStyle !== 'none' && (
+                                    <div className={`flex-grow border-b-[3px] ml-4 opacity-80 ${ottSettings.categoryTitleAlignment === 'left' ? 'hidden' : 'block'}`} style={{ borderBottomStyle: ottSettings.separatorStyle as any, borderColor: (ottSettings.separatorColor || '#cbd5e1').split(',')[0], borderImage: (ottSettings.separatorColor || '').includes(',') ? `linear-gradient(to left, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[0]}, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[1]}) 1` : undefined, WebkitMaskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to left, black 0%, transparent 100%)`, maskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to left, black 0%, transparent 100%)` }} />
+                                  )}
+                                  <div className={`relative inline-flex items-center justify-center group ${ottSettings.categoryTitleAlignment === 'left' ? 'md:ml-12 ml-4' : ottSettings.categoryTitleAlignment === 'right' ? 'md:mr-12 mr-4 mx-4' : 'mx-4'}`}>
+                                    {appearance.ribbonColor !== 'none' && (
+                                      <>
+                                        <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                          style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+                                        <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                          style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+                                        <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
+                                          style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                                        <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
+                                          style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                                      </>
+                                    )}
+                                    <div className="flex items-center gap-3 relative z-30">
+                                      <div className={appearance.ribbonColor !== 'none' ? "relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent bg-cover bg-center" : `relative px-8 py-1 flex flex-col sm:flex-row items-center gap-3 decoration-transparent hover:scale-[1.02] transition-transform`} style={appearance.ribbonColor !== 'none' ? { backgroundColor: appearance.ribbonColor, backgroundImage: appearance.ribbonImage ? `url('${appearance.ribbonImage}')` : 'none' } : {}}>
+                                        <div className="flex flex-row items-center gap-2 relative z-10 pointer-events-none">
+                                          {checkCanAddPostit((selectedCategory || homeWall)) && (
+                                          <div className="pointer-events-auto flex items-center pr-1">
+                                            <PostItForm 
+                                              categories={categories}
+                                              defaultCategoryId={selectedCategory?.id || homeWall?.id!}
+                                              userGroupIds={(session?.user as any)?.userGroupIds}
+                                              userRole={(session?.user as any)?.role}
+                                              customTrigger={
+                                                <div className="bg-gradient-to-br from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 shadow-md border border-yellow-300 p-1 sm:p-1.5 rounded-lg cursor-pointer flex items-center justify-center hover:scale-110 transition-transform duration-300 mt-0.5" title="Kategoriye Post-it Ekle">
+                                                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-950" strokeWidth={3} />
+                                                </div>
+                                              }
+                                            />
+                                          </div>
+                                          )}
+                                          <h2 className={`${ottSettings.categoryTitleSize === 'xl' ? 'text-xl md:text-2xl' : ottSettings.categoryTitleSize === '2xl' ? 'text-2xl md:text-3xl' : ottSettings.categoryTitleSize === '3xl' ? 'text-3xl md:text-4xl' : ottSettings.categoryTitleSize === '4xl' ? 'text-4xl md:text-5xl' : ottSettings.categoryTitleSize === '5xl' ? 'text-5xl md:text-6xl' : 'text-3xl md:text-5xl'} tracking-normal mb-0`}
+                                            style={{
+                                              color: ottSettings.categoryTitleColor || (appearance.ribbonTextColor === 'transparent' ? 'transparent' : (appearance.ribbonTextColor || (appearance.ribbonColor !== 'none' ? '#ffffff' : '#1f2937'))),
+                                              textShadow: appearance.ribbonTextColor === 'transparent' ? 'none' : (appearance.ribbonColor !== 'none' ? '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)' : 'none'),
+                                              fontFamily: ottSettings.categoryTitleFont === 'handwriting' ? "'Caveat', cursive" : ottSettings.categoryTitleFont === 'london' ? "'London Presley', sans-serif" : ottSettings.categoryTitleFont === 'puerto' ? "'Puerto', sans-serif" : ottSettings.categoryTitleFont === 'retosta' ? "'Retosta', sans-serif" : ottSettings.categoryTitleFont === 'Dancing Script, cursive' ? "'Dancing Script', cursive" : ottSettings.categoryTitleFont === 'calibri' ? "'Calibri', sans-serif" : ottSettings.categoryTitleFont === 'arial' ? "Arial, sans-serif" : ottSettings.categoryTitleFont === 'sans-serif-generic' ? "sans-serif" : "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                                              fontWeight: 900
+                                            }}>
+                                            {appearance.customRibbonText || selectedCategory?.name || 'Ana Duvar'}
+                                          </h2>
+                                          <div className="flex items-center gap-1.5 opacity-90 mt-1 pointer-events-auto cursor-default">
+                                            <span className="text-base font-bold tracking-wide mt-1 ml-1" style={{ color: ottSettings.categoryTitleColor || (appearance.ribbonTextColor === 'transparent' ? 'transparent' : (appearance.ribbonTextColor || (appearance.ribbonColor !== 'none' ? '#ffffff' : '#1f2937'))) }}>
+                                              {directPostits.length} Not
+                                            </span>
+                                            {(selectedCategory || homeWall) && (
+                                              <CategorySubscribeButton categoryId={selectedCategory?.id || homeWall?.id!} variant="badge" />
+                                            )}
+                                            {(selectedCategory || homeWall) && (
+                                              <CategoryShareButton categoryId={selectedCategory?.id || homeWall?.id!} />
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {ottSettings.separatorStyle !== 'none' && (
+                                    <div className={`flex-grow border-b-[3px] mr-4 opacity-80 ${ottSettings.categoryTitleAlignment === 'right' ? 'hidden' : 'block'}`} style={{ borderBottomStyle: ottSettings.separatorStyle as any, borderColor: (ottSettings.separatorColor || '#cbd5e1').split(',')[0], borderImage: (ottSettings.separatorColor || '').includes(',') ? `linear-gradient(to right, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[0]}, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[1]}) 1` : undefined, WebkitMaskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to right, black 0%, transparent 100%)`, maskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to right, black 0%, transparent 100%)` }} />
+                                  )}
+                                </div>
+                              </>
+                            )
+                          ) : (
+                            !appearance.hideWallTitle && (
+                              <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
+                                <div className="relative inline-flex items-center justify-center group">
+                                  {!appearance.hideWallRibbon && appearance.ribbonColor !== 'none' && (
+                                    <>
+                                      <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                        style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+                                      <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                        style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+                                      <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
+                                        style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                                      <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
+                                        style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                                    </>
+                                  )}
+                                  <div className={!appearance.hideWallRibbon && appearance.ribbonColor !== 'none' ? "relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent bg-cover bg-center" : "relative px-8 py-3 flex flex-col sm:flex-row items-center gap-3 decoration-transparent"} style={!appearance.hideWallRibbon && appearance.ribbonColor !== 'none' ? { backgroundColor: appearance.ribbonColor, backgroundImage: appearance.ribbonImage ? `url(${appearance.ribbonImage}')` : 'none' } : {}}>
+                                    <h2 className={`relative z-10 text-3xl md:text-5xl tracking-normal mb-0 flex items-center gap-3`}
+                                      style={{
+                                        color: appearance.ribbonTextColor || (!appearance.hideWallRibbon && appearance.ribbonColor !== 'none' ? '#ffffff' : '#1f2937'),
+                                        textShadow: !appearance.hideWallRibbon && appearance.ribbonColor !== 'none' ? '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)' : 'none',
+                                        fontFamily: appearance.ribbonTextFont === 'cursive' ? "'Patrick Hand', cursive" : appearance.ribbonTextFont === 'serif' ? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' : appearance.ribbonTextFont === 'monospace' ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' : appearance.ribbonTextFont === 'system-ui' ? 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' : appearance.ribbonTextFont === 'calibri' ? "'Calibri', sans-serif" : appearance.ribbonTextFont === 'arial' ? "Arial, sans-serif" : appearance.ribbonTextFont === 'sans-serif-generic' ? "sans-serif" : "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                                        fontWeight: 900
+                                      }}>
+                                      {appearance.customRibbonText || selectedCategory?.name || 'Ana Duvar'}
+                                      {(selectedCategory || homeWall) && (
+                                        <>
+                                          <CategorySubscribeButton categoryId={selectedCategory?.id || homeWall?.id!} className="ml-2 scale-75 md:scale-100" />
+                                          <CategoryShareButton categoryId={selectedCategory?.id || homeWall?.id!} variant="large" className="scale-75 md:scale-100" />
+                                        </>
+                                      )}
+                                    </h2>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
+                            )
+                          )}
                           <div
-                            className={`relative flex overflow-hidden transition-all duration-300 ${!boardAppearance.noBorder && !boardAppearance.isWallTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1 w-full`}
+                            className={`relative flex overflow-hidden transition-all duration-300 ${!boardAppearance.noInnerBorder && !boardAppearance.isInnerTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1 w-full`}
                             style={{
-                              ...(!boardAppearance.noBorder && !boardAppearance.isWallTransparent ? { border: `12px solid ${boardAppearance.borderColor || '#8B5A2B'}` } : {}),
-                              backgroundColor: boardAppearance.isWallTransparent ? 'transparent' : (boardAppearance.backgroundColor || (!boardAppearance.noBorder ? '#E8DCC4' : 'transparent'))
+                              ...(!boardAppearance.noInnerBorder && !boardAppearance.isInnerTransparent ? { border: `12px solid ${boardAppearance.borderColor || '#8B5A2B'}` } : {}),
+                              backgroundColor: boardAppearance.isInnerTransparent ? 'transparent' : (boardAppearance.innerBackgroundColor || (!boardAppearance.noInnerBorder ? '#E8DCC4' : 'transparent'))
                             }}
                           >
-                            {!boardAppearance.noBorder && !boardAppearance.isWallTransparent && (
+                            {!boardAppearance.noInnerBorder && !boardAppearance.isInnerTransparent && (
                               <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
                             )}
                             <div className="relative z-10 w-full p-2 h-full flex flex-col items-center">
-                              <PostItWall
-                                initialPostits={limitedDirectPostits as any}
-                                canDelete={canDelete}
-                                currentUserId={(session?.user as any)?.id}
-                              />
+                              {selectedCategory?.isEditorModeActive || (!categoryId && homeWall?.isEditorModeActive) ? (
+                                <ArticleGrid
+                                  categoryId={selectedCategory?.id || homeWall?.id!}
+                                  categoryName={selectedCategory?.name || homeWall?.name || 'Ana Duvar'}
+                                  postitAppearance={appearance.postitAppearance}
+                                  userRole={(session?.user as any)?.role}
+                                  userId={(session?.user as any)?.id}
+                                  canEdit={getCanManage(selectedCategory?.id || homeWall?.id!, selectedCategory?.userGroupId || homeWall?.userGroupId)}
+                                />
+                              ) : (
+                                ottSettings.isActive ? (
+                                  <OttSlider
+                                    initialPostits={limitedDirectPostits as any}
+                                    canDelete={getCanManage(selectedCategory?.id || homeWall?.id!, selectedCategory?.userGroupId || homeWall?.userGroupId)}
+                                    currentUserId={(session?.user as any)?.id}
+                                    postitAppearance={{ 
+                                      ...(appearance.postitAppearance || {}),
+                                      magazineTitleFont: getOttValue('magazineTitleFont', 'serif'),
+                                      magazineTitleSize: getOttValue('magazineTitleSize', 'xl'),
+                                      magazineTitleColor: getOttValue('magazineTitleColor', '#1f2937'),
+                                      magazineDescFont: getOttValue('magazineDescFont', 'sans-serif')
+                                    }}
+                                    ottItemsPerRow={ottSettings.itemsPerRow}
+                                    ottCardRatio={ottSettings.cardRatio}
+                                    ottAutoScrollSpeed={ottSettings.autoScrollSpeed}
+                                    ottCardStyle={ottSettings.cardStyle}
+                                    ottCardBgType={ottSettings.cardBgType}
+                                    ottCardBgColor={ottSettings.cardBgColor}
+                                    ottCardBgColorAlpha={ottSettings.cardBgColorAlpha}
+                                    ottCardBgImage={ottSettings.cardBgImage}
+                                    ottModalBgType={ottSettings.modalBgType}
+                                    ottModalBgColor={ottSettings.modalBgColor}
+                                    ottModalBgColorAlpha={ottSettings.modalBgColorAlpha}
+                                    ottModalBgImage={ottSettings.modalBgImage}
+                                    ottModalTextColor={ottSettings.modalTextColor}
+                                  />
+                                ) : ottSettings.cardStyle === 'magazine' ? (
+                                  <PostitMasonryGrid 
+                                    postits={limitedDirectPostits as any}
+                                    itemsPerRow={ottSettings.itemsPerRow}
+                                    cardRatio={ottSettings.cardRatio}
+                                    ottModalBgType={ottSettings.modalBgType}
+                                    ottModalBgColor={ottSettings.modalBgColor}
+                                    ottModalBgColorAlpha={ottSettings.modalBgColorAlpha}
+                                    ottModalBgImage={ottSettings.modalBgImage}
+                                    ottModalTextColor={ottSettings.modalTextColor}
+                                    canDelete={getCanManage(selectedCategory?.id || homeWall?.id!, selectedCategory?.userGroupId || homeWall?.userGroupId)}
+                                    currentUserId={(session?.user as any)?.id}
+                                    postitAppearance={{
+                                      ...appearance.postitAppearance,
+                                      editorItemsPerRow: ottSettings.itemsPerRow,
+                                      editorImageRatio: ottSettings.cardRatio,
+                                      editorCardBgColor: ottSettings.cardBgType === 'transparent' ? 'transparent' : (ottSettings.cardBgColor || '#ffffff'),
+                                      editorTitleColor: getOttValue('magazineTitleColor', '#1f2937'),
+                                      editorTitleFont: getOttValue('magazineTitleFont', 'serif'),
+                                      editorTitleSize: getOttValue('magazineTitleSize', 'xl'),
+                                      font: getOttValue('magazineDescFont', 'sans-serif'),
+                                      editorCardStyle: 'modern',
+                                      editorTextLinesClamp: '8'
+                                    }}
+                                  />
+                                ) : (
+                                  <PostItWall
+                                    initialPostits={limitedDirectPostits as any}
+                                    canDelete={getCanManage(selectedCategory?.id || homeWall?.id!, selectedCategory?.userGroupId || homeWall?.userGroupId)}
+                                    currentUserId={(session?.user as any)?.id}
+                                    postitAppearance={appearance.postitAppearance}
+                                    ottModalBgType={ottSettings.modalBgType}
+                                    ottModalBgColor={ottSettings.modalBgColor}
+                                    ottModalBgColorAlpha={ottSettings.modalBgColorAlpha}
+                                    ottModalBgImage={ottSettings.modalBgImage}
+                                    ottModalTextColor={ottSettings.modalTextColor}
+                                    ottCardRatio={ottSettings.cardRatio}
+                                  />
+                                )
+                              )}
                             </div>
                           </div>
                         </div>
                       )}
-                      {wallSettingsIds.map((catId: string, index: number) => {
-                        const cat = categories.find((c: any) => c.id === catId);
+                      {(() => {
+                        const renderCategoryTree = (catId: string, level: number, index: number): React.ReactNode => {
+                        let cat = categories.find((c: any) => c.id === catId);
                         if (!cat) return null;
+
+                        if (!categoryId && homeWall) {
+                          const overrideCat = { ...cat };
+                          const skipKeys = ['id', 'name', 'parentId', 'children', 'createdAt', 'updatedAt', 'postitLimit'];
+                          for (const key of Object.keys(homeWall)) {
+                            if (!skipKeys.includes(key) && (homeWall as any)[key] !== null && (homeWall as any)[key] !== undefined && (homeWall as any)[key] !== '') {
+                              overrideCat[key] = (homeWall as any)[key];
+                            }
+                          }
+                          cat = overrideCat;
+                        }
+                        
+                        if (typeof process !== 'undefined') {
+                          try {
+                            const fs = require('fs')
+                            fs.appendFileSync('/tmp/SSR_DEBUG_MAP.txt', JSON.stringify({name: cat.name, appearance: cat.postitAppearance || 'MISSING_IN_MAP', raw: cat.postitAppearance}) + '\n', 'utf8')
+                          } catch(e) {}
+                        }
 
                         const getCategoryIds = (c: any): string[] => {
                           const ids = [c.id];
@@ -1038,8 +1847,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                           return ids;
                         };
 
-                        const validIds = getCategoryIds(cat);
-                        const catPostitsRaw = postits.filter((p: any) => validIds.includes(p.categoryId));
+                        const validIds = isAutoGrouped ? [cat.id] : getCategoryIds(cat);
+                        const catPostitsRaw = injectNativeAds(organicPostits.filter((p: any) => validIds.includes(p.categoryId)));
                         if (catPostitsRaw.length === 0) return null;
 
                         const catLimit = cat.postitLimit || 0;
@@ -1049,134 +1858,404 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                         const postitCount = catPostitsRaw.length;
 
                         const currentRibbonColor = cat.ribbonColor || '#502bb1';
+                        
+                        const catOttIsActive = cat.isOttActive !== undefined && cat.isOttActive !== null ? cat.isOttActive : ottSettings.isActive;
+                        const catOttItemsPerRow = cat.ottItemsPerRow || ottSettings.itemsPerRow;
+                        const catOttCardRatio = cat.ottCardRatio || ottSettings.cardRatio;
+                        const catOttAutoScrollSpeed = cat.ottAutoScrollSpeed !== undefined && cat.ottAutoScrollSpeed !== null ? cat.ottAutoScrollSpeed : ottSettings.autoScrollSpeed;
+                        const catOttCardStyle = cat.ottCardStyle || ottSettings.cardStyle;
+                        const catOttCardBgType = cat.ottCardBgType || ottSettings.cardBgType;
+                        const catOttCardBgColor = cat.ottCardBgColor || ottSettings.cardBgColor;
+                        const catOttCardBgColorAlpha = cat.ottCardBgColorAlpha !== undefined && cat.ottCardBgColorAlpha !== null ? cat.ottCardBgColorAlpha : ottSettings.cardBgColorAlpha;
+                        const catOttCardBgImage = cat.ottCardBgImage || ottSettings.cardBgImage;
+                        const catOttModalBgType = cat.ottModalBgType || ottSettings.modalBgType;
+                        const catOttModalBgColor = cat.ottModalBgColor || ottSettings.modalBgColor;
+                        const catOttModalBgColorAlpha = cat.ottModalBgColorAlpha !== undefined && cat.ottModalBgColorAlpha !== null ? cat.ottModalBgColorAlpha : ottSettings.modalBgColorAlpha;
+                        const catOttModalBgImage = cat.ottModalBgImage || ottSettings.modalBgImage;
+                        const catOttModalTextColor = cat.ottModalTextColor || ottSettings.modalTextColor;
 
+                        const activeAlignment = catOttIsActive ? (cat.ottCategoryTitleAlignment || ottSettings.categoryTitleAlignment) : (cat.ribbonAlignment || 'center');
+                        
+                        const sizeMap: Record<string, string> = {
+                          'xl': 'text-xl md:text-2xl',
+                          '2xl': 'text-2xl md:text-3xl',
+                          '3xl': 'text-3xl md:text-4xl',
+                          '4xl': 'text-4xl md:text-5xl',
+                          '5xl': 'text-5xl md:text-6xl'
+                        };
+                        const activeTitleSize = catOttIsActive && ottSettings.categoryTitleSize ? (sizeMap[ottSettings.categoryTitleSize] || 'text-3xl md:text-5xl') : 'text-3xl md:text-5xl';
+                        const activeTitleColor = (catOttIsActive && ottSettings.categoryTitleColor) ? ottSettings.categoryTitleColor : (cat.ribbonTextColor === 'transparent' ? 'transparent' : (cat.ribbonTextColor || (currentRibbonColor !== 'none' ? '#ffffff' : '#1f2937')));
+
+                        const activeTitleFontRaw = catOttIsActive ? ((cat.ottCategoryTitleFont && cat.ottCategoryTitleFont !== 'sans-serif') ? cat.ottCategoryTitleFont : (ottSettings.categoryTitleFont || 'sans-serif')) : (cat.ribbonTextFont || 'sans-serif');
+                        const activeTitleFont = activeTitleFontRaw === 'handwriting' ? "'Caveat', cursive" : activeTitleFontRaw === 'london' ? "'London Presley', sans-serif" : activeTitleFontRaw === 'puerto' ? "'Puerto', sans-serif" : activeTitleFontRaw === 'retosta' ? "'Retosta', sans-serif" : activeTitleFontRaw === 'Dancing Script, cursive' ? "'Dancing Script', cursive" : activeTitleFontRaw === 'calibri' ? "'Calibri', sans-serif" : activeTitleFontRaw === 'arial' ? "Arial, sans-serif" : activeTitleFontRaw === 'sans-serif-generic' ? "sans-serif" : activeTitleFontRaw === 'cursive' ? "'Patrick Hand', cursive" : activeTitleFontRaw === 'serif' ? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' : activeTitleFontRaw === 'monospace' ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' : activeTitleFontRaw === 'system-ui' ? 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' : "'Nunito', 'Segoe UI', system-ui, sans-serif";
+
+                        const isTransparent = currentRibbonColor === 'none';
+                        const catOttShowCategoryTitles = cat.ottShowCategoryTitles !== undefined && cat.ottShowCategoryTitles !== null ? cat.ottShowCategoryTitles : ottSettings.showCategoryTitles;
+                        const catOttHeaderGlassy = cat.ottCategoryHeaderGlassy !== undefined && cat.ottCategoryHeaderGlassy !== null ? cat.ottCategoryHeaderGlassy : ottSettings.categoryHeaderGlassy;
+
+                        // Adjust scale based on hierarchy level
+                        let renderTitleSize = activeTitleSize;
+                        if (isAutoGrouped) {
+                            if (level === 1) renderTitleSize = 'text-2xl md:text-4xl';
+                            else if (level >= 2) renderTitleSize = 'text-xl md:text-3xl';
+                        }
+                        
                         return (
-                          <div key={cat.id} className="space-y-4">
-                            <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
-                              <div className="relative inline-flex items-center justify-center group">
+                          <React.Fragment key={`${cat.id}-${level}`}>
+                          <AccordionProvider
+                            isAutoGrouped={isAutoGrouped}
+                            className={catOttIsActive ? "flex flex-col gap-1 z-30 relative" : "space-y-4 z-30 relative"}
+                          >
+                            {(!catOttIsActive || catOttShowCategoryTitles) && (
+                                <div className={`relative flex items-center w-full z-10 transition-transform hover:scale-[1.02] duration-300 ${catOttIsActive && catOttHeaderGlassy ? 'bg-white/10 backdrop-blur-md shadow-lg border border-white/20 rounded-xl py-2 px-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] mt-3 mb-2 mx-1' : (catOttIsActive ? (isTransparent ? 'mt-3 mb-1' : 'mt-4 mb-2') : 'mt-6 mb-8')}`}>
+                                {catOttIsActive && ottSettings.separatorStyle !== 'none' && (
+                                  <div className={`flex-grow border-b-[3px] ml-4 opacity-80 ${activeAlignment === 'left' ? 'hidden' : 'block'}`} style={{ borderBottomStyle: ottSettings.separatorStyle as any, borderColor: (ottSettings.separatorColor || '#cbd5e1').split(',')[0], borderImage: (ottSettings.separatorColor || '').includes(',') ? `linear-gradient(to left, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[0]}, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[1]}) 1` : undefined, WebkitMaskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to left, black 0%, transparent 100%)`, maskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to left, black 0%, transparent 100%)` }} />
+                                )}
+                                <div className={`relative inline-flex items-center justify-center group ${activeAlignment === 'left' ? 'md:ml-12 ml-4' : activeAlignment === 'right' ? 'md:mr-12 mr-4 mx-4' : 'mx-4'}`}>
 
                                 {/* Ribbon Left Tail */}
-                                <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
-                                  style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+                                {currentRibbonColor !== 'none' && (
+                                  <>
+                                    <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                      style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
 
-                                {/* Ribbon Right Tail */}
-                                <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
-                                  style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+                                    <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                      style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
 
-                                {/* Fold Left */}
-                                <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
-                                  style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                                    <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
+                                      style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
 
-                                {/* Fold Right */}
-                                <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
-                                  style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                                    <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
+                                      style={{ backgroundColor: currentRibbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                                  </>
+                                )}
 
                                 {/* Main Banner */}
-                                <a href={`/?category=${cat.id}&from=${categoryId || 'root'}`} className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: currentRibbonColor }}>
-                                  <h2 className="text-3xl md:text-5xl tracking-normal text-white mb-0"
-                                    style={{
-                                      textShadow: '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)',
-                                      fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
-                                      fontWeight: 900
-                                    }}>
-                                    {cat.name}
-                                  </h2>
-                                </a>
-
-                                {/* Badges as floating elements on top right */}
-                                <div className="absolute -top-4 -right-4 flex items-center gap-1.5 z-20">
-                                  {(subcatCount > 0) && (
-                                    <span className="text-xs bg-blue-100/90 backdrop-blur-sm text-blue-800 font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1 shadow-md border-[1.5px] border-blue-400">
-                                      <ListTree className="w-3.5 h-3.5" /> {subcatCount}
-                                    </span>
-                                  )}
-                                  <span className="text-xs bg-yellow-100/90 backdrop-blur-sm text-yellow-800 font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1 shadow-md border-[1.5px] border-yellow-500">
-                                    <StickyNote className="w-3.5 h-3.5" /> {postitCount}
-                                  </span>
+                                <div className="flex items-center gap-3 relative z-30">
+                                  <div className={currentRibbonColor !== 'none' ? "relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" : `relative px-8 ${catOttIsActive ? 'py-1' : 'py-3'} flex flex-col sm:flex-row items-center gap-3 decoration-transparent hover:scale-[1.02] transition-transform`} style={currentRibbonColor !== 'none' ? { backgroundColor: currentRibbonColor, backgroundImage: cat.ribbonImage ? `url('${cat.ribbonImage}')` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
+                                    <a href={`/?category=${cat.id}&from=${categoryId || 'root'}`} className="absolute inset-0 z-0 cursor-pointer" aria-label={cat.name}></a>
+                                    <div className="flex flex-row items-center gap-2 relative z-10 pointer-events-none">
+                                      {/* Add PostIt Form Trigger for this Category */}
+                                      {catOttIsActive && checkCanAddPostit(cat) && (
+                                        <div className="pointer-events-auto flex items-center pr-1">
+                                          <PostItForm 
+                                            categories={categories}
+                                            defaultCategoryId={cat.id}
+                                            userGroupIds={(session?.user as any)?.userGroupIds}
+                                            userRole={(session?.user as any)?.role}
+                                            customTrigger={
+                                              <div className="bg-gradient-to-br from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 shadow-md border border-yellow-300 p-1 sm:p-1.5 rounded-lg cursor-pointer flex items-center justify-center hover:scale-110 transition-transform duration-300 mt-0.5" title={`${cat.name} Kategorisine Post-it Ekle`}>
+                                                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-950" strokeWidth={3} />
+                                              </div>
+                                            }
+                                          />
+                                        </div>
+                                      )}
+                                      <AccordionToggle />
+                                      <a href={`/?category=${cat.id}&from=${categoryId || 'root'}`} className="pointer-events-auto cursor-pointer flex-1">
+                                      <h2 className={`${renderTitleSize} tracking-normal mb-0`}
+                                        style={{
+                                          color: activeTitleColor,
+                                          textShadow: cat.ribbonTextColor === 'transparent' ? 'none' : (currentRibbonColor !== 'none' ? '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)' : 'none'),
+                                          fontFamily: activeTitleFont,
+                                          fontWeight: 900
+                                        }}>
+                                        {cat.name}
+                                      </h2>
+                                      </a>
+                                      <div className="flex items-center gap-1.5 opacity-90 mt-1 pointer-events-auto cursor-default">
+                                        <span className="text-base font-bold tracking-wide mt-1 ml-1" style={{ color: activeTitleColor }}>
+                                          {postitCount} Not
+                                        </span>
+                                        <CategorySubscribeButton categoryId={cat.id} variant="badge" />
+                                        <CategoryMessageButton categoryId={cat.id} categoryName={cat.name} />
+                                        <CategoryShareButton categoryId={cat.id} />
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
+                              {catOttIsActive && ottSettings.separatorStyle !== 'none' && (
+                                <div className={`flex-grow border-b-[3px] mr-4 opacity-80 ${activeAlignment === 'right' ? 'hidden' : 'block'}`} style={{ borderBottomStyle: ottSettings.separatorStyle as any, borderColor: (ottSettings.separatorColor || '#cbd5e1').split(',')[0], borderImage: (ottSettings.separatorColor || '').includes(',') ? `linear-gradient(to right, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[0]}, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[1]}) 1` : undefined, WebkitMaskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to right, black 0%, transparent 100%)`, maskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to right, black 0%, transparent 100%)` }} />
+                              )}
                             </div>
-                            <div
-                              className={`relative flex overflow-hidden transition-all duration-300 ${!cat.noBorder && !cat.isWallTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1 w-full`}
-                              style={{
-                                ...(!cat.noBorder && !cat.isWallTransparent ? { border: `12px solid ${cat.borderColor || '#8B5A2B'}` } : {}),
-                                backgroundColor: cat.isWallTransparent ? 'transparent' : (cat.backgroundColor || (!cat.noBorder ? '#E8DCC4' : 'transparent'))
+                              )}
+                            <AccordionContent>
+                              <div
+                                className={`relative flex overflow-hidden transition-all duration-300 ${catOttIsActive && ottSettings.topMenuLabelHasBorder ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : (!catOttIsActive && !cat.noInnerBorder && !cat.isInnerTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : '')} z-10 flex-1 w-full`}
+                                style={catOttIsActive ? {
+                                ...(ottSettings.topMenuLabelHasBorder ? { border: `4px solid ${ottSettings.separatorColor || '#ffffff'}` } : {}),
+                                backgroundColor: ottSettings.topMenuLabelBgColor || 'transparent'
+                              } : {
+                                ...(!cat.noInnerBorder && !cat.isInnerTransparent ? { border: `12px solid ${cat.borderColor || '#8B5A2B'}` } : {}),
+                                backgroundColor: cat.isInnerTransparent ? 'transparent' : (cat.innerBackgroundColor || (!cat.noInnerBorder ? '#E8DCC4' : 'transparent'))
                               }}
                             >
-                              {!cat.noBorder && !cat.isWallTransparent && (
+                              {!catOttIsActive && !cat.noInnerBorder && !cat.isInnerTransparent && (
                                 <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
                               )}
                               <div className="relative z-10 w-full p-2 h-full flex flex-col items-center">
-                                <PostItWall
-                                  initialPostits={catPostits as any}
-                                  canDelete={canDelete}
-                                  currentUserId={(session?.user as any)?.id}
-                                  separatorAds={separatorAds}
-                                />
+                                {cat.isEditorModeActive ? (
+                                  <ArticleGrid
+                                    categoryId={cat.id}
+                                    categoryName={cat.name}
+                                    postitAppearance={(() => {
+                                      const raw = cat.postitAppearance;
+                                      if (typeof raw === 'string') {
+                                        try { return JSON.parse(raw); } catch(e){ return null; }
+                                      }
+                                      return raw ? JSON.parse(JSON.stringify(raw)) : null;
+                                    })()}
+                                    userRole={(session?.user as any)?.role}
+                                    userId={(session?.user as any)?.id}
+                                    canEdit={getCanManage(cat.id, cat.userGroupId)}
+                                  />
+                                ) : (
+                                  catOttIsActive ? (
+                                    <OttSlider
+                                      initialPostits={catPostits as any}
+                                      canDelete={getCanManage(cat.id, cat.userGroupId)}
+                                      currentUserId={(session?.user as any)?.id}
+                                      separatorAds={separatorAds}
+                                      postitAppearance={(() => {
+                                        const raw = cat.postitAppearance;
+                                        if (typeof raw === 'string') {
+                                          try { return JSON.parse(raw); } catch(e){ return null; }
+                                        }
+                                        return raw ? JSON.parse(JSON.stringify(raw)) : null;
+                                      })()}
+                                      ottItemsPerRow={catOttItemsPerRow}
+                                      ottCardRatio={catOttCardRatio}
+                                      ottAutoScrollSpeed={catOttAutoScrollSpeed}
+                                      ottCardStyle={catOttCardStyle}
+                                      ottCardBgType={catOttCardBgType}
+                                      ottCardBgColor={catOttCardBgColor}
+                                      ottCardBgColorAlpha={catOttCardBgColorAlpha}
+                                      ottCardBgImage={catOttCardBgImage}
+                                      ottModalBgType={catOttModalBgType}
+                                      ottModalBgColor={catOttModalBgColor}
+                                      ottModalBgColorAlpha={catOttModalBgColorAlpha}
+                                      ottModalBgImage={catOttModalBgImage}
+                                      ottModalTextColor={catOttModalTextColor}
+                                    />
+                                  ) : (
+                                    <PostItWall
+                                      initialPostits={catPostits as any}
+                                      canDelete={getCanManage(cat.id, cat.userGroupId)}
+                                      currentUserId={(session?.user as any)?.id}
+                                      separatorAds={separatorAds}
+                                      postitAppearance={(() => {
+                                        const raw = cat.postitAppearance;
+                                        if (typeof raw === 'string') {
+                                          try { return JSON.parse(raw); } catch(e){ return null; }
+                                        }
+                                        return raw ? JSON.parse(JSON.stringify(raw)) : null;
+                                      })()}
+                                      ottModalBgType={catOttModalBgType}
+                                      ottModalBgColor={catOttModalBgColor}
+                                      ottModalBgColorAlpha={catOttModalBgColorAlpha}
+                                      ottModalBgImage={catOttModalBgImage}
+                                      ottModalTextColor={catOttModalTextColor}
+                                      ottCardRatio={catOttCardRatio}
+                                    />
+                                  )
+                                )}
+                                
+                                {/* RECURSIVE CHILDS */}
+                                {isAutoGrouped && cat.children && cat.children.length > 0 && (
+                                   <div className={`w-full mt-6 mb-4 flex flex-col gap-2 ${level === 0 ? 'pl-2 md:pl-6 border-l-4 border-black/10' : 'pl-2 md:pl-4 border-l-2 border-black/10'}`}>
+                                      {cat.children.map((child: any, childIdx: number) => renderCategoryTree(child.id, level + 1, childIdx))}
+                                   </div>
+                                )}
                               </div>
                             </div>
+                            </AccordionContent>
+                          </AccordionProvider>
                             
-                            {/* Separator Ad */}
-                            {separatorAds.length > 0 && (
+                            {/* Separator Ad ONLY ON TOP LEVEL */}
+                            {level === 0 && separatorAds.length > 0 && ((index + 1) % ((separatorAds[index % separatorAds.length] as any).frequency || 1) === 0) && (
                               <div className="w-full flex justify-center pt-8 pb-4">
                                 <a href={separatorAds[index % separatorAds.length].link} target="_blank" rel="noopener noreferrer" className="relative block w-full bg-white border border-gray-200 p-1 shadow-sm rounded-md transition-transform hover:scale-[1.01]">
                                   <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded shadow z-10">Sponsorlu</span>
-                                  <img src={separatorAds[index % separatorAds.length].imageUrl} alt="Sponsor" className="w-full max-h-[120px] md:max-h-[180px] object-cover rounded" />
+                                  <Image src={separatorAds[index % separatorAds.length].imageUrl} width={1200} height={600} unoptimized={separatorAds[index % separatorAds.length].imageUrl.startsWith('data:')} style={{ width: '100%', height: 'auto', maxHeight: '180px' }} alt="Sponsor" className="object-cover rounded" />
                                 </a>
                               </div>
                             )}
 
-                          </div>
-                        )
-                      })}
+                          </React.Fragment>
+                        );
+                      }; // end renderCategoryTree
+                      return wallSettingsIds.map((catId: string, index: number) => renderCategoryTree(catId, 0, index));
+                    })()}
                     </div>
                   );
                 } else {
-                  const currentWallLimit = categoryId ? (selectedCategory?.postitLimit || 0) : (siteSettings.postitLimit || 0);
+                  const currentWallLimit = categoryId ? (selectedCategory?.postitLimit || 0) : (homeWall?.postitLimit || 0);
                   const limitedPostits = currentWallLimit > 0 ? postits.slice(0, currentWallLimit) : postits;
 
                   return (
-                    <div className="space-y-12 w-full mt-4">
-                      <div className="mb-12">
-                        <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
-                          <div className="relative inline-flex items-center justify-center group">
-                            <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
-                              style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
-                            <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
-                              style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
-                            <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
-                              style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
-                            <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
-                              style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
-                            <div className="relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" style={{ backgroundColor: appearance.ribbonColor }}>
-                              <h2 className="text-3xl md:text-5xl tracking-normal text-white mb-0"
-                                style={{
-                                  textShadow: '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)',
-                                  fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
-                                  fontWeight: 900
-                                }}>
-                                {selectedCategory?.name || 'Ana Duvar'}
-                              </h2>
+                    <div className={`w-full mt-4 ${ottSettings.isActive ? 'flex flex-col gap-2' : 'space-y-12'}`}>
+                      <div className={ottSettings.isActive ? "mb-2" : "mb-12"}>
+                        {ottSettings.isActive ? (
+                          ottSettings.showCategoryTitles && (
+                            <>
+                              <div className={`relative flex items-center w-full z-10 transition-transform hover:scale-[1.02] duration-300 ${ottSettings.categoryHeaderGlassy ? 'bg-white/10 backdrop-blur-md shadow-lg border border-white/20 rounded-xl py-2 px-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] mt-3 mb-2 mx-1' : (appearance.ribbonColor === 'none' ? 'mt-3 mb-1' : 'mt-4 mb-2')}`}>
+                                {ottSettings.separatorStyle !== 'none' && (
+                                  <div className={`flex-grow border-b-[3px] ml-4 opacity-80 ${ottSettings.categoryTitleAlignment === 'left' ? 'hidden' : 'block'}`} style={{ borderBottomStyle: ottSettings.separatorStyle as any, borderColor: (ottSettings.separatorColor || '#cbd5e1').split(',')[0], borderImage: (ottSettings.separatorColor || '').includes(',') ? `linear-gradient(to left, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[0]}, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[1]}) 1` : undefined, WebkitMaskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to left, black 0%, transparent 100%)`, maskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to left, black 0%, transparent 100%)` }} />
+                                )}
+                                <div className={`relative inline-flex items-center justify-center group ${ottSettings.categoryTitleAlignment === 'left' ? 'md:ml-12 ml-4' : ottSettings.categoryTitleAlignment === 'right' ? 'md:mr-12 mr-4 mx-4' : 'mx-4'}`}>
+                                  {appearance.ribbonColor !== 'none' && (
+                                    <>
+                                      <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                        style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+                                      <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                        style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+                                      <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
+                                        style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                                      <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
+                                        style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                                    </>
+                                  )}
+                                  <div className="flex items-center gap-3 relative z-30">
+                                    <div className={appearance.ribbonColor !== 'none' ? "relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent bg-cover bg-center" : `relative px-8 py-1 flex flex-col sm:flex-row items-center gap-3 decoration-transparent hover:scale-[1.02] transition-transform`} style={appearance.ribbonColor !== 'none' ? { backgroundColor: appearance.ribbonColor, backgroundImage: appearance.ribbonImage ? `url('${appearance.ribbonImage}')` : 'none' } : {}}>
+                                      <div className="flex flex-row items-center gap-2 relative z-10 pointer-events-none">
+                                        {checkCanAddPostit((selectedCategory || homeWall)) && (
+                                        <div className="pointer-events-auto flex items-center pr-1">
+                                          <PostItForm 
+                                            categories={categories}
+                                            defaultCategoryId={selectedCategory?.id || homeWall?.id!}
+                                            userGroupIds={(session?.user as any)?.userGroupIds}
+                                            userRole={(session?.user as any)?.role}
+                                            customTrigger={
+                                              <div className="bg-gradient-to-br from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 shadow-md border border-yellow-300 p-1 sm:p-1.5 rounded-lg cursor-pointer flex items-center justify-center hover:scale-110 transition-transform duration-300 mt-0.5" title="Kategoriye Post-it Ekle">
+                                                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-950" strokeWidth={3} />
+                                              </div>
+                                            }
+                                          />
+                                        </div>
+                                        )}
+                                        <h2 className={`${ottSettings.categoryTitleSize === 'xl' ? 'text-xl md:text-2xl' : ottSettings.categoryTitleSize === '2xl' ? 'text-2xl md:text-3xl' : ottSettings.categoryTitleSize === '3xl' ? 'text-3xl md:text-4xl' : ottSettings.categoryTitleSize === '4xl' ? 'text-4xl md:text-5xl' : ottSettings.categoryTitleSize === '5xl' ? 'text-5xl md:text-6xl' : 'text-3xl md:text-5xl'} tracking-normal mb-0`}
+                                          style={{
+                                            color: ottSettings.categoryTitleColor || (appearance.ribbonTextColor === 'transparent' ? 'transparent' : (appearance.ribbonTextColor || (appearance.ribbonColor !== 'none' ? '#ffffff' : '#1f2937'))),
+                                            textShadow: appearance.ribbonTextColor === 'transparent' ? 'none' : (appearance.ribbonColor !== 'none' ? '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)' : 'none'),
+                                            fontFamily: ottSettings.categoryTitleFont === 'handwriting' ? "'Caveat', cursive" : ottSettings.categoryTitleFont === 'london' ? "'London Presley', sans-serif" : ottSettings.categoryTitleFont === 'puerto' ? "'Puerto', sans-serif" : ottSettings.categoryTitleFont === 'retosta' ? "'Retosta', sans-serif" : ottSettings.categoryTitleFont === 'Dancing Script, cursive' ? "'Dancing Script', cursive" : ottSettings.categoryTitleFont === 'calibri' ? "'Calibri', sans-serif" : ottSettings.categoryTitleFont === 'arial' ? "Arial, sans-serif" : ottSettings.categoryTitleFont === 'sans-serif-generic' ? "sans-serif" : "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                                            fontWeight: 900
+                                          }}>
+                                          {appearance.customRibbonText || selectedCategory?.name || 'Ana Duvar'}
+                                        </h2>
+                                        <div className="flex items-center gap-1.5 opacity-90 mt-1 pointer-events-auto cursor-default">
+                                          <span className="text-base font-bold tracking-wide mt-1 ml-1" style={{ color: ottSettings.categoryTitleColor || (appearance.ribbonTextColor === 'transparent' ? 'transparent' : (appearance.ribbonTextColor || (appearance.ribbonColor !== 'none' ? '#ffffff' : '#1f2937'))) }}>
+                                            {limitedPostits.length} Not
+                                          </span>
+                                          {(selectedCategory || homeWall) && (
+                                            <CategorySubscribeButton categoryId={selectedCategory?.id || homeWall?.id!} variant="badge" />
+                                          )}
+                                          {(selectedCategory || homeWall) && (
+                                            <CategoryMessageButton categoryId={selectedCategory?.id || homeWall?.id!} categoryName={selectedCategory?.name || homeWall?.name || 'Ana Duvar'} />
+                                          )}
+                                          {(selectedCategory || homeWall) && (
+                                            <CategoryShareButton categoryId={selectedCategory?.id || homeWall?.id!} />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {ottSettings.separatorStyle !== 'none' && (
+                                    <div className={`flex-grow border-b-[3px] mr-4 opacity-80 ${ottSettings.categoryTitleAlignment === 'right' ? 'hidden' : 'block'}`} style={{ borderBottomStyle: ottSettings.separatorStyle as any, borderColor: (ottSettings.separatorColor || '#cbd5e1').split(',')[0], borderImage: (ottSettings.separatorColor || '').includes(',') ? `linear-gradient(to right, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[0]}, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[1]}) 1` : undefined, WebkitMaskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to right, black 0%, transparent 100%)`, maskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to right, black 0%, transparent 100%)` }} />
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          )
+                        ) : (
+                          !appearance.hideWallTitle && (
+                            <div className="relative flex justify-center w-full mt-6 mb-8 z-10 transition-transform hover:scale-105 duration-300">
+                              <div className="relative inline-flex items-center justify-center group">
+                                {!appearance.hideWallRibbon && appearance.ribbonColor !== 'none' && (
+                                  <>
+                                    <div className="absolute top-3 -left-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                      style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 25% 50%)' }} />
+                                    <div className="absolute top-3 -right-10 w-16 h-full -z-20 drop-shadow-md brightness-75"
+                                      style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 75% 50%, 100% 100%, 0 100%)' }} />
+                                    <div className="absolute -bottom-3 left-0 w-6 h-3 -z-10 brightness-50"
+                                      style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
+                                    <div className="absolute -bottom-3 right-0 w-6 h-3 -z-10 brightness-50"
+                                      style={{ backgroundColor: appearance.ribbonColor, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }} />
+                                  </>
+                                )}
+                                <div className={!appearance.hideWallRibbon && appearance.ribbonColor !== 'none' ? "relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent bg-cover bg-center" : "relative px-8 py-3 flex flex-col sm:flex-row items-center gap-3 decoration-transparent"} style={!appearance.hideWallRibbon && appearance.ribbonColor !== 'none' ? { backgroundColor: appearance.ribbonColor, backgroundImage: appearance.ribbonImage ? `url(${appearance.ribbonImage})` : 'none' } : {}}>
+                                  <h2 className={`relative z-10 text-3xl md:text-5xl tracking-normal mb-0`}
+                                    style={{
+                                      color: appearance.ribbonTextColor || (!appearance.hideWallRibbon && appearance.ribbonColor !== 'none' ? '#ffffff' : '#1f2937'),
+                                      textShadow: !appearance.hideWallRibbon && appearance.ribbonColor !== 'none' ? '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)' : 'none',
+                                      fontFamily: appearance.ribbonTextFont === 'cursive' ? "'Patrick Hand', cursive" : appearance.ribbonTextFont === 'serif' ? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' : appearance.ribbonTextFont === 'monospace' ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace' : appearance.ribbonTextFont === 'system-ui' ? 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif' : appearance.ribbonTextFont === 'calibri' ? "'Calibri', sans-serif" : appearance.ribbonTextFont === 'arial' ? "Arial, sans-serif" : appearance.ribbonTextFont === 'sans-serif-generic' ? "sans-serif" : "'Nunito', 'Segoe UI', system-ui, sans-serif",
+                                      fontWeight: 900
+                                    }}>
+                                    {appearance.customRibbonText || selectedCategory?.name || 'Ana Duvar'}
+                                  </h2>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          )
+                        )}
                         <div
-                          className={`relative flex overflow-hidden transition-all duration-300 ${!boardAppearance.noBorder && !boardAppearance.isWallTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1 w-full`}
+                          className={`relative flex overflow-hidden transition-all duration-300 ${!boardAppearance.noInnerBorder && !boardAppearance.isInnerTransparent ? 'shadow-[inset_0_0_20px_rgba(0,0,0,0.4),0_6px_12px_rgba(0,0,0,0.2)] rounded-sm' : ''} z-10 flex-1 w-full`}
                           style={{
-                            ...(!boardAppearance.noBorder && !boardAppearance.isWallTransparent ? { border: `12px solid ${boardAppearance.borderColor || '#8B5A2B'}` } : {}),
-                            backgroundColor: boardAppearance.isWallTransparent ? 'transparent' : (boardAppearance.backgroundColor || (!boardAppearance.noBorder ? '#E8DCC4' : 'transparent'))
+                            ...(!boardAppearance.noInnerBorder && !boardAppearance.isInnerTransparent ? { border: `12px solid ${boardAppearance.borderColor || '#8B5A2B'}` } : {}),
+                            backgroundColor: boardAppearance.isInnerTransparent ? 'transparent' : (boardAppearance.innerBackgroundColor || (!boardAppearance.noInnerBorder ? '#E8DCC4' : 'transparent'))
                           }}
                         >
-                          {!boardAppearance.noBorder && !boardAppearance.isWallTransparent && (
+                          {!boardAppearance.noInnerBorder && !boardAppearance.isInnerTransparent && (
                             <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
                           )}
                           <div className="relative z-10 w-full p-2 h-full flex flex-col items-center">
-                            <PostItWall
-                              initialPostits={limitedPostits as any}
-                              canDelete={canDelete}
-                              currentUserId={(session?.user as any)?.id}
-                              separatorAds={separatorAds}
-                            />
+                            {selectedCategory?.isEditorModeActive || (!categoryId && homeWall?.isEditorModeActive) ? (
+                              <ArticleGrid
+                                categoryId={selectedCategory?.id || homeWall?.id!}
+                                categoryName={selectedCategory?.name || homeWall?.name || 'Ana Duvar'}
+                                postitAppearance={appearance.postitAppearance}
+                                userRole={(session?.user as any)?.role}
+                                userId={(session?.user as any)?.id}
+                                canEdit={getCanManage(selectedCategory?.id || homeWall?.id!, selectedCategory?.userGroupId || homeWall?.userGroupId)}
+                              />
+                            ) : (
+                              ottSettings.isActive ? (
+                                <OttSlider
+                                  initialPostits={limitedPostits as any}
+                                  canDelete={getCanManage(selectedCategory?.id || homeWall?.id!, selectedCategory?.userGroupId || homeWall?.userGroupId)}
+                                  currentUserId={(session?.user as any)?.id}
+                                  separatorAds={separatorAds}
+                                  postitAppearance={appearance.postitAppearance}
+                                  ottItemsPerRow={ottSettings.itemsPerRow}
+                                  ottCardRatio={ottSettings.cardRatio}
+                                  ottAutoScrollSpeed={ottSettings.autoScrollSpeed}
+                                  ottCardStyle={ottSettings.cardStyle}
+                                  ottCardBgType={ottSettings.cardBgType}
+                                  ottCardBgColor={ottSettings.cardBgColor}
+                                  ottCardBgColorAlpha={ottSettings.cardBgColorAlpha}
+                                  ottCardBgImage={ottSettings.cardBgImage}
+                                  ottModalBgType={ottSettings.modalBgType}
+                                  ottModalBgColor={ottSettings.modalBgColor}
+                                  ottModalBgColorAlpha={ottSettings.modalBgColorAlpha}
+                                  ottModalBgImage={ottSettings.modalBgImage}
+                                  ottModalTextColor={ottSettings.modalTextColor}
+                                />
+                              ) : (
+                                <PostItWall
+                                  initialPostits={limitedPostits as any}
+                                  canDelete={getCanManage(selectedCategory?.id || homeWall?.id!, selectedCategory?.userGroupId || homeWall?.userGroupId)}
+                                  currentUserId={(session?.user as any)?.id}
+                                  separatorAds={separatorAds}
+                                  postitAppearance={appearance.postitAppearance}
+                                  ottModalBgType={ottSettings.modalBgType}
+                                  ottModalBgColor={ottSettings.modalBgColor}
+                                  ottModalBgColorAlpha={ottSettings.modalBgColorAlpha}
+                                  ottModalBgImage={ottSettings.modalBgImage}
+                                  ottModalTextColor={ottSettings.modalTextColor}
+                                  ottCardRatio={ottSettings.cardRatio}
+                                />
+                              )
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1192,7 +2271,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     {bottomAds.map((ad: any) => (
                       <a key={ad.id} href={ad.link} target="_blank" rel="noopener noreferrer" className="relative block w-full bg-white border border-gray-200 p-1 shadow-sm rounded-md transition-transform hover:scale-[1.01]">
                         <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded shadow z-10">Sponsorlu</span>
-                        <img src={ad.imageUrl} alt={ad.title} className="w-full max-h-[120px] md:max-h-[180px] object-cover rounded" />
+                        <Image src={ad.imageUrl} width={1200} height={600} unoptimized={ad.imageUrl.startsWith('data:')} style={{ width: '100%', height: 'auto', maxHeight: '180px' }} alt={ad.title} className="object-cover rounded" />
                       </a>
                     ))}
                   </div>
@@ -1209,7 +2288,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 {rightAds.map((ad: any) => (
                   <a key={ad.id} href={ad.link} target="_blank" rel="noopener noreferrer" className="block relative bg-white border p-1 border-gray-200 shadow-sm rounded-md transition-transform hover:scale-105 group">
                     <span className="absolute -top-2 -left-2 bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded shadow z-10">Sponsorlu</span>
-                    <img src={ad.imageUrl} alt={ad.title} className="w-full h-auto rounded" />
+                    <Image src={ad.imageUrl} width={1200} height={600} unoptimized={ad.imageUrl.startsWith('data:')} style={{ width: '100%', height: 'auto' }} alt={ad.title} className="rounded object-cover" />
                   </a>
                 ))}
               </div>

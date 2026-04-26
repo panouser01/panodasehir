@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
     if (categoryId) {
       where.OR = [
         { categoryId },
-        { categoryId: null }
+        { categoryId: null },
+        { categoryIds: { array_contains: categoryId } }
       ]
     }
 
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, imageUrl, link, positions, categoryId, startDate, endDate } = body
+    const { title, imageUrl, link, positions, categoryId, categoryIds, startDate, endDate, frequency, companyId } = body
 
     if (!title || !imageUrl || !link || !positions || !Array.isArray(positions) || positions.length === 0) {
       return NextResponse.json(
@@ -106,11 +107,18 @@ export async function POST(request: NextRequest) {
         link,
         positions,
         categoryId: categoryId || null,
+        categoryIds: categoryIds || [],
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
+        frequency: frequency !== undefined ? parseInt(frequency) : 1,
+        companyId: companyId || null,
         createdBy: (session.user as any).id
       }
     })
+
+    const { revalidateTag } = require('next/cache')
+    revalidateTag('ads-and-settings')
+    revalidateTag('site-settings')
 
     return NextResponse.json({ ad }, { status: 201 })
   } catch (error) {

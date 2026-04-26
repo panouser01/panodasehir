@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { PushpinLogo } from '@/components/ui/pushpin-logo'
+import { Public_Sans } from 'next/font/google'
+const publicSans = Public_Sans({ subsets: ['latin'], weight: ['800', '900'] })
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
@@ -10,11 +11,30 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { InfoDialog } from '@/components/ui/info-dialog'
 
 export default function SignupPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [openDialog, setOpenDialog] = useState<{ title: string; content: string } | null>(null)
+
+  const handleLinkClick = async (e: React.MouseEvent, field: string, title: string) => {
+    e.preventDefault()
+    try {
+      const res = await fetch('/api/settings')
+      const data = await res.json()
+      const content = data.settings?.[field] || ''
+      setOpenDialog({ title, content })
+    } catch (error) {
+      console.error('Settings fetch failed', error)
+      setOpenDialog({ title, content: 'İçerik yüklenemedi.' })
+    }
+  }
+
+  const [acceptTerms, setAcceptTerms] = useState(false)
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false)
+  const [acceptCookies, setAcceptCookies] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -39,22 +59,8 @@ export default function SignupPage() {
         throw new Error(data?.error ?? 'Kayıt başarısız')
       }
 
-      toast.success('Kayıt başarılı! Giriş yapılıyor...')
-
-      // Auto login
-      const result = await signIn('credentials', {
-        redirect: false,
-        email: formData.email,
-        password: formData.password,
-      })
-
-      if (result?.error) {
-        toast.error('Kayıt başarılı ancak giriş yapılamadı. Lütfen giriş yapın.')
-        router.push('/login')
-        return
-      }
-
-      router.push('/')
+      toast.success('Kayıt başarılı! Lütfen e-postanıza gönderilen bağlantı ile hesabınızı onaylayın.', { duration: 6000 })
+      router.push('/login')
     } catch (error: any) {
       console.error('Signup error:', error)
       toast.error(error?.message ?? 'Kayıt sırasında hata oluştu')
@@ -79,9 +85,8 @@ export default function SignupPage() {
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <PushpinLogo size={40} className="drop-shadow-md" />
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+            <div className="flex items-center justify-center mb-2">
+              <h1 className={`${publicSans.className} text-3xl font-bold bg-red-600 text-white px-4 py-1.5 rounded-lg shadow-sm tracking-tight`}>
                 Panoda Şehir
               </h1>
             </div>
@@ -92,7 +97,7 @@ export default function SignupPage() {
           <Button
             type="button"
             variant="outline"
-            className="w-full mb-6 flex items-center justify-center gap-2 h-11"
+            className="w-full mb-3 flex items-center justify-center gap-2 h-11 border-gray-300"
             onClick={handleGoogleSignUp}
             disabled={googleLoading || loading}
           >
@@ -120,6 +125,19 @@ export default function SignupPage() {
             )}
             Google ile Kayıt Ol
           </Button>
+
+          <Link href="/merchant/register" className="block w-full mb-6">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full flex items-center justify-center gap-2 h-11 border-blue-200 text-blue-700 bg-blue-50/50 hover:bg-blue-100 hover:text-blue-800 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-store">
+                <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h2v-4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v4h2a2 2 0 0 0 2-2v-8"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.5 2.5 0 0 1-2.5-2.5V7a2.5 2.5 0 0 0-2.5 2.5c-.53 0-1.01-.19-1.38-.5A2.47 2.47 0 0 1 12 7.5a2.47 2.47 0 0 1-1.62 1.5 2.5 2.5 0 0 0-2.5-2.5V7a2.5 2.5 0 0 0-2.5 2.5V7a2 2 0 0 1-2-2Z"/>
+              </svg>
+              İşletme Kaydı
+            </Button>
+          </Link>
 
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
@@ -178,10 +196,51 @@ export default function SignupPage() {
               <p className="text-xs text-gray-500 mt-1">En az 6 karakter</p>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+            <div className="space-y-3 p-1">
+              <div className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 bg-white cursor-pointer"
+                />
+                <label htmlFor="terms" className="text-gray-600 leading-tight">
+                  <a href="https://panodasehir.com/kosullar" onClick={(e) => handleLinkClick(e, 'termsContent', 'Kullanım Koşulları')} className="text-blue-600 hover:underline hover:text-blue-700 transition-colors cursor-pointer">Kullanım Koşulları</a>'nı okudum ve kabul ediyorum.
+                </label>
+              </div>
+
+              <div className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  id="privacy"
+                  checked={acceptPrivacy}
+                  onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 bg-white cursor-pointer"
+                />
+                <label htmlFor="privacy" className="text-gray-600 leading-tight">
+                  <a href="https://panodasehir.com/gizlilik" onClick={(e) => handleLinkClick(e, 'privacyContent', 'Gizlilik Politikası')} className="text-blue-600 hover:underline hover:text-blue-700 transition-colors cursor-pointer">Gizlilik Politikası</a>'nı okudum ve kabul ediyorum.
+                </label>
+              </div>
+
+              <div className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  id="cookies"
+                  checked={acceptCookies}
+                  onChange={(e) => setAcceptCookies(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600 bg-white cursor-pointer"
+                />
+                <label htmlFor="cookies" className="text-gray-600 leading-tight">
+                  <a href="https://panodasehir.com/cerezler" onClick={(e) => handleLinkClick(e, 'cookiesContent', 'Çerez Politikası')} className="text-blue-600 hover:underline hover:text-blue-700 transition-colors cursor-pointer">Çerez Politikası</a>'nı okudum ve kabul ediyorum.
+                </label>
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading || googleLoading || !acceptTerms || !acceptPrivacy || !acceptCookies}>
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Kayıt yapılıyor...
                 </>
               ) : (
@@ -206,6 +265,13 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
+
+      <InfoDialog
+        isOpen={!!openDialog}
+        onOpenChange={(open) => !open && setOpenDialog(null)}
+        title={openDialog?.title || ''}
+        content={openDialog?.content || ''}
+      />
     </div>
   )
 }

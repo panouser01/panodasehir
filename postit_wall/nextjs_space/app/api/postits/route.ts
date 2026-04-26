@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { moderateContent } from '@/lib/moderation'
+import { sendTelegramMessage, notifySubscribers, notifyFollowers } from '@/lib/telegram'
+import { stripHtml } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,22 +15,31 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const categoryId = searchParams.get('categoryId')
     const includeUnapproved = searchParams.get('includeUnapproved') === 'true'
+    const includePrivate = searchParams.get('includePrivate') === 'true'
 
     const session = await getServerSession(authOptions)
 
     // Housekeeping: Auto-unpublish expired post-its
-    await prisma.postIt.updateMany({
-      where: {
-        expiresAt: { lt: new Date() },
-        isPublished: true
-      },
-      data: { isPublished: false }
-    })
+    // Housekeeping: Auto-unpublish expired post-its (Async background)
+    setTimeout(() => {
+      prisma.postIt.updateMany({
+        where: {
+          expiresAt: { lt: new Date() },
+          isPublished: true
+        },
+        data: { isPublished: false }
+      }).catch(e => console.error(e));
+    }, 100);
 
     const isAdmin = (session?.user as any)?.role === 'SUPER_ADMIN'
     const isWallManager = (session?.user as any)?.role === 'WALL_MANAGER' || (session?.user as any)?.role === 'WALL_USER'
     const userId = (session?.user as any)?.id
     const where: any = {}
+
+    // Always hide private messages from general wall fetching unless explicitly requested by Admin Panel
+    if (!includePrivate) {
+      where.content = { not: { startsWith: '[ÖZEL MESAJ]' } }
+    }
 
     // Only show unexpired, approved and published post-its to public/regular users
     if (!includeUnapproved || (!isAdmin && !isWallManager)) {
@@ -95,7 +106,10 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            email: true
+            nickname: true,
+            email: true,
+            image: true,
+            showAvatarInPostit: true
           }
         },
         category: {
@@ -104,12 +118,27 @@ export async function GET(request: NextRequest) {
             name: true
           }
         },
-        PostItImage: true, // Include images
+        PostItImage: {
+          orderBy: {
+            id: 'asc'
+          }
+        }, // Include images
+        comments: {
+          include: {
+            user: { select: { id: true, name: true, nickname: true, image: true } },
+            likes: session?.user ? { where: { userId: (session.user as any).id } } : false,
+            _count: { select: { likes: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
         _count: {
           select: { likes: true }
         }
       },
       orderBy: [
+        {
+          order: 'asc'
+        },
         {
           likes: {
             _count: 'desc'
@@ -121,7 +150,18 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    return NextResponse.json({ postits })
+    const processedPostits = postits.map(post => {
+      if (post.user) {
+        if (!post.user.showAvatarInPostit) {
+          post.user.image = null
+        }
+        // Remove showAvatarInPostit to keep response clean (optional but good practice)
+        delete (post.user as any).showAvatarInPostit
+      }
+      return post
+    })
+
+    return NextResponse.json({ postits: processedPostits })
   } catch (error) {
     console.error('Error fetching post-its:', error)
     return NextResponse.json(
@@ -144,7 +184,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { content, imageUrl, imageUrls, link, color, font, pushpin, categoryId, expiresInDays, expiresAtDate } = body
+    const { content, detail, imageUrl, imageUrls, link, color, font, pushpin, categoryId, expiresInDays, expiresAtDate, isDirectMessage, textColor, textSize } = body
     const userRole = (session.user as any).role
 
     if (!content || !categoryId) {
@@ -154,9 +194,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (content.length > 500) {
+    if (content.length > 750) {
       return NextResponse.json(
-        { error: 'İçerik en fazla 500 karakter olabilir' },
+        { error: 'Özet en fazla 750 karakter olabilir' },
+        { status: 400 }
+      )
+    }
+
+    if (detail && stripHtml(detail).length > 2000) {
+      return NextResponse.json(
+        { error: 'Detay en fazla 2000 karakter olabilir' },
         { status: 400 }
       )
     }
@@ -180,7 +227,7 @@ export async function POST(request: NextRequest) {
       select: { userGroupId: true }
     })
 
-    if (category?.userGroupId) {
+    if (category?.userGroupId && !isDirectMessage) {
       const user = await prisma.user.findUnique({
         where: { id: (session.user as any).id },
         select: { userGroups: { select: { id: true } }, role: true }
@@ -234,18 +281,63 @@ export async function POST(request: NextRequest) {
       }))
       : (imageUrl ? [{ id: randomUUID(), url: imageUrl }] : [])
 
+    // Determine auto-approve based on permissions
+    let isAutoApprove = false;
+    if (userRole === 'SUPER_ADMIN') {
+      isAutoApprove = true;
+    } else if (userRole !== 'USER') {
+      const [dbUser, userRoleEntity, isCategoryManagerCheck] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: (session.user as any).id },
+          select: { permissions: true }
+        }),
+        prisma.userRole.findUnique({
+          where: { name: userRole },
+          select: { permissions: true }
+        }),
+        prisma.category.findFirst({
+          where: { id: categoryId, wallManagers: { some: { id: (session.user as any).id } } },
+          select: { id: true }
+        })
+      ]);
+
+      let perms: string[] = [];
+      
+      const extractPerms = (p: any) => {
+        if (!p) return;
+        if (typeof p === 'string') {
+          try { perms.push(...JSON.parse(p)); } catch(e){}
+        } else if (Array.isArray(p)) {
+          perms.push(...p);
+        }
+      };
+
+      extractPerms(dbUser?.permissions);
+      extractPerms(userRoleEntity?.permissions);
+      
+      if (perms.includes('postits_auto_approve') || perms.includes('postits')) {
+         isAutoApprove = true;
+      } else if (isCategoryManagerCheck) {
+         isAutoApprove = true;
+      }
+    }
+
     const postit = await prisma.postIt.create({
       data: {
-        content,
+        content: isDirectMessage ? `[ÖZEL MESAJ] 📩 ${content}` : content,
+        detail: detail || null,
         imageUrl: mainImageUrl, // Backward compatibility
         link: link || null,
-        color: color || 'YELLOW',
-        font: font || 'HANDWRITING',
-        pushpin: pushpin || 'RED',
+        color: isDirectMessage ? 'YELLOW' : (color || 'YELLOW'),
+        font: isDirectMessage ? 'HANDWRITING' : (font || 'HANDWRITING'),
+        pushpin: isDirectMessage ? 'RED' : (pushpin || 'RED'),
+        textColor: textColor || '#1f2937',
+        textSize: textSize || 'text-base',
         rotation,
         expiresAt,
-        isApproved: userRole !== 'USER', // Require approval for USER role
-        isPublished: true, // Auto-publish by default
+        isApproved: isDirectMessage ? false : isAutoApprove,
+        isPublished: isDirectMessage ? false : true, // Messages are never published to public front-end
+        hasBeenPublished: (!isDirectMessage && isAutoApprove) ? true : false,
         isModerated: true,
         userId: (session.user as any).id,
         categoryId,
@@ -258,6 +350,7 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             name: true,
+            nickname: true,
             email: true
           }
         },
@@ -267,9 +360,72 @@ export async function POST(request: NextRequest) {
             name: true
           }
         },
-        PostItImage: true
+        PostItImage: {
+          orderBy: {
+            id: 'asc'
+          }
+        }
       }
     })
+
+    // Telegram Bildirimi: Eğer postit onay bekleme durumundaysa, yetkililere mesaj at.
+    if (!postit.isApproved) {
+      try {
+        const managers = await prisma.user.findMany({
+          where: {
+            id: { not: (session.user as any).id }, // Kendi gönderisine onay mesajı gitmemeli
+            OR: [
+              { role: 'SUPER_ADMIN' },
+              { managedCategories: { some: { id: categoryId } } },
+              { userGroups: { some: { assignedWalls: { some: { id: categoryId } } } } }
+            ]
+          },
+          select: { telegramChatId: true, email: true, receiveEmail: true, receiveTelegram: true }
+        });
+
+        const { sendNotificationEmail } = await import('@/lib/mail');
+
+        for (const manager of managers) {
+             const inlineKeyboard = {
+                inline_keyboard: [
+                  [
+                    { text: "✅ Onayla", callback_data: `approve_postit_${postit.id}` },
+                    { text: "🗑️ Reddet / Sil", callback_data: `reject_postit_${postit.id}` }
+                  ]
+                ]
+             };
+             const messageText = `📌 <b>Yeni Postit Onay Bekliyor</b>\n\n` +
+                                 `<b>Kategori:</b> ${postit.category?.name || 'Bilinmiyor'}\n` +
+                                 `<b>Kullanıcı:</b> ${postit.user?.nickname || postit.user?.name || postit.user?.email || 'Bilinmiyor'}\n` +
+                                 `<b>Tip:</b> ${isDirectMessage ? 'Özel Mesaj / Talep' : 'Normal Postit'}\n\n` +
+                                 `<b>İçerik:</b> ${postit.content}\n\n` +
+                                 `Panodaşehir web adresinden veya Telegram üzerinden (Aşağıdaki butonları kullanarak) anında onaylayabilir veya reddedebilirsiniz.`;
+             
+             if (manager.email && manager.receiveEmail !== false) {
+                 await sendNotificationEmail(manager.email, "Yeni Postit Onay Bekliyor", messageText).catch(console.error);
+             }
+             if (manager.telegramChatId && manager.receiveTelegram !== false) {
+                 await sendTelegramMessage(manager.telegramChatId, messageText, inlineKeyboard);
+             }
+        }
+      } catch (err) {
+        console.error("Telegram bildirim hatası:", err);
+      }
+    } else if (postit.isApproved && postit.isPublished && !isDirectMessage) {
+      // Eğer postit anında onaylı biçimde yayımlandıysa (örneğin Admin eklediyse), abonelere bildirim at
+      try {
+        const authorName = postit.user?.nickname || postit.user?.name || 'Bir kullanıcı';
+        const categoryName = postit.category?.name || 'Bilinmiyor';
+        const authorId = postit.user?.id;
+        
+        await notifySubscribers(postit.categoryId, categoryName, postit.content, authorName, authorId);
+        if (authorId) {
+          await notifyFollowers(authorId, authorName, postit.content, categoryName, postit.categoryId);
+        }
+      } catch (err) {
+        console.error("Abone bildirim hatası:", err);
+      }
+    }
 
     // Increment category post count (fail-safe)
     try {

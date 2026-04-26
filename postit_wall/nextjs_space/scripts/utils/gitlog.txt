@@ -1,0 +1,1036 @@
+commit 081bf067088090a47167d3e6f43a92a544cae75f
+Author: panouser01 <panodasehir@gmail.com>
+Date:   Sun Mar 8 06:58:57 2026 +0300
+
+    Admin panel calendar fixes, Post-it UI improvements, and realistic 3D pushpin logo
+
+diff --git a/postit_wall/nextjs_space/prisma/schema.prisma b/postit_wall/nextjs_space/prisma/schema.prisma
+index a1a98ab..207f20d 100644
+--- a/postit_wall/nextjs_space/prisma/schema.prisma
++++ b/postit_wall/nextjs_space/prisma/schema.prisma
+@@ -9,29 +9,30 @@ datasource db {
+ }
+ 
+ model User {
+-  id                String     @id @default(cuid())
+-  email             String     @unique
++  id                String       @id @default(cuid())
++  email             String       @unique
+   emailVerified     DateTime?
+   password          String?
+   name              String?
+   image             String?
+-  role              String     @default("USER")
++  role              String       @default("USER")
+   companyName       String?
+   phone             String?
+   taxId             String?
+-  createdAt         DateTime   @default(now())
+-  updatedAt         DateTime   @updatedAt
++  createdAt         DateTime     @default(now())
++  updatedAt         DateTime     @updatedAt
+   userGroupId       String?
+   cityId            String?
+   districtId        String?
+   accounts          Account[]
+   ads               Ad[]
+-  managedCategories Category[] @relation("WallManager")
++  managedCategories Category[]   @relation("WallManager")
+   postits           PostIt[]
++  likes             PostItLike[]
+   sessions          Session[]
+-  city              City?      @relation(fields: [cityId], references: [id])
+-  district          District?  @relation(fields: [districtId], references: [id])
+-  userGroup         UserGroup? @relation(fields: [userGroupId], references: [id])
++  city              City?        @relation(fields: [cityId], references: [id])
++  district          District?    @relation(fields: [districtId], references: [id])
++  userGroup         UserGroup?   @relation(fields: [userGroupId], references: [id])
+ 
+   @@index([userGroupId], map: "User_userGroupId_fkey")
+   @@index([cityId])
+@@ -107,32 +108,32 @@ model Category {
+   categoryFont        String?             @default("sans-serif")
+   categoryColor       String?             @default("#1f2937")
+   categoryBgColor     String?             @default("#ffffff")
++  postCount           Int                 @default(0)
++  userGroupId         String?
++  cityId              String?
++  districtId          String?
++  heroAlignment       String?             @default("left")
+   backgroundColor     String?
+   backgroundImage     String?
++  borderBottomColor   String?
+   borderColor         String?
+   borderTopColor      String?
+-  borderBottomColor   String?
+-  isGradient          Boolean?            @default(false)
+   gradientFrom        String?             @default("#facc15")
+-  gradientVia         String?             @default("#f472b6")
+   gradientTo          String?             @default("#a855f7")
++  gradientVia         String?             @default("#f472b6")
++  isGradient          Boolean?            @default(false)
+   isWallTransparent   Boolean?            @default(false)
+   noBorder            Boolean?            @default(false)
+-  postCount           Int                 @default(0)
+-  userGroupId         String?
+-  cityId              String?
+-  districtId          String?
+-  heroAlignment       String?             @default("left")
+   navMenuBgColor      String?
+   navMenuFont         String?
+-  navMenuTextColor    String?
+   navMenuFontSize     Int?
+   navMenuMainBold     Boolean?
++  navMenuTextColor    String?
+   siteBackgroundColor String?
+   siteBackgroundImage String?
+   siteGradientFrom    String?
+-  siteGradientVia     String?
+   siteGradientTo      String?
++  siteGradientVia     String?
+   siteIsGradient      Boolean?
+   ads                 Ad[]
+   city                City?               @relation(fields: [cityId], references: [id])
+@@ -181,6 +182,7 @@ model PostIt {
+   category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+   PostItImage PostItImage[]
++  likes       PostItLike[]
+ 
+   @@index([categoryId])
+   @@index([userId])
+@@ -285,9 +287,7 @@ model SiteSettings {
+   gradientTo          String?  @default("#a855f7")
+   gradientVia         String?  @default("#f472b6")
+   isGradient          Boolean  @default(false)
+-  isWallTransparent   Boolean  @default(false)
+   siteBackgroundColor String?  @default("#fffbeb")
+-  siteBackgroundImage String?
+   siteGradientFrom    String?  @default("#fffbeb")
+   siteGradientTo      String?  @default("#fff7ed")
+   siteGradientVia     String?  @default("#fefce8")
+@@ -311,6 +311,8 @@ model SiteSettings {
+   navMenuMainBold     Boolean? @default(true)
+   navMenuTextColor    String?  @default("#111827")
+   navMenuFontSize     Int?     @default(14)
++  siteBackgroundImage String?
++  isWallTransparent   Boolean  @default(false)
+ }
+ 
+ model CalendarCategory {
+@@ -339,6 +341,19 @@ model WallCalendarEntry {
+   @@index([calendarCategoryId])
+ }
+ 
++model PostItLike {
++  id        String   @id @default(cuid())
++  userId    String
++  postItId  String
++  createdAt DateTime @default(now())
++  postIt    PostIt   @relation(fields: [postItId], references: [id], onDelete: Cascade)
++  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
++
++  @@unique([userId, postItId])
++  @@index([userId])
++  @@index([postItId])
++}
++
+ enum PostItColor {
+   YELLOW
+   PINK
+
+commit 40b51f479821cb3c7ec4420879955a9e61a2336d
+Author: panouser01 <panodasehir@gmail.com>
+Date:   Sat Mar 7 22:01:28 2026 +0300
+
+    Admin paneli iyileştirmeleri, görünüm ayarları ve şeffaflık düzeltmeleri
+
+diff --git a/postit_wall/nextjs_space/prisma/schema.prisma b/postit_wall/nextjs_space/prisma/schema.prisma
+index 5827260..a1a98ab 100644
+--- a/postit_wall/nextjs_space/prisma/schema.prisma
++++ b/postit_wall/nextjs_space/prisma/schema.prisma
+@@ -107,11 +107,33 @@ model Category {
+   categoryFont        String?             @default("sans-serif")
+   categoryColor       String?             @default("#1f2937")
+   categoryBgColor     String?             @default("#ffffff")
++  backgroundColor     String?
++  backgroundImage     String?
++  borderColor         String?
++  borderTopColor      String?
++  borderBottomColor   String?
++  isGradient          Boolean?            @default(false)
++  gradientFrom        String?             @default("#facc15")
++  gradientVia         String?             @default("#f472b6")
++  gradientTo          String?             @default("#a855f7")
++  isWallTransparent   Boolean?            @default(false)
++  noBorder            Boolean?            @default(false)
+   postCount           Int                 @default(0)
+   userGroupId         String?
+   cityId              String?
+   districtId          String?
+   heroAlignment       String?             @default("left")
++  navMenuBgColor      String?
++  navMenuFont         String?
++  navMenuTextColor    String?
++  navMenuFontSize     Int?
++  navMenuMainBold     Boolean?
++  siteBackgroundColor String?
++  siteBackgroundImage String?
++  siteGradientFrom    String?
++  siteGradientVia     String?
++  siteGradientTo      String?
++  siteIsGradient      Boolean?
+   ads                 Ad[]
+   city                City?               @relation(fields: [cityId], references: [id])
+   district            District?           @relation(fields: [districtId], references: [id])
+
+commit cd5345529c470177d6a504963b1839023d9db732
+Author: panouser01 <panodasehir@gmail.com>
+Date:   Sat Mar 7 16:00:23 2026 +0300
+
+    feat(admin): add transparent background option to post-it wall
+
+diff --git a/postit_wall/nextjs_space/prisma/schema.prisma b/postit_wall/nextjs_space/prisma/schema.prisma
+index a3bd9a7..5827260 100644
+--- a/postit_wall/nextjs_space/prisma/schema.prisma
++++ b/postit_wall/nextjs_space/prisma/schema.prisma
+@@ -263,6 +263,7 @@ model SiteSettings {
+   gradientTo          String?  @default("#a855f7")
+   gradientVia         String?  @default("#f472b6")
+   isGradient          Boolean  @default(false)
++  isWallTransparent   Boolean  @default(false)
+   siteBackgroundColor String?  @default("#fffbeb")
+   siteBackgroundImage String?
+   siteGradientFrom    String?  @default("#fffbeb")
+
+commit f7f66c53d69f994cb352366dee451719ababdab4
+Author: panouser01 <panodasehir@gmail.com>
+Date:   Sat Mar 7 15:48:53 2026 +0300
+
+    feat(admin): add site background image upload feature for main site background
+
+diff --git a/postit_wall/nextjs_space/prisma/schema.prisma b/postit_wall/nextjs_space/prisma/schema.prisma
+index b2d2cd5..a3bd9a7 100644
+--- a/postit_wall/nextjs_space/prisma/schema.prisma
++++ b/postit_wall/nextjs_space/prisma/schema.prisma
+@@ -264,6 +264,7 @@ model SiteSettings {
+   gradientVia         String?  @default("#f472b6")
+   isGradient          Boolean  @default(false)
+   siteBackgroundColor String?  @default("#fffbeb")
++  siteBackgroundImage String?
+   siteGradientFrom    String?  @default("#fffbeb")
+   siteGradientTo      String?  @default("#fff7ed")
+   siteGradientVia     String?  @default("#fefce8")
+
+commit 006f615487769df2dfae9dded82244931199ecec
+Author: panouser01 <panodasehir@gmail.com>
+Date:   Sun Mar 1 12:05:07 2026 +0300
+
+    Admin paneline zengin metin editörü (RichEditor) eklendi ve statik sayfa içerikleri için HTML desteği getirildi
+
+diff --git a/postit_wall/nextjs_space/prisma/schema.prisma b/postit_wall/nextjs_space/prisma/schema.prisma
+index cd22745..b2d2cd5 100644
+--- a/postit_wall/nextjs_space/prisma/schema.prisma
++++ b/postit_wall/nextjs_space/prisma/schema.prisma
+@@ -29,9 +29,9 @@ model User {
+   managedCategories Category[] @relation("WallManager")
+   postits           PostIt[]
+   sessions          Session[]
++  city              City?      @relation(fields: [cityId], references: [id])
++  district          District?  @relation(fields: [districtId], references: [id])
+   userGroup         UserGroup? @relation(fields: [userGroupId], references: [id])
+-  city              City?       @relation(fields: [cityId], references: [id])
+-  district          District?   @relation(fields: [districtId], references: [id])
+ 
+   @@index([userGroupId], map: "User_userGroupId_fkey")
+   @@index([cityId])
+@@ -86,39 +86,39 @@ model VerificationToken {
+ }
+ 
+ model Category {
+-  id                  String     @id @default(cuid())
++  id                  String              @id @default(cuid())
+   name                String
+   description         String?
+   wallManagerId       String?
+   parentId            String?
+-  createdAt           DateTime   @default(now())
+-  updatedAt           DateTime   @updatedAt
++  createdAt           DateTime            @default(now())
++  updatedAt           DateTime            @updatedAt
+   heroBackgroundImage String?
+   heroSubtitle        String?
+-  heroTitleFont       String?    @default("sans-serif")
+-  heroTitleColor      String?    @default("#ffffff")
+-  heroTitleSize       String?    @default("5xl")
+-  heroSubtitleFont    String?    @default("sans-serif")
+-  heroSubtitleColor   String?    @default("#ffffff")
+-  heroSubtitleSize    String?    @default("xl")
+-  heroGradientFrom    String?    @default("#facc15")
+-  heroGradientVia     String?    @default("#f472b6")
+-  heroGradientTo      String?    @default("#a855f7")
+-  heroAlignment       String?    @default("left")
+-  categoryFont        String?    @default("sans-serif")
+-  categoryColor       String?    @default("#1f2937")
+-  categoryBgColor     String?    @default("#ffffff")
+-  postCount           Int        @default(0)
++  heroTitleFont       String?             @default("sans-serif")
++  heroTitleColor      String?             @default("#ffffff")
++  heroTitleSize       String?             @default("5xl")
++  heroSubtitleFont    String?             @default("sans-serif")
++  heroSubtitleColor   String?             @default("#ffffff")
++  heroSubtitleSize    String?             @default("xl")
++  heroGradientFrom    String?             @default("#facc15")
++  heroGradientVia     String?             @default("#f472b6")
++  heroGradientTo      String?             @default("#a855f7")
++  categoryFont        String?             @default("sans-serif")
++  categoryColor       String?             @default("#1f2937")
++  categoryBgColor     String?             @default("#ffffff")
++  postCount           Int                 @default(0)
+   userGroupId         String?
+   cityId              String?
+   districtId          String?
++  heroAlignment       String?             @default("left")
+   ads                 Ad[]
+-  parent              Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+-  children            Category[] @relation("CategoryHierarchy")
+-  assignedGroup       UserGroup? @relation(fields: [userGroupId], references: [id])
+-  wallManager         User?      @relation("WallManager", fields: [wallManagerId], references: [id])
+-  city                City?      @relation(fields: [cityId], references: [id])
+-  district            District?  @relation(fields: [districtId], references: [id])
++  city                City?               @relation(fields: [cityId], references: [id])
++  district            District?           @relation(fields: [districtId], references: [id])
++  parent              Category?           @relation("CategoryHierarchy", fields: [parentId], references: [id])
++  children            Category[]          @relation("CategoryHierarchy")
++  assignedGroup       UserGroup?          @relation(fields: [userGroupId], references: [id])
++  wallManager         User?               @relation("WallManager", fields: [wallManagerId], references: [id])
+   postits             PostIt[]
+   slider              Slider?
+   calendarEntries     WallCalendarEntry[]
+@@ -151,11 +151,11 @@ model PostIt {
+   rotation    Float         @default(0)
+   expiresAt   DateTime
+   isApproved  Boolean       @default(false)
+-  isPublished Boolean       @default(true)
+   isModerated Boolean       @default(false)
+   createdAt   DateTime      @default(now())
+   updatedAt   DateTime      @updatedAt
+   imageUrl    String?
++  isPublished Boolean       @default(true)
+   category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+   PostItImage PostItImage[]
+@@ -197,124 +197,107 @@ model PostItImage {
+   @@index([postItId])
+ }
+ 
+-enum PostItColor {
+-  YELLOW
+-  PINK
+-  BLUE
+-  GREEN
+-  ORANGE
+-  PURPLE
+-}
+-
+-enum PostItFont {
+-  HANDWRITING
+-  SERIF
+-  SANS
+-  MONO
+-  CURSIVE
+-}
+-
+-enum PushpinStyle {
+-  RED
+-  BLUE
+-  GOLD
+-  GREEN
+-  PINK
+-  SILVER
+-}
+-
+-enum AdPosition {
+-  HEADER
+-  SIDEBAR
+-  FOOTER
+-}
+-
+ model Slider {
+-  id         String    @id @default(cuid())
+-  categoryId String?   @unique
+-  images          Json      // Array of image URLs (min 1, max 5)
+-  links           Json?     // Array of link URLs (min 1, max 5)
+-  backgroundColor String?   @default("#f8f9fa")
+-  backgroundImage String?
+-  heroGradientFrom String?  @default("#facc15")
+-  heroGradientVia  String?  @default("#f472b6")
+-  heroGradientTo   String?  @default("#a855f7")
+-  isGradient       Boolean  @default(false)
+-  isActive        Boolean   @default(true)
+-  createdAt  DateTime  @default(now())
+-  updatedAt  DateTime  @updatedAt
+-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
++  id               String    @id @default(cuid())
++  categoryId       String?   @unique
++  images           Json
++  isActive         Boolean   @default(true)
++  createdAt        DateTime  @default(now())
++  updatedAt        DateTime  @updatedAt
++  links            Json?
++  backgroundColor  String?   @default("#f8f9fa")
++  heroGradientFrom String?   @default("#facc15")
++  heroGradientTo   String?   @default("#a855f7")
++  heroGradientVia  String?   @default("#f472b6")
++  isGradient       Boolean   @default(false)
++  backgroundImage  String?
++  category         Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+ }
+ 
+ model City {
+-  id        String     @id @default(cuid())
+-  name      String     @unique
+-  districts District[]
++  id         String     @id @default(cuid())
++  name       String     @unique
++  createdAt  DateTime   @default(now())
++  updatedAt  DateTime   @updatedAt
+   categories Category[]
+-  users     User[]
+-  createdAt DateTime   @default(now())
+-  updatedAt DateTime   @updatedAt
++  districts  District[]
++  users      User[]
+ }
+ 
+ model District {
+-  id        String   @id @default(cuid())
+-  name      String
+-  cityId    String
+-  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
++  id         String     @id @default(cuid())
++  name       String
++  cityId     String
++  createdAt  DateTime   @default(now())
++  updatedAt  DateTime   @updatedAt
+   categories Category[]
+-  users     User[]
+-  createdAt DateTime @default(now())
+-  updatedAt DateTime @updatedAt
++  city       City       @relation(fields: [cityId], references: [id], onDelete: Cascade)
++  users      User[]
+ 
+   @@unique([name, cityId])
+   @@index([cityId])
+ }
+ 
+ model SiteSettings {
+-  id              String   @id @default("global") // We will only ever have one record with id="global"
+-  backgroundColor String   @default("#cca378")
+-  backgroundImage String   @default("https://www.transparenttextures.com/patterns/cork-board.png")
+-  borderColor     String   @default("#6b4423")
+-  borderTopColor  String   @default("#8a5a2e")
+-  borderBottomColor String @default("#4a2f18")
+-  noBorder        Boolean  @default(false)
+-  isGradient      Boolean  @default(false)
+-  gradientFrom    String?  @default("#facc15")
+-  gradientVia     String?  @default("#f472b6")
+-  gradientTo      String?  @default("#a855f7")
++  id                  String   @id @default("global")
++  backgroundColor     String   @default("#cca378")
++  backgroundImage     String   @default("https://www.transparenttextures.com/patterns/cork-board.png")
++  borderColor         String   @default("#6b4423")
++  borderTopColor      String   @default("#8a5a2e")
++  borderBottomColor   String   @default("#4a2f18")
++  updatedAt           DateTime @updatedAt
++  noBorder            Boolean  @default(false)
+   heroBackgroundImage String?
++  heroGradientFrom    String?  @default("#facc15")
++  heroGradientTo      String?  @default("#a855f7")
++  heroGradientVia     String?  @default("#f472b6")
+   heroSubtitle        String?
+-  heroTitleFont       String?    @default("sans-serif")
+-  heroTitleColor      String?    @default("#ffffff")
+-  heroTitleSize       String?    @default("5xl")
+-  heroSubtitleFont    String?    @default("sans-serif")
+-  heroSubtitleColor   String?    @default("#ffffff")
+-  heroSubtitleSize    String?    @default("xl")
+-  heroGradientFrom    String?    @default("#facc15")
+-  heroGradientVia     String?    @default("#f472b6")
+-  heroGradientTo      String?    @default("#a855f7")
+-  heroAlignment       String?    @default("left")
+-  siteIsGradient      Boolean    @default(true)
+-  siteGradientFrom    String?    @default("#fffbeb")
+-  siteGradientVia     String?    @default("#fefce8")
+-  siteGradientTo      String?    @default("#fff7ed")
+-  siteBackgroundColor String?    @default("#fffbeb")
+-  calendarShow        Boolean?   @default(true)
+-  calendarSize        String?    @default("medium")
+-  calendarPosition    String?    @default("right")
+-  calendarColor       String?    @default("#dc2626")
+-  updatedAt       DateTime @updatedAt
++  heroSubtitleColor   String?  @default("#ffffff")
++  heroSubtitleFont    String?  @default("sans-serif")
++  heroSubtitleSize    String?  @default("xl")
++  heroTitleColor      String?  @default("#ffffff")
++  heroTitleFont       String?  @default("sans-serif")
++  heroTitleSize       String?  @default("5xl")
++  heroAlignment       String?  @default("left")
++  gradientFrom        String?  @default("#facc15")
++  gradientTo          String?  @default("#a855f7")
++  gradientVia         String?  @default("#f472b6")
++  isGradient          Boolean  @default(false)
++  siteBackgroundColor String?  @default("#fffbeb")
++  siteGradientFrom    String?  @default("#fffbeb")
++  siteGradientTo      String?  @default("#fff7ed")
++  siteGradientVia     String?  @default("#fefce8")
++  siteIsGradient      Boolean  @default(true)
++  calendarColor       String?  @default("#dc2626")
++  calendarPosition    String?  @default("right")
++  calendarShow        Boolean? @default(true)
++  calendarSize        String?  @default("medium")
++  aboutContent        String?  @db.Text
++  contactContent      String?  @db.Text
++  cookiesContent      String?  @db.Text
++  helpContent         String?  @db.Text
++  privacyContent      String?  @db.Text
++  termsContent        String?  @db.Text
++  kvkkContent         String?  @db.Text
++  popularLinks        Json?
++  discoverLinks       Json?
++  socialLinks         Json?
++  navMenuBgColor      String?  @default("#ffffff")
++  navMenuFont         String?  @default("sans-serif")
++  navMenuMainBold     Boolean? @default(true)
++  navMenuTextColor    String?  @default("#111827")
++  navMenuFontSize     Int?     @default(14)
+ }
+ 
+ model CalendarCategory {
+-  id        String   @id @default(cuid())
+-  name      String
+-  order     Int      @default(0)
+-  isActive  Boolean  @default(true)
+-  globalEntries Json? // Array of {date: string, content: string}
+-  createdAt DateTime @default(now())
+-  updatedAt DateTime @updatedAt
+-  wallEntries WallCalendarEntry[]
++  id            String              @id @default(cuid())
++  name          String
++  order         Int                 @default(0)
++  isActive      Boolean             @default(true)
++  createdAt     DateTime            @default(now())
++  updatedAt     DateTime            @updatedAt
++  globalEntries Json?
++  wallEntries   WallCalendarEntry[]
+ }
+ 
+ model WallCalendarEntry {
+@@ -325,9 +308,41 @@ model WallCalendarEntry {
+   content            String           @db.Text
+   createdAt          DateTime         @default(now())
+   updatedAt          DateTime         @updatedAt
+-  category           Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+   calendarCategory   CalendarCategory @relation(fields: [calendarCategoryId], references: [id], onDelete: Cascade)
++  category           Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+ 
+   @@index([categoryId])
+   @@index([calendarCategoryId])
+ }
++
++enum PostItColor {
++  YELLOW
++  PINK
++  BLUE
++  GREEN
++  ORANGE
++  PURPLE
++}
++
++enum PostItFont {
++  HANDWRITING
++  SERIF
++  SANS
++  MONO
++  CURSIVE
++}
++
++enum PushpinStyle {
++  RED
++  BLUE
++  GOLD
++  GREEN
++  PINK
++  SILVER
++}
++
++enum AdPosition {
++  HEADER
++  SIDEBAR
++  FOOTER
++}
+
+commit e74aaadf722efd8a0c975a2aa502c0efa366a008
+Author: panouser01 <panodasehir@gmail.com>
+Date:   Fri Feb 27 11:42:52 2026 +0300
+
+    Admin panel filtering, grouping, and wall manager permission system implementation
+
+diff --git a/postit_wall/nextjs_space/prisma/schema.prisma b/postit_wall/nextjs_space/prisma/schema.prisma
+index 933663b..cd22745 100644
+--- a/postit_wall/nextjs_space/prisma/schema.prisma
++++ b/postit_wall/nextjs_space/prisma/schema.prisma
+@@ -121,6 +121,7 @@ model Category {
+   district            District?  @relation(fields: [districtId], references: [id])
+   postits             PostIt[]
+   slider              Slider?
++  calendarEntries     WallCalendarEntry[]
+ 
+   @@unique([name, parentId])
+   @@index([parentId], map: "Category_parentId_fkey")
+@@ -150,6 +151,7 @@ model PostIt {
+   rotation    Float         @default(0)
+   expiresAt   DateTime
+   isApproved  Boolean       @default(false)
++  isPublished Boolean       @default(true)
+   isModerated Boolean       @default(false)
+   createdAt   DateTime      @default(now())
+   updatedAt   DateTime      @updatedAt
+@@ -162,6 +164,7 @@ model PostIt {
+   @@index([userId])
+   @@index([expiresAt])
+   @@index([isApproved])
++  @@index([isPublished])
+ }
+ 
+ model Ad {
+@@ -296,5 +299,35 @@ model SiteSettings {
+   siteGradientVia     String?    @default("#fefce8")
+   siteGradientTo      String?    @default("#fff7ed")
+   siteBackgroundColor String?    @default("#fffbeb")
++  calendarShow        Boolean?   @default(true)
++  calendarSize        String?    @default("medium")
++  calendarPosition    String?    @default("right")
++  calendarColor       String?    @default("#dc2626")
+   updatedAt       DateTime @updatedAt
+ }
++
++model CalendarCategory {
++  id        String   @id @default(cuid())
++  name      String
++  order     Int      @default(0)
++  isActive  Boolean  @default(true)
++  globalEntries Json? // Array of {date: string, content: string}
++  createdAt DateTime @default(now())
++  updatedAt DateTime @updatedAt
++  wallEntries WallCalendarEntry[]
++}
++
++model WallCalendarEntry {
++  id                 String           @id @default(cuid())
++  categoryId         String
++  calendarCategoryId String
++  date               DateTime         @default(now())
++  content            String           @db.Text
++  createdAt          DateTime         @default(now())
++  updatedAt          DateTime         @updatedAt
++  category           Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
++  calendarCategory   CalendarCategory @relation(fields: [calendarCategoryId], references: [id], onDelete: Cascade)
++
++  @@index([categoryId])
++  @@index([calendarCategoryId])
++}
+
+commit 9b99035b3f505bb67996d0ef49848ed22a9a6a9a
+Author: panouser01 <panodasehir@gmail.com>
+Date:   Fri Feb 27 06:15:10 2026 +0300
+
+    Site gorunumu, zemin rengi ve gradyan ayarlari eklendi. Admin paneline iptal butonu eklendi.
+
+diff --git a/postit_wall/nextjs_space/prisma/schema.prisma b/postit_wall/nextjs_space/prisma/schema.prisma
+index cd0cd4d..933663b 100644
+--- a/postit_wall/nextjs_space/prisma/schema.prisma
++++ b/postit_wall/nextjs_space/prisma/schema.prisma
+@@ -22,14 +22,20 @@ model User {
+   createdAt         DateTime   @default(now())
+   updatedAt         DateTime   @updatedAt
+   userGroupId       String?
++  cityId            String?
++  districtId        String?
+   accounts          Account[]
+   ads               Ad[]
+   managedCategories Category[] @relation("WallManager")
+   postits           PostIt[]
+   sessions          Session[]
+   userGroup         UserGroup? @relation(fields: [userGroupId], references: [id])
++  city              City?       @relation(fields: [cityId], references: [id])
++  district          District?   @relation(fields: [districtId], references: [id])
+ 
+   @@index([userGroupId], map: "User_userGroupId_fkey")
++  @@index([cityId])
++  @@index([districtId])
+ }
+ 
+ model UserGroup {
+@@ -98,16 +104,21 @@ model Category {
+   heroGradientFrom    String?    @default("#facc15")
+   heroGradientVia     String?    @default("#f472b6")
+   heroGradientTo      String?    @default("#a855f7")
++  heroAlignment       String?    @default("left")
+   categoryFont        String?    @default("sans-serif")
+   categoryColor       String?    @default("#1f2937")
+   categoryBgColor     String?    @default("#ffffff")
+   postCount           Int        @default(0)
+   userGroupId         String?
++  cityId              String?
++  districtId          String?
+   ads                 Ad[]
+   parent              Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+   children            Category[] @relation("CategoryHierarchy")
+   assignedGroup       UserGroup? @relation(fields: [userGroupId], references: [id])
+   wallManager         User?      @relation("WallManager", fields: [wallManagerId], references: [id])
++  city                City?      @relation(fields: [cityId], references: [id])
++  district            District?  @relation(fields: [districtId], references: [id])
+   postits             PostIt[]
+   slider              Slider?
+ 
+@@ -115,6 +126,8 @@ model Category {
+   @@index([parentId], map: "Category_parentId_fkey")
+   @@index([userGroupId], map: "Category_userGroupId_fkey")
+   @@index([wallManagerId], map: "Category_wallManagerId_fkey")
++  @@index([cityId])
++  @@index([districtId])
+ }
+ 
+ model UserRole {
+@@ -219,8 +232,69 @@ model Slider {
+   images          Json      // Array of image URLs (min 1, max 5)
+   links           Json?     // Array of link URLs (min 1, max 5)
+   backgroundColor String?   @default("#f8f9fa")
++  backgroundImage String?
++  heroGradientFrom String?  @default("#facc15")
++  heroGradientVia  String?  @default("#f472b6")
++  heroGradientTo   String?  @default("#a855f7")
++  isGradient       Boolean  @default(false)
+   isActive        Boolean   @default(true)
+   createdAt  DateTime  @default(now())
+   updatedAt  DateTime  @updatedAt
+   category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+ }
++
++model City {
++  id        String     @id @default(cuid())
++  name      String     @unique
++  districts District[]
++  categories Category[]
++  users     User[]
++  createdAt DateTime   @default(now())
++  updatedAt DateTime   @updatedAt
++}
++
++model District {
++  id        String   @id @default(cuid())
++  name      String
++  cityId    String
++  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
++  categories Category[]
++  users     User[]
++  createdAt DateTime @default(now())
++  updatedAt DateTime @updatedAt
++
++  @@unique([name, cityId])
++  @@index([cityId])
++}
++
++model SiteSettings {
++  id              String   @id @default("global") // We will only ever have one record with id="global"
++  backgroundColor String   @default("#cca378")
++  backgroundImage String   @default("https://www.transparenttextures.com/patterns/cork-board.png")
++  borderColor     String   @default("#6b4423")
++  borderTopColor  String   @default("#8a5a2e")
++  borderBottomColor String @default("#4a2f18")
++  noBorder        Boolean  @default(false)
++  isGradient      Boolean  @default(false)
++  gradientFrom    String?  @default("#facc15")
++  gradientVia     String?  @default("#f472b6")
++  gradientTo      String?  @default("#a855f7")
++  heroBackgroundImage String?
++  heroSubtitle        String?
++  heroTitleFont       String?    @default("sans-serif")
++  heroTitleColor      String?    @default("#ffffff")
++  heroTitleSize       String?    @default("5xl")
++  heroSubtitleFont    String?    @default("sans-serif")
++  heroSubtitleColor   String?    @default("#ffffff")
++  heroSubtitleSize    String?    @default("xl")
++  heroGradientFrom    String?    @default("#facc15")
++  heroGradientVia     String?    @default("#f472b6")
++  heroGradientTo      String?    @default("#a855f7")
++  heroAlignment       String?    @default("left")
++  siteIsGradient      Boolean    @default(true)
++  siteGradientFrom    String?    @default("#fffbeb")
++  siteGradientVia     String?    @default("#fefce8")
++  siteGradientTo      String?    @default("#fff7ed")
++  siteBackgroundColor String?    @default("#fffbeb")
++  updatedAt       DateTime @updatedAt
++}
+
+commit 1705550a87946be81ff44eb95601faaf5107e50d
+Author: panouser01 <panodasehir@gmail.com>
+Date:   Sun Feb 22 03:48:59 2026 +0300
+
+    feat: Slayder ayarlarına yönlendirme linkleri ve özel arka plan rengi desteği eklendi
+
+diff --git a/postit_wall/nextjs_space/prisma/schema.prisma b/postit_wall/nextjs_space/prisma/schema.prisma
+index 6f6e055..cd0cd4d 100644
+--- a/postit_wall/nextjs_space/prisma/schema.prisma
++++ b/postit_wall/nextjs_space/prisma/schema.prisma
+@@ -109,6 +109,7 @@ model Category {
+   assignedGroup       UserGroup? @relation(fields: [userGroupId], references: [id])
+   wallManager         User?      @relation("WallManager", fields: [wallManagerId], references: [id])
+   postits             PostIt[]
++  slider              Slider?
+ 
+   @@unique([name, parentId])
+   @@index([parentId], map: "Category_parentId_fkey")
+@@ -211,3 +212,15 @@ enum AdPosition {
+   SIDEBAR
+   FOOTER
+ }
++
++model Slider {
++  id         String    @id @default(cuid())
++  categoryId String?   @unique
++  images          Json      // Array of image URLs (min 1, max 5)
++  links           Json?     // Array of link URLs (min 1, max 5)
++  backgroundColor String?   @default("#f8f9fa")
++  isActive        Boolean   @default(true)
++  createdAt  DateTime  @default(now())
++  updatedAt  DateTime  @updatedAt
++  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
++}
+
+commit 786c66060312ac6a2d3692f9bd809df4db536186
+Author: panouser01 <panodasehir@gmail.com>
+Date:   Fri Feb 20 11:18:38 2026 +0300
+
+    ilk yükleme
+
+diff --git a/postit_wall/nextjs_space/prisma/schema.prisma b/postit_wall/nextjs_space/prisma/schema.prisma
+new file mode 100644
+index 0000000..6f6e055
+--- /dev/null
++++ b/postit_wall/nextjs_space/prisma/schema.prisma
+@@ -0,0 +1,213 @@
++generator client {
++  provider      = "prisma-client-js"
++  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
++}
++
++datasource db {
++  provider = "mysql"
++  url      = env("DATABASE_URL")
++}
++
++model User {
++  id                String     @id @default(cuid())
++  email             String     @unique
++  emailVerified     DateTime?
++  password          String?
++  name              String?
++  image             String?
++  role              String     @default("USER")
++  companyName       String?
++  phone             String?
++  taxId             String?
++  createdAt         DateTime   @default(now())
++  updatedAt         DateTime   @updatedAt
++  userGroupId       String?
++  accounts          Account[]
++  ads               Ad[]
++  managedCategories Category[] @relation("WallManager")
++  postits           PostIt[]
++  sessions          Session[]
++  userGroup         UserGroup? @relation(fields: [userGroupId], references: [id])
++
++  @@index([userGroupId], map: "User_userGroupId_fkey")
++}
++
++model UserGroup {
++  id            String     @id @default(cuid())
++  name          String     @unique
++  description   String?
++  createdAt     DateTime   @default(now())
++  updatedAt     DateTime   @updatedAt
++  assignedWalls Category[]
++  users         User[]
++}
++
++model Account {
++  id                String  @id @default(cuid())
++  userId            String
++  type              String
++  provider          String
++  providerAccountId String
++  refresh_token     String? @db.Text
++  access_token      String? @db.Text
++  expires_at        Int?
++  token_type        String?
++  scope             String?
++  id_token          String? @db.Text
++  session_state     String?
++  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
++
++  @@unique([provider, providerAccountId])
++  @@index([userId], map: "Account_userId_fkey")
++}
++
++model Session {
++  id           String   @id @default(cuid())
++  sessionToken String   @unique
++  userId       String
++  expires      DateTime
++  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
++
++  @@index([userId], map: "Session_userId_fkey")
++}
++
++model VerificationToken {
++  identifier String
++  token      String   @unique
++  expires    DateTime
++
++  @@unique([identifier, token])
++}
++
++model Category {
++  id                  String     @id @default(cuid())
++  name                String
++  description         String?
++  wallManagerId       String?
++  parentId            String?
++  createdAt           DateTime   @default(now())
++  updatedAt           DateTime   @updatedAt
++  heroBackgroundImage String?
++  heroSubtitle        String?
++  heroTitleFont       String?    @default("sans-serif")
++  heroTitleColor      String?    @default("#ffffff")
++  heroTitleSize       String?    @default("5xl")
++  heroSubtitleFont    String?    @default("sans-serif")
++  heroSubtitleColor   String?    @default("#ffffff")
++  heroSubtitleSize    String?    @default("xl")
++  heroGradientFrom    String?    @default("#facc15")
++  heroGradientVia     String?    @default("#f472b6")
++  heroGradientTo      String?    @default("#a855f7")
++  categoryFont        String?    @default("sans-serif")
++  categoryColor       String?    @default("#1f2937")
++  categoryBgColor     String?    @default("#ffffff")
++  postCount           Int        @default(0)
++  userGroupId         String?
++  ads                 Ad[]
++  parent              Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
++  children            Category[] @relation("CategoryHierarchy")
++  assignedGroup       UserGroup? @relation(fields: [userGroupId], references: [id])
++  wallManager         User?      @relation("WallManager", fields: [wallManagerId], references: [id])
++  postits             PostIt[]
++
++  @@unique([name, parentId])
++  @@index([parentId], map: "Category_parentId_fkey")
++  @@index([userGroupId], map: "Category_userGroupId_fkey")
++  @@index([wallManagerId], map: "Category_wallManagerId_fkey")
++}
++
++model UserRole {
++  id          String   @id @default(cuid())
++  name        String   @unique
++  description String?
++  createdAt   DateTime @default(now())
++  updatedAt   DateTime @updatedAt
++}
++
++model PostIt {
++  id          String        @id @default(cuid())
++  userId      String
++  categoryId  String
++  content     String
++  link        String?
++  color       PostItColor   @default(YELLOW)
++  font        PostItFont    @default(HANDWRITING)
++  pushpin     PushpinStyle  @default(RED)
++  rotation    Float         @default(0)
++  expiresAt   DateTime
++  isApproved  Boolean       @default(false)
++  isModerated Boolean       @default(false)
++  createdAt   DateTime      @default(now())
++  updatedAt   DateTime      @updatedAt
++  imageUrl    String?
++  category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
++  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
++  PostItImage PostItImage[]
++
++  @@index([categoryId])
++  @@index([userId])
++  @@index([expiresAt])
++  @@index([isApproved])
++}
++
++model Ad {
++  id         String     @id @default(cuid())
++  title      String
++  imageUrl   String
++  link       String
++  position   AdPosition
++  categoryId String?
++  createdBy  String
++  isActive   Boolean    @default(true)
++  createdAt  DateTime   @default(now())
++  updatedAt  DateTime   @updatedAt
++  category   Category?  @relation(fields: [categoryId], references: [id])
++  creator    User       @relation(fields: [createdBy], references: [id], onDelete: Cascade)
++
++  @@index([position])
++  @@index([isActive])
++  @@index([categoryId], map: "Ad_categoryId_fkey")
++  @@index([createdBy], map: "Ad_createdBy_fkey")
++}
++
++model PostItImage {
++  id        String   @id
++  url       String
++  postItId  String
++  createdAt DateTime @default(now())
++  PostIt    PostIt   @relation(fields: [postItId], references: [id], onDelete: Cascade)
++
++  @@index([postItId])
++}
++
++enum PostItColor {
++  YELLOW
++  PINK
++  BLUE
++  GREEN
++  ORANGE
++  PURPLE
++}
++
++enum PostItFont {
++  HANDWRITING
++  SERIF
++  SANS
++  MONO
++  CURSIVE
++}
++
++enum PushpinStyle {
++  RED
++  BLUE
++  GOLD
++  GREEN
++  PINK
++  SILVER
++}
++
++enum AdPosition {
++  HEADER
++  SIDEBAR
++  FOOTER
++}

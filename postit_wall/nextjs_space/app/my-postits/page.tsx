@@ -10,8 +10,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'react-hot-toast'
-import { Loader2, Edit, Eye, EyeOff, Trash2, Search, StickyNote, Calendar, Clock, X, Image as ImageIcon } from 'lucide-react'
+import { Loader2, Edit, Eye, EyeOff, Trash2, Search, StickyNote, Calendar, Clock, X, Image as ImageIcon, Play, Lock } from 'lucide-react'
 import Image from 'next/image'
+import TipTapSmallEditor from '@/components/editor/TipTapSmallEditor'
+import { stripHtml } from '@/lib/utils'
 
 interface PostIt {
   id: string
@@ -23,6 +25,7 @@ interface PostIt {
   link: string | null
   isApproved: boolean
   isPublished: boolean
+  hasBeenPublished: boolean
   expiresAt: string
   createdAt: string
   category: {
@@ -37,6 +40,8 @@ interface Category {
   name: string
   children?: Category[]
   userGroupId?: string | null
+  postitAppearance?: any
+  ottCardStyle?: string
 }
 
 const colorOptions = [
@@ -183,13 +188,13 @@ export default function MyPostItsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (editForm.imageUrls.length >= 5) {
-      toast.error('En fazla 5 resim ekleyebilirsiniz')
+    if (editForm.imageUrls.length >= 10) {
+      toast.error('En fazla 10 medya ekleyebilirsiniz')
       return
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır')
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('Dosya boyutu 50MB\'dan küçük olmalıdır')
       return
     }
 
@@ -467,21 +472,31 @@ export default function MyPostItsPage() {
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2 border-t border-black/10">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => openEditModal(post)}
-                  >
-                    <Edit className="w-3 h-3 mr-1" />
-                    Düzenle
-                  </Button>
+                  {(post.hasBeenPublished && userRole !== 'SUPER_ADMIN') ? (
+                    <div 
+                      className="flex-1 flex items-center justify-center text-xs text-gray-500 bg-gray-50/80 rounded-md border border-gray-100 cursor-not-allowed"
+                      title="Yayındaki veya daha önce yayınlanmış postitlerin içeriği düzenlenemez."
+                    >
+                      <Lock className="w-3 h-3 pl-0.5 mr-1 text-gray-400" />
+                      Kilitli
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => openEditModal(post)}
+                    >
+                      <Edit className="w-3 h-3 mr-1" />
+                      Düzenle
+                    </Button>
+                  )}
                   <Button
                     variant={post.isPublished ? "outline" : "default"}
                     size="sm"
                     className="flex-1 text-xs"
                     onClick={() => togglePublish(post.id, post.isPublished)}
-                    disabled={isExpired(post.expiresAt)}
+                    disabled={isExpired(post.expiresAt) && userRole !== 'SUPER_ADMIN'}
                   >
                     {post.isPublished ? (
                       <><EyeOff className="w-3 h-3 mr-1" /> Kaldır</>
@@ -489,14 +504,16 @@ export default function MyPostItsPage() {
                       <><Eye className="w-3 h-3 mr-1" /> Yayınla</>
                     )}
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-600 hover:bg-red-50"
-                    onClick={() => handleDelete(post.id)}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
+                  {userRole === 'SUPER_ADMIN' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:bg-red-50"
+                      onClick={() => handleDelete(post.id)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -554,19 +571,30 @@ export default function MyPostItsPage() {
                 {/* Content */}
                 <div className="space-y-1.5">
                   <Label className="text-sm font-semibold text-gray-700">İçerik *</Label>
-                  <Textarea
-                    value={editForm.content}
-                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
-                    placeholder="Aklınızdakileri buraya dökün..."
-                    className="bg-white border-gray-200 shadow-sm focus:ring-yellow-400 resize-none rounded-xl"
-                    rows={4}
-                    maxLength={500}
-                  />
-                  <div className="flex justify-end p-1">
-                    <span className={`text-xs ${editForm.content.length > 450 ? 'text-orange-500 font-bold' : 'text-gray-400'}`}>
-                      {editForm.content.length}/500
-                    </span>
-                  </div>
+                  {flatCategories.find(cat => cat.id === editForm.categoryId)?.ottCardStyle === 'polaroid' || flatCategories.find(cat => cat.id === editForm.categoryId)?.postitAppearance?.ottCardStyle === 'polaroid' ? (
+                    <TipTapSmallEditor
+                      content={editForm.content}
+                      onChange={(html) => setEditForm({ ...editForm, content: html })}
+                      placeholder="Aklınızdakileri buraya dökün..."
+                      maxLength={2500}
+                    />
+                  ) : (
+                    <>
+                      <Textarea
+                        value={editForm.content}
+                        onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                        placeholder="Aklınızdakileri buraya dökün..."
+                        className="bg-white border-gray-200 shadow-sm focus:ring-yellow-400 resize-none rounded-xl"
+                        rows={4}
+                        maxLength={2500}
+                      />
+                      <div className="flex justify-end p-1">
+                        <span className={`text-xs ${editForm.content.length > 2400 ? 'text-orange-500 font-bold' : 'text-gray-400'}`}>
+                          {editForm.content.length}/2500
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Link */}
@@ -586,16 +614,20 @@ export default function MyPostItsPage() {
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
                       <ImageIcon className="w-4 h-4 text-gray-500" />
-                      Resimler
+                      Medya (Resim/Video)
                     </Label>
-                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{editForm.imageUrls.length}/5</span>
+                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{editForm.imageUrls.length}/10</span>
                   </div>
 
                   {editForm.imageUrls.length > 0 && (
                     <div className="grid grid-cols-5 gap-2 mt-2 mb-2">
                       {editForm.imageUrls.map((url, index) => (
                         <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 shadow-sm transform transition duration-300 hover:scale-105">
-                          <img src={url} alt={`Resim ${index + 1}`} className="w-full h-full object-cover" />
+                          {url.match(/\.(mp4|webm|ogg)$/i) ? (
+                            <video src={`${url}#t=0.001`} className="w-full h-full object-contain" preload="metadata" muted playsInline />
+                          ) : (
+                            <img src={url} alt={`Medya ${index + 1}`} className="w-full h-full object-contain" />
+                          )}
                           <button
                             type="button"
                             onClick={() => handleRemoveImage(index)}
@@ -610,7 +642,7 @@ export default function MyPostItsPage() {
                     </div>
                   )}
 
-                  {editForm.imageUrls.length < 5 && (
+                  {editForm.imageUrls.length < 10 && (
                     <div className="flex items-center gap-2 mt-2">
                       <Button
                         type="button"
@@ -625,12 +657,12 @@ export default function MyPostItsPage() {
                         ) : (
                           <ImageIcon className="w-4 h-4" />
                         )}
-                        <span className="text-xs font-medium">Resim Seç veya Bırak</span>
+                        <span className="text-xs font-medium">Medya Seç veya Bırak</span>
                       </Button>
                       <Input
                         id="edit-image-upload"
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/mp4,video/webm"
                         onChange={handleImageUpload}
                         disabled={uploadingImage}
                         className="hidden"
@@ -690,7 +722,7 @@ export default function MyPostItsPage() {
                           wordBreak: 'break-word'
                         }}
                       >
-                        {editForm.content || 'Aklınızdaki harika fikri buraya yazın...'}
+                        {stripHtml(editForm.content) || 'Aklınızdaki harika fikri buraya yazın...'}
                       </p>
                     </div>
                   </div>

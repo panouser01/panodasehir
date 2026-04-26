@@ -52,6 +52,7 @@ export async function GET() {
       // We should only show users that have these allowedGroupIds or posted in their governed walls
       userFilter = {
         OR: [
+          { id: userId },
           {
             userGroups: {
               some: {
@@ -76,6 +77,14 @@ export async function GET() {
         id: true,
         email: true,
         name: true,
+        nickname: true,
+        companyName: true,
+        phone: true,
+        taxId: true,
+        cityId: true,
+        districtId: true,
+        receiveEmail: true,
+        receiveTelegram: true,
         role: true,
         userGroups: {
           select: {
@@ -83,6 +92,7 @@ export async function GET() {
             name: true
           }
         },
+        permissions: true,
         createdAt: true,
         _count: {
           select: {
@@ -121,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, name, password, role, userGroupIds } = body
+    const { email, name, password, role, userGroupIds, permissions, nickname, companyName, phone, taxId, cityId, districtId, receiveEmail, receiveTelegram } = body
 
     if (!email || !name || !password) {
       return NextResponse.json(
@@ -184,16 +194,27 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    const user = await prisma.user.create({
-      data: {
+    const createData: any = {
         email,
         name,
         password: hashedPassword,
         role: userRole === 'WALL_MANAGER' ? (role === 'WALL_USER' ? 'WALL_USER' : 'USER') : (role || 'USER'),
+        permissions: permissions !== undefined ? permissions : undefined,
+        nickname,
+        companyName,
+        phone,
+        taxId,
+        cityId: cityId || null,
+        districtId: districtId || null,
+        receiveEmail: receiveEmail !== undefined ? receiveEmail : true,
+        receiveTelegram: receiveTelegram !== undefined ? receiveTelegram : true,
         userGroups: userGroupIds && userGroupIds.length > 0 ? {
           connect: userGroupIds.map((id: string) => ({ id }))
         } : undefined
-      },
+    }
+
+    const user = await prisma.user.create({
+      data: createData,
       select: {
         id: true,
         email: true,
@@ -205,6 +226,7 @@ export async function POST(request: NextRequest) {
             name: true
           }
         },
+        permissions: true,
         createdAt: true
       }
     })

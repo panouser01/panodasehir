@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import * as bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+import { sendVerificationEmail } from '@/lib/mail'
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,9 +41,27 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Create verification token
+    const token = crypto.randomBytes(32).toString('hex')
+    await prisma.verificationToken.create({
+      data: {
+        identifier: email,
+        token,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      }
+    })
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, token)
+    } catch (mailError) {
+      console.error('Mail sending error:', mailError)
+      // Even if mail fails, user is created, but maybe we should let them know
+    }
+
     return NextResponse.json(
       { 
-        message: 'Kayıt başarılı',
+        message: 'Kayıt başarılı. Lütfen e-posta adresinize gönderilen doğrulama bağlantısına tıklayın.',
         user: {
           id: user.id,
           email: user.email,

@@ -67,6 +67,42 @@
   font-weight: 600;
 }
 
+@font-face {
+  font-family: 'London Presley';
+  src: url('/fonts/london-presley.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-london {
+  font-family: 'London Presley', sans-serif;
+}
+
+@font-face {
+  font-family: 'Puerto';
+  src: url('/fonts/puerto.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-puerto {
+  font-family: 'Puerto', sans-serif;
+}
+
+@font-face {
+  font-family: 'Retosta';
+  src: url('/fonts/Retosta.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-retosta {
+  font-family: 'Retosta', sans-serif;
+}
+
 /* Hide hydration errors */
 [data-hydration-error] {
   display: none !important;

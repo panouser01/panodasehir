@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { revalidateTag } from 'next/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,9 +28,12 @@ async function canManageCategory(userId: string, userRole: string, categoryId: s
   return false
 }
 
-// GET all categories with hierarchy (up to 3 levels deep)
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+    const userId = (session?.user as any)?.id
+    const userRole = (session?.user as any)?.role
+
     const activeFilter = {
       isApproved: true,
       isPublished: true,
@@ -42,6 +46,9 @@ export async function GET() {
         wallManagers: {
           select: { id: true, name: true, email: true }
         },
+        wallViewers: {
+          select: { id: true, name: true, email: true }
+        },
         parent: {
           select: { id: true, name: true }
         },
@@ -51,6 +58,9 @@ export async function GET() {
           include: {
             assignedGroup: true,
             wallManagers: {
+              select: { id: true, name: true, email: true }
+            },
+            wallViewers: {
               select: { id: true, name: true, email: true }
             },
             _count: {
@@ -66,6 +76,9 @@ export async function GET() {
                 wallManagers: {
                   select: { id: true, name: true, email: true }
                 },
+                wallViewers: {
+                  select: { id: true, name: true, email: true }
+                },
                 _count: {
                   select: {
                     postits: { where: activeFilter }
@@ -77,19 +90,51 @@ export async function GET() {
                     wallManagers: {
                       select: { id: true, name: true, email: true }
                     },
+                    wallViewers: {
+                      select: { id: true, name: true, email: true }
+                    },
                     _count: {
                       select: {
                         postits: { where: activeFilter }
                       }
+                    },
+                    children: {
+                      include: {
+                        assignedGroup: true,
+                        wallManagers: {
+                          select: { id: true, name: true, email: true }
+                        },
+                        wallViewers: {
+                          select: { id: true, name: true, email: true }
+                        },
+                        _count: {
+                          select: {
+                            postits: { where: activeFilter }
+                          }
+                        }
+                      },
+                      orderBy: [
+                        { order: 'asc' },
+                        { name: 'asc' }
+                      ]
                     }
                   },
-                  orderBy: { name: 'asc' }
+                  orderBy: [
+                    { order: 'asc' },
+                    { name: 'asc' }
+                  ]
                 }
               },
-              orderBy: { name: 'asc' }
+              orderBy: [
+                { order: 'asc' },
+                { name: 'asc' }
+              ]
             }
           },
-          orderBy: { name: 'asc' }
+          orderBy: [
+            { order: 'asc' },
+            { name: 'asc' }
+          ]
         },
         _count: {
           select: {
@@ -100,10 +145,32 @@ export async function GET() {
           include: { calendarCategory: true }
         }
       },
-      orderBy: {
-        name: 'asc'
-      }
+      orderBy: [
+        { order: 'asc' },
+        { name: 'asc' }
+      ]
     })
+
+    // Filter viewers recursively
+    const filterViewers = (cats: any[]): any[] => {
+      const filtered = cats.filter(cat => {
+        const hasViewers = cat.wallViewers && cat.wallViewers.length > 0
+        if (!hasViewers) return true
+
+        if (userRole === 'SUPER_ADMIN') return true
+        if (!userId) return false
+        
+        const isViewer = cat.wallViewers.some((v: any) => v.id === userId)
+        const isManager = cat.wallManagers?.some((m: any) => m.id === userId)
+
+        return isViewer || isManager
+      })
+
+      return filtered.map(cat => ({
+        ...cat,
+        children: cat.children ? filterViewers(cat.children) : []
+      }))
+    }
 
     // Map _count.postits to postCount recursively for the frontend
     const mapCounts = (cats: any[]): any[] => {
@@ -114,7 +181,8 @@ export async function GET() {
       }))
     }
 
-    const categoriesWithCounts = mapCounts(categories)
+    const visibleCategories = filterViewers(categories)
+    const categoriesWithCounts = mapCounts(visibleCategories)
 
     return NextResponse.json({ categories: categoriesWithCounts })
   } catch (error) {
@@ -142,17 +210,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
-      name, description, wallManagerIds, userGroupId, parentId, movePostsToNew,
+      name, description, icon, wallManagerIds, wallViewerIds, userGroupId, parentId, movePostsToNew,
       cityId, districtId,
       contactName, contactPhone, contactEmail,
       // Appearance fields
-      heroBackgroundImage, isHeroTransparent, heroSubtitle,
+      heroBackgroundImage, heroBackgroundStyle, isHeroTransparent, heroSubtitle,
       heroTitleFont, heroTitleColor, heroTitleSize,
       heroSubtitleFont, heroSubtitleColor, heroSubtitleSize,
+      hideWallTitle, hideWallRibbon, hideHeroPushpin,
       heroGradientFrom, heroGradientVia, heroGradientTo,
-      categoryFont, categoryColor, categoryBgColor, ribbonColor,
-      logoUrl, logoPosition, logoSize, useParentLogo,
-      useCustomLayout, customLayout,
+      categoryFont, categoryColor, categoryBgColor, ribbonColor, ribbonTextColor, ribbonTextFont, customRibbonText,
+      logoUrl, logoPosition, logoSize, logoFrame, useParentLogo,
+      useCustomLayout, customLayout, postitAppearance,
+      isOttActive, ottItemsPerRow, ottCardRatio, ottAutoScrollSpeed, showVirtualPostitsIfEmpty, showVirtualPostitLogos,
       calendarEntries // Array of { calendarCategoryId, date, content }
     } = body
 
@@ -201,7 +271,9 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description: description || null,
+        icon: icon || null,
         wallManagers: wallManagerIds && wallManagerIds.length > 0 ? { connect: wallManagerIds.map((id: string) => ({ id })) } : undefined,
+        wallViewers: wallViewerIds && wallViewerIds.length > 0 ? { connect: wallViewerIds.map((id: string) => ({ id })) } : undefined,
         userGroupId: userGroupId || null,
         parentId: parentId || null,
         cityId: cityId || null,
@@ -211,6 +283,7 @@ export async function POST(request: NextRequest) {
         contactEmail: contactEmail || null,
         // Appearance fields
         heroBackgroundImage: heroBackgroundImage || null,
+        heroBackgroundStyle: heroBackgroundStyle || 'cover',
         isHeroTransparent: isHeroTransparent !== undefined ? isHeroTransparent : false,
         heroSubtitle: heroSubtitle || null,
         heroTitleFont: heroTitleFont || 'sans-serif',
@@ -219,6 +292,9 @@ export async function POST(request: NextRequest) {
         heroSubtitleFont: heroSubtitleFont || 'sans-serif',
         heroSubtitleColor: heroSubtitleColor || '#ffffff',
         heroSubtitleSize: heroSubtitleSize || 'xl',
+        hideWallTitle: hideWallTitle || false,
+        hideWallRibbon: hideWallRibbon || false,
+        hideHeroPushpin: hideHeroPushpin || false,
         heroGradientFrom: heroGradientFrom || '#facc15',
         heroGradientVia: heroGradientVia || '#f472b6',
         heroGradientTo: heroGradientTo || '#a855f7',
@@ -226,9 +302,14 @@ export async function POST(request: NextRequest) {
         categoryColor: categoryColor || '#1f2937',
         categoryBgColor: categoryBgColor || '#ffffff',
         ribbonColor: ribbonColor || '#502bb1',
+        ribbonTextColor: ribbonTextColor || '#ffffff',
+        ribbonTextFont: ribbonTextFont || 'sans-serif',
+        customRibbonText: customRibbonText || null,
         // Board appearance fields
         backgroundColor: body.backgroundColor || null,
         backgroundImage: body.backgroundImage || null,
+        ribbonImage: body.ribbonImage,
+        ribbonAlignment: body.ribbonAlignment,
         borderColor: body.borderColor || null,
         borderTopColor: body.borderTopColor || null,
         borderBottomColor: body.borderBottomColor || null,
@@ -239,6 +320,9 @@ export async function POST(request: NextRequest) {
         isWallTransparent: body.isWallTransparent !== undefined ? body.isWallTransparent : null,
         isWallBackgroundRepeat: body.isWallBackgroundRepeat !== undefined ? body.isWallBackgroundRepeat : null,
         noBorder: body.noBorder !== undefined ? body.noBorder : null,
+        noInnerBorder: body.noInnerBorder !== undefined ? body.noInnerBorder : null,
+        innerBackgroundColor: body.innerBackgroundColor || null,
+        isInnerTransparent: body.isInnerTransparent !== undefined ? body.isInnerTransparent : null,
         // Full parity with SiteSettings
         navMenuBgColor: body.navMenuBgColor || null,
         navMenuFont: body.navMenuFont || null,
@@ -247,6 +331,7 @@ export async function POST(request: NextRequest) {
         navMenuMainBold: body.navMenuMainBold !== undefined ? body.navMenuMainBold : null,
         siteBackgroundColor: body.siteBackgroundColor || null,
         siteBackgroundImage: body.siteBackgroundImage || null,
+        siteBackgroundStyle: body.siteBackgroundStyle || 'repeat',
         siteGradientFrom: body.siteGradientFrom || null,
         siteGradientVia: body.siteGradientVia || null,
         siteGradientTo: body.siteGradientTo || null,
@@ -256,9 +341,52 @@ export async function POST(request: NextRequest) {
         logoUrl: logoUrl || null,
         logoPosition: logoPosition || 'top-right',
         logoSize: logoSize || 'medium',
+        logoFrame: logoFrame || 'original',
         useParentLogo: useParentLogo !== undefined ? useParentLogo : false,
         useCustomLayout: useCustomLayout !== undefined ? useCustomLayout : false,
-        customLayout: customLayout || null
+        customLayout: customLayout || null,
+        postitAppearance: postitAppearance || null,
+        isOttActive: isOttActive !== undefined ? isOttActive : false,
+        showVirtualPostitsIfEmpty: showVirtualPostitsIfEmpty !== undefined ? showVirtualPostitsIfEmpty : true,
+        showVirtualPostitLogos: showVirtualPostitLogos !== undefined ? showVirtualPostitLogos : false,
+        ottItemsPerRow: ottItemsPerRow !== undefined ? parseInt(ottItemsPerRow) : 4,
+        ottCardRatio: ottCardRatio || '16/9',
+        ottAutoScrollSpeed: ottAutoScrollSpeed !== undefined ? parseInt(ottAutoScrollSpeed) : 0,
+        ottShowTopMenu: body.ottShowTopMenu !== undefined ? body.ottShowTopMenu : true,
+        ottShowHeroSlider: body.ottShowHeroSlider !== undefined ? body.ottShowHeroSlider : true,
+        ottTopMenuShape: body.ottTopMenuShape || 'circle',
+        ottShowCategoryTitles: body.ottShowCategoryTitles !== undefined ? body.ottShowCategoryTitles : true,
+        ottCardStyle: body.ottCardStyle || 'cover',
+        ottCategoryTitleSize: body.ottCategoryTitleSize || '2xl',
+        ottCategoryHeaderGlassy: body.ottCategoryHeaderGlassy !== undefined ? body.ottCategoryHeaderGlassy : false,
+        ottCategoryTitleColor: body.ottCategoryTitleColor || null,
+        ottCategoryTitleAlignment: body.ottCategoryTitleAlignment || 'left',
+        ottCategoryTitleFont: body.ottCategoryTitleFont || 'sans-serif',
+        ottSeparatorStyle: body.ottSeparatorStyle || 'none',
+        ottSeparatorColor: body.ottSeparatorColor || null,
+        ottTopMenuLabelBgColor: body.ottTopMenuLabelBgColor || null,
+        ottTopMenuLabelHasBorder: body.ottTopMenuLabelHasBorder !== undefined ? body.ottTopMenuLabelHasBorder : false,
+        ottTopMenuIconBgColor: body.ottTopMenuIconBgColor || null,
+        ottCardBgType: body.ottCardBgType || 'postit',
+        ottCardBgColor: body.ottCardBgColor || null,
+        ottCardBgColorAlpha: body.ottCardBgColorAlpha !== undefined ? parseInt(body.ottCardBgColorAlpha) : 100,
+        ottCardBgImage: body.ottCardBgImage || null,
+        ottModalBgType: body.ottModalBgType || 'postit',
+        ottModalBgColor: body.ottModalBgColor || null,
+        ottModalBgColorAlpha: body.ottModalBgColorAlpha !== undefined ? parseInt(body.ottModalBgColorAlpha) : 70,
+        ottModalBgImage: body.ottModalBgImage || null,
+        ottModalTextColor: body.ottModalTextColor || null,
+        ottTopMenuMarqueeActive: body.ottTopMenuMarqueeActive !== undefined ? body.ottTopMenuMarqueeActive : false,
+        ottTopMenuMarqueeSpeed: body.ottTopMenuMarqueeSpeed !== undefined ? parseFloat(body.ottTopMenuMarqueeSpeed) : 30,
+        // @ts-ignore
+        isEditorModeActive: body.isEditorModeActive !== undefined ? body.isEditorModeActive : false,
+        // @ts-ignore
+        isStyleModeActive: body.isStyleModeActive !== undefined ? body.isStyleModeActive : false,
+        // @ts-ignore
+        styleModeSettings: body.styleModeSettings !== undefined ? body.styleModeSettings : {},
+        isActive: body.isActive !== undefined ? body.isActive : true,
+        isPrivate: body.isPrivate !== undefined ? body.isPrivate : false,
+        expirationDate: body.expirationDate ? new Date(body.expirationDate) : null
       }
     })
 
@@ -285,6 +413,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    revalidateTag('all-categories-tree')
     return NextResponse.json({ category }, { status: 201 })
   } catch (error) {
     console.error('Error creating category:', error)

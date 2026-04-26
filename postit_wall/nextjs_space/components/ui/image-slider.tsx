@@ -38,7 +38,19 @@ export function ImageSlider({ images, links, className }: { images: string[], li
                 {images.map((url, idx) => {
                     const hasLink = links && links[idx] && links[idx].trim() !== ''
 
-                    const imgElement = (
+                    const isVideo = url && url.match(/\.(mp4|webm|ogg)$/i)
+                    const imgElement = isVideo ? (
+                        <video
+                            key={`img-${idx}`}
+                            src={`${url}#t=0.001`}
+                            className="object-cover flex-shrink-0 w-full h-full absolute inset-0"
+                            preload="metadata"
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                        />
+                    ) : (
                         <Image
                             key={`img-${idx}`}
                             src={url}

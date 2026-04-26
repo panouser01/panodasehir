@@ -1,0 +1,265 @@
+'use client'
+
+import { Public_Sans } from 'next/font/google'
+const publicSans = Public_Sans({ subsets: ['latin'], weight: ['800', '900'] })
+
+import Link from 'next/link'
+import { useSession, signOut } from 'next-auth/react'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { LogOut, Settings, User, LogIn, StickyNote, Search, Menu, ChevronDown } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { NavbarPostItButton } from './navbar-postit-button'
+import { CategoryFilter } from './category-filter'
+export function Navbar({ initialCategories, initialSettings }: { initialCategories?: any[], initialSettings?: any }) {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '')
+  // Use initial data if available, otherwise fallback to empty/null (fetching can be done if needed, but we pass from Layout)
+  const [categories, setCategories] = useState(initialCategories || [])
+  const [siteSettings, setSiteSettings] = useState<any>(initialSettings || null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  const userRole = (session?.user as any)?.role
+
+  // Update query in URL when searching (debounced slightly to prevent excessive routing)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const params = new URLSearchParams(searchParams?.toString())
+      if (searchQuery) {
+        params.set('q', searchQuery)
+      } else {
+        params.delete('q')
+      }
+
+      const paramStr = params.toString()
+      const newUrl = paramStr ? `/?${paramStr}` : '/'
+
+      if (window.location.pathname === '/') {
+        router.push(newUrl, { scroll: false })
+      }
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery, router, searchParams])
+
+  useEffect(() => {
+    let mounted = true
+
+    if (!initialCategories || initialCategories.length === 0) {
+      fetch('/api/categories')
+        .then(res => res.json())
+        .then(data => {
+          if (mounted && data.categories) {
+            const filterActive = (cats: any[]): any[] => {
+              const now = new Date();
+              return cats.filter((c: any) => {
+                const isExpired = c.expirationDate && new Date(c.expirationDate) < now;
+                return c.isActive !== false && !isExpired;
+              }).map((c: any) => ({
+                ...c,
+                children: c.children ? filterActive(c.children) : []
+              }));
+            };
+            setCategories(filterActive(data.categories));
+          }
+        })
+        .catch(err => console.error("Error fetching categories:", err))
+    }
+
+    if (!initialSettings) {
+      fetch('/api/settings')
+        .then(res => res.json())
+        .then(data => {
+          if (mounted && data.settings) setSiteSettings(data.settings)
+        })
+        .catch(err => console.error("Error fetching settings:", err))
+    }
+
+    return () => { mounted = false }
+  }, []) // Removed dependency array objects that change identity on every render
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: false })
+    window.location.href = '/'
+  }
+
+  const currentCategoryId = searchParams?.get('category')
+  const currentCategory: any = currentCategoryId ? categories.find((c: any) => c.id === currentCategoryId) : null
+
+  const isSet = (val: any) => val !== null && val !== undefined && val !== ''
+
+  const effectiveSettings = siteSettings ? {
+    ...siteSettings,
+    ...(currentCategory ? {
+      navMenuBgColor: isSet(currentCategory.navMenuBgColor) ? currentCategory.navMenuBgColor : '#ffffff',
+      navMenuFont: isSet(currentCategory.navMenuFont) ? currentCategory.navMenuFont : 'sans-serif',
+      navMenuTextColor: isSet(currentCategory.navMenuTextColor) ? currentCategory.navMenuTextColor : '#111827',
+      navMenuFontSize: isSet(currentCategory.navMenuFontSize) ? currentCategory.navMenuFontSize : 14,
+      navMenuMainBold: currentCategory.navMenuMainBold !== null ? currentCategory.navMenuMainBold : true,
+    } : {
+      navMenuBgColor: siteSettings.navMenuBgColor || '#ffffff',
+      navMenuFont: siteSettings.navMenuFont || 'sans-serif',
+      navMenuTextColor: siteSettings.navMenuTextColor || '#111827',
+      navMenuFontSize: siteSettings.navMenuFontSize || 14,
+      navMenuMainBold: siteSettings.navMenuMainBold !== null ? siteSettings.navMenuMainBold : true,
+    })
+  } : null
+
+  const isModern = effectiveSettings?.navMenuVariant === 'modern' || effectiveSettings?.calendarViewType === 'modern'
+  const isTransparent = effectiveSettings?.navMenuIsTransparent || false
+  const navBgImage = effectiveSettings?.navMenuBackgroundImage
+
+  return (
+    <nav 
+      className={`relative sm:sticky sm:top-0 z-[60] transition-colors duration-300 ${isTransparent ? 'bg-transparent border-transparent' : (isModern ? 'bg-[#0f1523]/95 backdrop-blur-md border-b border-white/10' : 'bg-white/80 backdrop-blur-md border-b border-gray-200')}`}
+      style={navBgImage && !isTransparent ? { backgroundImage: `url(${navBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap sm:flex-nowrap justify-between items-center py-2 sm:py-0 sm:h-16 gap-y-3 sm:gap-y-0">
+          {/* Logo & Category Menu */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 order-1">
+            <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={isModern ? "ghost" : "outline"}
+                  className={`gap-2 transition-all duration-300 shadow-sm px-3 md:px-4 ${isModern ? 'bg-[#182136] hover:bg-[#1e293b] border-transparent text-white/90' : 'border-yellow-400/50 hover:border-yellow-400 hover:bg-yellow-50'}`}
+                >
+                  <Menu className={`w-5 h-5 ${isModern ? 'text-blue-500' : 'text-yellow-600'}`} />
+                  <span className={`font-semibold text-sm hidden sm:inline ${isModern ? 'text-blue-100' : 'text-gray-700'}`}>Kategoriler</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''} ${isModern ? 'text-gray-500' : 'text-gray-400'}`} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="w-auto min-w-[280px] max-w-[90vw] whitespace-nowrap max-h-[80vh] overflow-y-auto p-4 z-[100] shadow-xl border"
+                style={{ backgroundColor: effectiveSettings?.navMenuBgColor || '#ffffff' }}
+              >
+                {categories.length > 0 ? (
+                  <CategoryFilter
+                    categories={categories.filter((c: any) => !c.parentId)}
+                    onSelect={() => setIsMenuOpen(false)}
+                    settings={effectiveSettings}
+                  />
+                ) : (
+                  <div className="flex justify-center p-4">Yükleniyor...</div>
+                )}
+              </PopoverContent>
+            </Popover>
+            <Link href="/" className="flex items-center gap-2 group">
+              <div className="flex flex-col -gap-1">
+                <div className={`text-[10px] md:text-[11px] font-medium uppercase tracking-widest leading-none ml-1 opacity-80 ${isModern ? 'text-blue-400/80' : 'text-gray-500'}`}>
+                  {currentCategory ? currentCategory.name : 'Ana Pano'}
+                </div>
+                <div className={`${publicSans.className} text-3xl md:text-2xl lg:text-3xl bg-red-600 text-white px-3 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-tight mt-1 tracking-tight`}>
+                  Panoda Şehir
+                </div>
+              </div>
+            </Link>
+          </div>
+
+          {/* Search Box & Action */}
+          <div className="w-full sm:w-auto flex-1 max-w-2xl sm:mx-4 flex justify-end sm:justify-start items-center gap-4 order-3 sm:order-2">
+            <div className="relative flex-1 block">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Search className={`h-5 w-5 ${isModern ? 'text-gray-500' : 'text-gray-500'}`} strokeWidth={2.5} />
+              </div>
+              <input
+                type="text"
+                placeholder="Şehirde ara..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`block w-full pl-11 pr-4 py-2 border-2 rounded-lg leading-5 font-medium focus:outline-none focus:ring-2 sm:text-sm transition-shadow shadow-sm focus:shadow-md ${isModern ? 'bg-[#182136] border-white/5 text-gray-200 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 focus:bg-[#1e2a42]' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:ring-yellow-400 focus:border-yellow-500'}`}
+              />
+            </div>
+            {session && (
+              <NavbarPostItButton
+                userGroupIds={(session?.user as any)?.userGroupIds}
+                userRole={userRole}
+                defaultCategoryId={searchParams?.get('category') || undefined}
+              />
+            )}
+          </div>
+
+          {/* Right side */}
+          <div className="flex items-center gap-4 order-2 sm:order-3">
+            {status === 'loading' ? (
+              <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
+            ) : session ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant={isModern ? "ghost" : "outline"} className={`gap-2 ${isModern ? 'bg-[#182136] hover:bg-[#1e293b] text-blue-100 hover:text-white border-transparent' : ''}`}>
+                    {(session?.user as any)?.image ? (
+                        <img src={(session?.user as any).image} alt="Profil" className={`w-6 h-6 rounded-full object-cover border ${isModern ? 'border-white/10' : 'border-gray-200'}`} />
+                    ) : (
+                        <User className="w-4 h-4" />
+                    )}
+                    {(session?.user as any)?.nickname || session?.user?.name}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex items-center gap-3 space-y-1">
+                      {(session?.user as any)?.image && (
+                          <img src={(session?.user as any).image} alt="Profil" className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                      )}
+                      <div>
+                        <p className="font-medium leading-none">{(session?.user as any)?.nickname || session?.user?.name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{session?.user?.email}</p>
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {(userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER' || userRole === 'WALL_USER') && (
+                    <DropdownMenuItem onClick={() => router.push('/admin')}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>{userRole === 'SUPER_ADMIN' ? 'Admin Panel' : 'Yönetici Panel'}</span>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => router.push('/profile')}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profil Ayarları</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push('/my-postits')}>
+                    <StickyNote className="mr-2 h-4 w-4" />
+                    <span>Postlarım</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-500">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Çıkış Yap</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" className={`gap-2 ${isModern ? 'text-gray-300 hover:text-white hover:bg-white/5' : ''}`}>
+                    <LogIn className="w-4 h-4" />
+                    Giriş Yap
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button className={`gap-2 ${isModern ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border-0 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : ''}`}>
+                    Kayıt Ol
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </nav>
+  )
+}

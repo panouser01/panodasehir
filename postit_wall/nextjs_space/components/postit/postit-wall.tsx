@@ -16,17 +16,24 @@ interface PostIt {
   user: {
     id: string
     name?: string | null
+    nickname?: string | null
     email?: string | null
+    image?: string | null
   }
   category: {
     id: string
     name: string
+    ottModalBgType?: string
+    ottModalBgColor?: string
+    ottModalBgImage?: string
+    postitAppearance?: any
   }
   createdAt: Date | string
   PostItImage?: { url: string }[]
   likesCount?: number
   hasLiked?: boolean
   views?: number
+  comments?: any[]
 }
 
 interface PostItWallProps {
@@ -34,6 +41,13 @@ interface PostItWallProps {
   canDelete?: boolean
   currentUserId?: string
   separatorAds?: any[]
+  postitAppearance?: any
+  ottModalBgType?: string
+  ottModalBgColor?: string
+  ottModalBgColorAlpha?: number
+  ottModalBgImage?: string
+  ottModalTextColor?: string
+  ottCardRatio?: string
 }
 
 import { useSearchParams } from 'next/navigation'
@@ -72,7 +86,19 @@ function stringSimilarity(s1: string, s2: string): number {
   return (maxLen - distance) / parseFloat(maxLen.toString());
 }
 
-export function PostItWall({ initialPostits, canDelete, currentUserId, separatorAds = [] }: PostItWallProps) {
+export function PostItWall({ 
+  initialPostits, 
+  canDelete, 
+  currentUserId, 
+  separatorAds = [],
+  postitAppearance,
+  ottModalBgType,
+  ottModalBgColor,
+  ottModalBgColorAlpha,
+  ottModalBgImage,
+  ottModalTextColor,
+  ottCardRatio
+}: PostItWallProps) {
   const [postits, setPostits] = useState<PostIt[]>(initialPostits)
   const [isMounted, setIsMounted] = useState(false)
   const searchParams = useSearchParams()
@@ -89,16 +115,19 @@ export function PostItWall({ initialPostits, canDelete, currentUserId, separator
 
   const handleDelete = async (id: string) => {
     try {
+      // Instead of DELETE, we do soft-delete (unpublish) via PATCH
       const response = await fetch(`/api/postits/${id}`, {
-        method: 'DELETE',
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublished: false })
       })
 
       if (!response.ok) {
-        throw new Error('Silme işlemi başarısız')
+        throw new Error('Kaldırma işlemi başarısız')
       }
 
       setPostits(prev => prev.filter(p => p.id !== id))
-      toast.success('Post-it silindi')
+      toast.success('Post-it yayından kaldırıldı (Arşive eklendi)')
     } catch (error) {
       console.error('Delete error:', error)
       toast.error('Silme işlemi başarısız oldu')
@@ -110,7 +139,7 @@ export function PostItWall({ initialPostits, canDelete, currentUserId, separator
   const filteredPostits = postits.filter(postit => {
     if (!searchQuery) return true;
     const content = postit.content || '';
-    const name = postit.user?.name || '';
+    const name = postit.user?.nickname || postit.user?.name || '';
 
     // Quick exact substring match check
     const lowerQuery = searchQuery.toLowerCase();
@@ -175,8 +204,14 @@ export function PostItWall({ initialPostits, canDelete, currentUserId, separator
           spanClass = "sm:col-span-1 sm:row-span-2 lg:col-span-2";
         }
 
-        const shouldRenderAd = separatorAds && separatorAds.length > 0 && index > 0 && index % 12 === 0;
-        const ad = shouldRenderAd ? separatorAds[(Math.floor(index / 12) - 1) % separatorAds.length] : null;
+        // Calculate frequency based on the ad that would be shown (default 1 * 12 postits)
+        const adCandidates = separatorAds || [];
+        const adIndex = Math.floor(index / 12) - 1;
+        const candidateAd = adCandidates.length > 0 && adIndex >= 0 ? adCandidates[adIndex % adCandidates.length] : null;
+        const targetFrequency = candidateAd ? ((candidateAd as any).frequency || 1) * 12 : 12;
+        
+        const shouldRenderAd = adCandidates.length > 0 && index > 0 && index % targetFrequency === 0;
+        const ad = shouldRenderAd ? candidateAd : null;
 
         return (
           <React.Fragment key={postit.id}>
@@ -199,16 +234,32 @@ export function PostItWall({ initialPostits, canDelete, currentUserId, separator
                 font={postit.font}
                 pushpin={postit.pushpin}
                 rotation={postit.rotation}
-                userName={postit?.user?.name ?? 'Anonim'}
+                userName={postit?.user?.nickname || postit?.user?.name || 'Anonim'}
+                userImage={postit?.user?.image}
+                authorId={postit?.user?.id}
                 categoryName={postit?.category?.name ?? 'Genel'}
                 createdAt={postit.createdAt instanceof Date ? postit.createdAt : new Date(postit.createdAt)}
-                canDelete={canDelete ?? false}
+                canDelete={postit.isWeather ? false : (canDelete ?? false)}
                 onDelete={handleDelete}
                 initialLikesCount={postit.likesCount ?? 0}
                 initialHasLiked={postit.hasLiked ?? false}
                 initialViewsCount={postit.views ?? 0}
+                isWeather={postit.isWeather}
+                weatherTemp={postit.weatherTemp}
+                weatherCondition={postit.weatherCondition}
+                weatherBg={postit.weatherBg}
                 currentUserId={currentUserId}
                 isLarge={hasImages || isLongText}
+                comments={postit.comments}
+                postitAppearance={postit.category?.postitAppearance || postitAppearance}
+                ottModalBgType={ottModalBgType}
+                ottModalBgColor={ottModalBgColor}
+                ottModalBgColorAlpha={ottModalBgColorAlpha}
+                ottModalBgImage={ottModalBgImage}
+                ottModalTextColor={ottModalTextColor}
+                ottCardRatio={ottCardRatio}
+                textColor={postit.textColor}
+                textSize={postit.textSize}
               />
             </div>
           </React.Fragment>

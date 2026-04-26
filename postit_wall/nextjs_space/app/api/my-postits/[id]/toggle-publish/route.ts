@@ -41,8 +41,10 @@ export async function PATCH(
       )
     }
 
+    const userRole = (session.user as any)?.role
+
     // Check if post is expired
-    if (new Date(existingPost.expiresAt) < new Date()) {
+    if (new Date(existingPost.expiresAt) < new Date() && userRole !== 'SUPER_ADMIN') {
       return NextResponse.json(
         { error: 'Süresi dolmuş post-it\'lerin yayın durumu değiştirilemez' },
         { status: 400 }

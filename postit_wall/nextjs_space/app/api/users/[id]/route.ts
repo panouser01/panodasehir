@@ -25,6 +25,14 @@ export async function GET(
         email: true,
         name: true,
         role: true,
+        nickname: true,
+        companyName: true,
+        phone: true,
+        taxId: true,
+        cityId: true,
+        districtId: true,
+        receiveEmail: true,
+        receiveTelegram: true,
         createdAt: true,
         userGroups: { select: { id: true, name: true } },
         _count: { select: { postits: true } }
@@ -58,7 +66,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { name, email, role, password, userGroupIds } = body
+    const { name, email, role, password, userGroupIds, permissions, nickname, companyName, phone, taxId, cityId, districtId, receiveEmail, receiveTelegram } = body
 
     if (userRole === 'WALL_MANAGER') {
       // Wall manager cannot elevate privileges
@@ -137,6 +145,16 @@ export async function PATCH(
     if (email) updateData.email = email
     if (role) updateData.role = role
     if (password) updateData.password = await bcrypt.hash(password, 10)
+    if (permissions !== undefined) updateData.permissions = permissions
+
+    if (nickname !== undefined) updateData.nickname = nickname
+    if (companyName !== undefined) updateData.companyName = companyName
+    if (phone !== undefined) updateData.phone = phone
+    if (taxId !== undefined) updateData.taxId = taxId
+    if (cityId !== undefined) updateData.cityId = cityId || null
+    if (districtId !== undefined) updateData.districtId = districtId || null
+    if (receiveEmail !== undefined) updateData.receiveEmail = receiveEmail
+    if (receiveTelegram !== undefined) updateData.receiveTelegram = receiveTelegram
 
     if (userGroupIds !== undefined) {
       updateData.userGroups = {
@@ -226,6 +244,16 @@ export async function DELETE(
       if (!inAllowedGroups && !hasPostsInManagedCats) {
         return NextResponse.json({ error: 'Bu kullanıcıyı silme yetkiniz yok' }, { status: 403 })
       }
+    }
+
+    // Verify target user's email directly
+    const userToDelete = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: { email: true }
+    });
+
+    if (userToDelete?.email === 'admin@panodasehir.com') {
+      return NextResponse.json({ error: 'Ana Süper Admin (admin@panodasehir.com) kullanıcısı sistemin çalışması için gereklidir ve silinemez.' }, { status: 403 })
     }
 
     // Don't allow deleting yourself

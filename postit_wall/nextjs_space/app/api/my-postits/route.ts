@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            email: true
+            nickname: true,
+            email: true,
+            image: true
           }
         },
         category: {
@@ -37,7 +39,17 @@ export async function GET(request: NextRequest) {
             name: true
           }
         },
-        PostItImage: true
+        PostItImage: {
+          orderBy: {
+            id: 'asc'
+          }
+        },
+        comments: {
+          include: {
+            user: { select: { id: true, name: true, nickname: true, image: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
       },
       orderBy: {
         createdAt: 'desc'

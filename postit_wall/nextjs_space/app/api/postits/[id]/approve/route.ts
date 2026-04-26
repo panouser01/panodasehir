@@ -87,7 +87,12 @@ export async function PATCH(
 
     // Build update data
     const updateData: any = {}
-    if (isApproved !== undefined) updateData.isApproved = isApproved
+    if (isApproved !== undefined) {
+      updateData.isApproved = isApproved;
+      if (isApproved === true && postit.isPublished === true) {
+        updateData.hasBeenPublished = true;
+      }
+    }
     if (content !== undefined) updateData.content = content
     if (categoryId !== undefined) updateData.categoryId = categoryId
     if (color !== undefined) updateData.color = color
@@ -99,10 +104,27 @@ export async function PATCH(
       where: { id: params.id },
       data: updateData,
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, nickname: true, email: true } },
         category: { select: { id: true, name: true } }
       }
     })
+
+    // If it was just approved and is not a direct message, notify subscribers
+    if (isApproved === true && postit.isApproved === false && updatedPostit.isPublished && !updatedPostit.content.startsWith('[ÖZEL MESAJ]')) {
+      try {
+        const { notifySubscribers, notifyFollowers } = await import('@/lib/telegram');
+        const authorName = updatedPostit.user?.nickname || updatedPostit.user?.name || 'Bir kullanıcı';
+        const categoryName = updatedPostit.category?.name || 'Bilinmiyor';
+        const authorId = updatedPostit.user?.id;
+        
+        await notifySubscribers(updatedPostit.categoryId, categoryName, updatedPostit.content, authorName, authorId);
+        if (authorId) {
+          await notifyFollowers(authorId, authorName, updatedPostit.content, categoryName, updatedPostit.categoryId);
+        }
+      } catch (err) {
+        console.error("Abone bildirim hatası:", err);
+      }
+    }
 
     return NextResponse.json({ postit: updatedPostit })
   } catch (error) {

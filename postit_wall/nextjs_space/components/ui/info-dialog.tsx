@@ -11,14 +11,37 @@ interface InfoDialogProps {
 }
 
 export const InfoDialog = ({ isOpen, onOpenChange, title, content }: InfoDialogProps) => {
+    useEffect(() => {
+        if (isOpen) {
+            window.history.pushState({ infoDialog: true }, '', '#info')
+            
+            const handlePopState = () => {
+                onOpenChange(false)
+            }
+            
+            window.addEventListener('popstate', handlePopState)
+            
+            return () => {
+                window.removeEventListener('popstate', handlePopState)
+            }
+        }
+    }, [isOpen, onOpenChange])
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open && window.location.hash === '#info') {
+            window.history.back()
+        }
+        onOpenChange(open)
+    }
+
     return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+            <DialogContent className="w-[92vw] sm:w-full max-w-3xl max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 md:p-6 rounded-xl">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl font-bold border-b pb-4">{title}</DialogTitle>
+                    <DialogTitle className="text-xl md:text-2xl font-bold border-b pb-3 md:pb-4 pr-10">{title}</DialogTitle>
                 </DialogHeader>
                 <div
-                    className="py-6 leading-relaxed text-gray-700 prose max-w-none"
+                    className="py-4 md:py-6 leading-relaxed text-gray-700 prose prose-sm md:prose-base max-w-none break-words"
                     dangerouslySetInnerHTML={{ __html: content || 'İçerik henüz eklenmemiştir.' }}
                 />
             </DialogContent>

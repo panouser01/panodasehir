@@ -65,11 +65,11 @@ export function PostItStack({ postits, canDelete, currentUserId }: PostItStackPr
                     key={postits[currentIndex].id}
                     initial={{ opacity: 0, x: 200, rotateY: 90, scale: 0.8 }}
                     animate={{ opacity: 1, x: 0, rotateY: 0, scale: 1, zIndex: 20 }}
-                    exit={{ opacity: 0, x: -200, rotateY: -90, scale: 0.8, filter: 'blur(5px)', transition: { duration: 0.6 } }}
+                    exit={{ opacity: 0, x: -200, rotateY: -90, scale: 0.8, transition: { duration: 0.6 } }}
                     transition={{ duration: 0.6, type: "spring", bounce: 0.3 }}
                     className="absolute top-4 sm:top-6 w-[90%] sm:w-[80%] max-w-[350px] z-20"
                 >
-                    <div className="w-full drop-shadow-2xl">
+                    <div className="w-full shadow-2xl rounded-sm">
                         <PostItCard
                             id={postits[currentIndex].id}
                             content={postits[currentIndex].content}
@@ -80,17 +80,29 @@ export function PostItStack({ postits, canDelete, currentUserId }: PostItStackPr
                             font={postits[currentIndex].font}
                             pushpin={postits[currentIndex].pushpin}
                             rotation={postits[currentIndex].rotation}
-                            userName={postits[currentIndex]?.user?.name || 'Anonim'}
+                            userName={postits[currentIndex]?.user?.nickname || postits[currentIndex]?.user?.name || 'Anonim'}
+                            authorId={postits[currentIndex]?.user?.id}
                             categoryName={postits[currentIndex]?.category?.name || 'Genel'}
                             createdAt={new Date(postits[currentIndex].createdAt)}
-                            canDelete={canDelete}
+                            canDelete={postits[currentIndex].isWeather ? false : canDelete}
                             onDelete={() => { }}
                             onInteraction={(open) => setIsModalOpen(open)}
+                            isWeather={postits[currentIndex].isWeather}
+                            weatherTemp={postits[currentIndex].weatherTemp}
+                            weatherCondition={postits[currentIndex].weatherCondition}
+                            weatherBg={postits[currentIndex].weatherBg}
+                            weatherDaily={postits[currentIndex].weatherDaily}
+                            weatherHourly={postits[currentIndex].weatherHourly}
                             initialLikesCount={postits[currentIndex].likesCount || 0}
                             initialHasLiked={postits[currentIndex].hasLiked || false}
                             initialViewsCount={postits[currentIndex].views || 0}
                             currentUserId={currentUserId}
                             isLarge={false}
+                            comments={postits[currentIndex].comments || []}
+                            postitAppearance={postits[currentIndex].category?.postitAppearance || undefined}
+                            ottModalBgType={(postits[currentIndex].category?.ottModalBgType && postits[currentIndex].category.ottModalBgType !== 'postit') ? postits[currentIndex].category.ottModalBgType : (postits[currentIndex].category?.ottModalBgType || undefined)}
+                            ottModalBgColor={(postits[currentIndex].category?.ottModalBgType && postits[currentIndex].category.ottModalBgType !== 'postit') ? postits[currentIndex].category.ottModalBgColor : undefined}
+                            ottModalBgImage={(postits[currentIndex].category?.ottModalBgType && postits[currentIndex].category.ottModalBgType !== 'postit') ? postits[currentIndex].category.ottModalBgImage : undefined}
                         />
                     </div>
                 </motion.div>

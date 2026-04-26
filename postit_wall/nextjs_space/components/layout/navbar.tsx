@@ -1,5 +1,8 @@
 'use client'
 
+import { Public_Sans } from 'next/font/google'
+const publicSans = Public_Sans({ subsets: ['latin'], weight: ['800', '900'] })
+
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
@@ -10,15 +13,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { LogOut, Settings, User, LogIn, StickyNote, Search, Menu, ChevronDown } from 'lucide-react'
+import { LogOut, Settings, User, LogIn, StickyNote, Search, Menu, ChevronDown, Star, Users, MapPin } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { NavbarPostItButton } from './navbar-postit-button'
 import { CategoryFilter } from './category-filter'
-import { PushpinLogo } from '../ui/pushpin-logo'
-
 export function Navbar({ initialCategories, initialSettings }: { initialCategories?: any[], initialSettings?: any }) {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -31,6 +36,16 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const userRole = (session?.user as any)?.role
+  const subscriptions = (session?.user as any)?.wallSubscriptions || []
+  const followingItems = (session?.user as any)?.following || []
+  const hasFavorites = subscriptions.length > 0 || followingItems.length > 0
+
+  useEffect(() => {
+    // If the URL drops the 'q' parameter (e.g. navigating to a category via link), clear the search bar.
+    if (!searchParams?.get('q') && searchQuery) {
+      setSearchQuery('')
+    }
+  }, [searchParams])
 
   // Update query in URL when searching (debounced slightly to prevent excessive routing)
   useEffect(() => {
@@ -46,9 +61,12 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
       const newUrl = paramStr ? `/?${paramStr}` : '/'
 
       if (window.location.pathname === '/') {
-        router.push(newUrl, { scroll: false })
+        const currentUrl = window.location.pathname + window.location.search
+        if (newUrl !== currentUrl) {
+          router.replace(newUrl, { scroll: false })
+        }
       }
-    }, 300)
+    }, 800)
 
     return () => clearTimeout(timeoutId)
   }, [searchQuery, router, searchParams])
@@ -60,7 +78,19 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
       fetch('/api/categories')
         .then(res => res.json())
         .then(data => {
-          if (mounted && data.categories) setCategories(data.categories)
+          if (mounted && data.categories) {
+            const filterActive = (cats: any[]): any[] => {
+              const now = new Date();
+              return cats.filter((c: any) => {
+                const isExpired = c.expirationDate && new Date(c.expirationDate) < now;
+                return c.isActive !== false && !isExpired;
+              }).map((c: any) => ({
+                ...c,
+                children: c.children ? filterActive(c.children) : []
+              }));
+            };
+            setCategories(filterActive(data.categories));
+          }
         })
         .catch(err => console.error("Error fetching categories:", err))
     }
@@ -78,7 +108,8 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
   }, []) // Removed dependency array objects that change identity on every render
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' })
+    await signOut({ redirect: false })
+    window.location.href = '/'
   }
 
   const currentCategoryId = searchParams?.get('category')
@@ -103,26 +134,33 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
     })
   } : null
 
+  const isModern = effectiveSettings?.navMenuVariant === 'modern' || effectiveSettings?.calendarViewType === 'modern'
+  const isTransparent = effectiveSettings?.navMenuIsTransparent || false
+  const navBgImage = effectiveSettings?.navMenuBackgroundImage
+
   return (
-    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200">
+    <nav 
+      className={`relative sm:sticky sm:top-0 z-[80] transition-colors duration-300 ${isTransparent ? 'bg-transparent border-transparent' : (isModern ? 'bg-[#0f1523]/95 backdrop-blur-md border-b border-white/10' : 'bg-white/80 backdrop-blur-md border-b border-gray-200')}`}
+      style={navBgImage && !isTransparent ? { backgroundImage: `url(${navBgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex flex-wrap sm:flex-nowrap justify-between items-center py-2 sm:py-0 sm:h-16 gap-y-3 sm:gap-y-0">
           {/* Logo & Category Menu */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 order-1">
+            <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen} modal={true}>
               <PopoverTrigger asChild>
                 <Button
-                  variant="outline"
-                  className="gap-2 border-yellow-400/50 hover:border-yellow-400 hover:bg-yellow-50 transition-all duration-300 shadow-sm px-3 md:px-4"
+                  variant={isModern ? "ghost" : "outline"}
+                  className={`gap-2 transition-all duration-300 shadow-sm px-3 md:px-4 ${isModern ? 'bg-[#182136] hover:bg-[#1e293b] border-transparent text-white/90' : 'border-yellow-400/50 hover:border-yellow-400 hover:bg-yellow-50'}`}
                 >
-                  <Menu className="w-5 h-5 text-yellow-600" />
-                  <span className="font-semibold text-gray-700 text-sm">Kategoriler</span>
-                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                  <Menu className={`w-5 h-5 ${isModern ? 'text-blue-500' : 'text-yellow-600'}`} />
+                  <span className={`font-semibold text-sm hidden sm:inline ${isModern ? 'text-blue-100' : 'text-gray-700'}`}>Kategoriler</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''} ${isModern ? 'text-gray-500' : 'text-gray-400'}`} />
                 </Button>
               </PopoverTrigger>
               <PopoverContent
                 align="start"
-                className="w-72 max-h-[80vh] overflow-y-auto p-4 z-[100] shadow-xl border"
+                className="w-auto min-w-[280px] max-w-[90vw] whitespace-nowrap max-h-[80vh] overflow-y-auto overscroll-contain p-4 z-[100] shadow-xl border"
                 style={{ backgroundColor: effectiveSettings?.navMenuBgColor || '#ffffff' }}
               >
                 {categories.length > 0 ? (
@@ -137,58 +175,59 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
               </PopoverContent>
             </Popover>
             <Link href="/" className="flex items-center gap-2 group">
-              <PushpinLogo size={32} className="drop-shadow-sm transition-transform group-hover:rotate-12 duration-300" />
               <div className="flex flex-col -gap-1">
-                <div className="text-2xl font-bold md:text-xl lg:text-2xl bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap leading-tight">
-                  Panoda Şehir
-                </div>
-                <div className="text-[10px] md:text-[11px] font-medium text-gray-500 uppercase tracking-widest leading-none ml-1 opacity-80">
+                <div className={`text-[10px] md:text-[11px] font-medium uppercase tracking-widest leading-none ml-1 opacity-80 ${isModern ? 'text-blue-400/80' : 'text-gray-500'}`}>
                   {currentCategory ? currentCategory.name : 'Ana Pano'}
+                </div>
+                <div className={`${publicSans.className} text-3xl md:text-2xl lg:text-3xl bg-red-600 text-white px-3 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-tight mt-1 tracking-tight`}>
+                  Panoda Şehir
                 </div>
               </div>
             </Link>
           </div>
 
           {/* Search Box & Action */}
-          <div className="flex-1 max-w-2xl mx-4 hidden sm:flex items-center gap-4">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
+          <div className="w-full sm:w-auto flex-1 max-w-2xl sm:mx-4 flex justify-end sm:justify-start items-center gap-4 order-3 sm:order-2">
+            <div className="relative flex-1 block">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <Search className={`h-5 w-5 ${isModern ? 'text-gray-500' : 'text-gray-500'}`} strokeWidth={2.5} />
               </div>
               <input
                 type="text"
-                placeholder="Şehirde ara..."
+                placeholder="Tüm panolarda ara..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 sm:text-sm"
+                className={`block w-full pl-11 pr-4 py-2 border-2 rounded-lg leading-5 font-medium focus:outline-none focus:ring-2 sm:text-sm transition-shadow shadow-sm focus:shadow-md ${isModern ? 'bg-[#182136] border-white/5 text-gray-200 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 focus:bg-[#1e2a42]' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:ring-yellow-400 focus:border-yellow-500'}`}
               />
             </div>
-            {session && (
-              <NavbarPostItButton
-                userGroupIds={(session?.user as any)?.userGroupIds}
-                userRole={userRole}
-                defaultCategoryId={searchParams?.get('category') || undefined}
-              />
-            )}
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 order-2 sm:order-3">
             {status === 'loading' ? (
               <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
             ) : session ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <User className="w-4 h-4" />
-                    {session?.user?.name}
+                  <Button variant={isModern ? "ghost" : "outline"} className={`gap-2 ${isModern ? 'bg-[#182136] hover:bg-[#1e293b] text-blue-100 hover:text-white border-transparent' : ''}`}>
+                    {(session?.user as any)?.image ? (
+                        <img src={(session?.user as any).image} alt="Profil" className={`w-6 h-6 rounded-full object-cover border ${isModern ? 'border-white/10' : 'border-gray-200'}`} />
+                    ) : (
+                        <User className="w-4 h-4" />
+                    )}
+                    {(session?.user as any)?.nickname || session?.user?.name}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
-                    <div className="flex flex-col space-y-1">
-                      <p className="font-medium leading-none">{session?.user?.name}</p>
-                      <p className="text-xs text-muted-foreground">{session?.user?.email}</p>
+                    <div className="flex items-center gap-3 space-y-1">
+                      {(session?.user as any)?.image && (
+                          <img src={(session?.user as any).image} alt="Profil" className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                      )}
+                      <div>
+                        <p className="font-medium leading-none">{(session?.user as any)?.nickname || session?.user?.name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{session?.user?.email}</p>
+                      </div>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -206,6 +245,52 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
                     <StickyNote className="mr-2 h-4 w-4" />
                     <span>Postlarım</span>
                   </DropdownMenuItem>
+
+                  {hasFavorites && (
+                    <DropdownMenuGroup>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <Star className="mr-2 h-4 w-4 text-yellow-500" />
+                          <span>Favoriler</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent className="w-48 max-h-[300px] overflow-y-auto">
+                            {subscriptions.length > 0 && (
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel className="flex items-center text-xs text-muted-foreground p-2 pb-1">
+                                  <MapPin className="mr-1 h-3 w-3" /> Duvarlar
+                                </DropdownMenuLabel>
+                                {subscriptions.map((sub: any) => (
+                                  <DropdownMenuItem key={sub.categoryId} onClick={() => router.push(`/?category=${sub.categoryId}`)}>
+                                    <span className="truncate">{sub.category?.name}</span>
+                                  </DropdownMenuItem>
+                                ))}
+                                {followingItems.length > 0 && <DropdownMenuSeparator className="my-1" />}
+                              </DropdownMenuGroup>
+                            )}
+                            
+                            {followingItems.length > 0 && (
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel className="flex items-center text-xs text-muted-foreground p-2 pb-1">
+                                  <Users className="mr-1 h-3 w-3" /> Takiplerim
+                                </DropdownMenuLabel>
+                                {followingItems.map((fol: any) => (
+                                  <DropdownMenuItem key={fol.followingId}>
+                                    {fol.following?.image ? (
+                                      <img src={fol.following.image} alt="" className="mr-2 h-4 w-4 rounded-full object-cover" />
+                                    ) : (
+                                      <User className="mr-2 h-4 w-4" />
+                                    )}
+                                    <span className="truncate">{fol.following?.nickname || fol.following?.name}</span>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuGroup>
+                            )}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuSub>
+                    </DropdownMenuGroup>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-500">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -216,13 +301,15 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
             ) : (
               <>
                 <Link href="/login">
-                  <Button variant="ghost" className="gap-2">
+                  <Button variant="ghost" className={`gap-2 ${isModern ? 'text-gray-300 hover:text-white hover:bg-white/5' : ''}`}>
                     <LogIn className="w-4 h-4" />
                     Giriş Yap
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button className="gap-2">Kayıt Ol</Button>
+                  <Button className={`gap-2 ${isModern ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border-0 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : ''}`}>
+                    Kayıt Ol
+                  </Button>
                 </Link>
               </>
             )}

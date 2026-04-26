@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { PushpinLogo } from '@/components/ui/pushpin-logo'
+import { Public_Sans } from 'next/font/google'
+const publicSans = Public_Sans({ subsets: ['latin'], weight: ['800', '900'] })
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -15,6 +16,8 @@ export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [showResend, setShowResend] = useState(false)
+  const [resending, setResending] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -32,17 +35,49 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        toast.error('Geçersiz email veya şifre')
+        if (result.error.toLowerCase().includes('doğrula') || result.error.includes('onay')) {
+          toast.error(result.error)
+          setShowResend(true)
+        } else {
+          toast.error('Geçersiz email veya şifre')
+          setShowResend(false)
+        }
         return
       }
 
+      setShowResend(false)
+
       toast.success('Giriş başarılı!')
-      router.push('/')
+      window.location.href = '/'
     } catch (error) {
       console.error('Login error:', error)
       toast.error('Giriş yapılırken hata oluştu')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (!formData.email) {
+      toast.error('Lütfen e-posta adresinizi girin.')
+      return
+    }
+    setResending(true)
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gönderilemedi')
+      
+      toast.success('Onay e-postası tekrar gönderildi. Lütfen gelen kutunuzu kontrol edin.')
+      setShowResend(false)
+    } catch (error: any) {
+      toast.error(error.message)
+    } finally {
+      setResending(false)
     }
   }
 
@@ -62,9 +97,8 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <PushpinLogo size={40} className="drop-shadow-md" />
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+            <div className="flex items-center justify-center mb-2">
+              <h1 className={`${publicSans.className} text-3xl font-bold bg-red-600 text-white px-4 py-1.5 rounded-lg shadow-sm tracking-tight`}>
                 Panoda Şehir
               </h1>
             </div>
@@ -130,7 +164,12 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <Label htmlFor="password">Şifre</Label>
+              <div className="flex justify-between items-center mb-1">
+                <Label htmlFor="password">Şifre</Label>
+                <Link href="/forgot-password" className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline">
+                  Şifremi Unuttum?
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -144,7 +183,7 @@ export default function LoginPage() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+            <Button type="submit" className="w-full" disabled={loading || googleLoading || resending}>
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -154,6 +193,25 @@ export default function LoginPage() {
                 'Giriş Yap'
               )}
             </Button>
+            
+            {showResend && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full border-[#facc15] text-amber-600 hover:bg-yellow-50 mt-2"
+                onClick={handleResend}
+                disabled={resending}
+              >
+                {resending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Gönderiliyor...
+                  </>
+                ) : (
+                  'Onay E-postasını Tekrar Gönder'
+                )}
+              </Button>
+            )}
           </form>
 
           <div className="mt-6 text-center text-sm">

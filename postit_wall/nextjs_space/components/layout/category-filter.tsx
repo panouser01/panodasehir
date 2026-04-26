@@ -8,6 +8,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 interface Category {
   id: string
   name: string
+  icon?: string
   postCount: number
   children?: Category[]
 }
@@ -110,6 +111,7 @@ export function CategoryFilter({ categories, onSelect, settings }: CategoryFilte
               fontSize: settings?.navMenuFontSize ? `${settings.navMenuFontSize}px` : undefined
             }}
           >
+            {category.icon && <span className="mr-2 text-lg leading-none">{category.icon}</span>}
             {category.name}
             <span
               className="ml-auto text-[10px] text-muted-foreground bg-black/5 px-2 py-0.5 rounded-full inline-block min-w-[20px] text-center"

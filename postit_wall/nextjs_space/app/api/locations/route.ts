@@ -36,7 +36,7 @@ export async function POST(req: Request) {
         }
 
         const json = await req.json()
-        const { type, name, cityId } = json
+        const { type, name, cityId, showInWeather } = json
 
         if (!name) {
             return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
         if (type === 'CITY') {
             const city = await prisma.city.create({
-                data: { name }
+                data: { name, showInWeather: showInWeather || false }
             })
             return NextResponse.json(city)
         } else if (type === 'DISTRICT') {

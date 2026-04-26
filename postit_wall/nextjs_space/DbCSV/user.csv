@@ -1,0 +1,11 @@
+id,email,emailVerified,password,name,image,role,companyName,phone,taxId,createdAt,updatedAt,cityId,districtId
+cmmhv4lur0000w8z0r17p4hcz,admin@panodasehir.com,,$2a$10$b8ChzApDHbua3Jgey9uH.e2n9OzICzz3kE6zDdEHpvErtfmUoNA7i,Süper Admin,,SUPER_ADMIN,,,,2026-03-08T14:43:49.540Z,2026-03-08T22:47:27.530Z,,
+cmmhv4lv20001w8z02d86bvb4,john@doe.com,,$2a$10$mqkjTB1oOeN4oZmbmNVfh.m8cfkt1PcSO9uvYRned7co7gj4wR8gS,Test Kullanıcı,,USER,,,,2026-03-08T14:43:49.551Z,2026-03-08T23:33:08.541Z,,
+cmmhv4lxw0002w8z08sujksmd,teknoloji@panodasehir.com,,$2a$10$1RAWltKEyVEQnoUA8c47YefONVT7YXciV3UPYaCwyY6sVdkcyX6T.,Teknoloji Yöneticisi,,WALL_MANAGER,,,,2026-03-08T14:43:49.653Z,2026-03-08T14:43:49.653Z,,
+cmmhv4m0t0003w8z0ly38u4dl,sanat@panodasehir.com,,$2a$10$hJney3a/6mz/BfzEjkwvPedntzpZMT/p155/l.P..Bf9i/UL041Qa,Sanat Yöneticisi,,WALL_MANAGER,,,,2026-03-08T14:43:49.757Z,2026-03-08T14:43:49.757Z,,
+cmmhv4m3q0004w8z09val79mq,ahmet@example.com,,$2a$10$Ny8oyDm.31XDVz2puLKOruQQtphyklWsLWrJsQFdu/57LXCKwDh32,Ahmet Yılmaz,,USER,,,,2026-03-08T14:43:49.862Z,2026-03-08T14:43:49.862Z,,
+cmmhv4m6a0005w8z0hbpywpg9,ayse@example.com,,$2a$10$MF4qGh9YZLTqXiZjirINqeTdTpd7NiRDT0pw39PxOjGi9p19CWYum,Ayşe Kaya,,USER,,,,2026-03-08T14:43:49.954Z,2026-03-08T23:08:04.581Z,,
+cmmi9essi0005w8i5990ovtwd,izzetyasin@gmail.com,,$2a$10$pSXIqmr3BVF/mt94y1lgdOUXlqHzcV1RbBQZem./ICq4h7UqwVExm,İzzet Yasin BAŞOĞLU,,WALL_MANAGER,,,,2026-03-08T21:23:39.714Z,2026-03-08T23:06:38.287Z,,
+cmmie5oud0000w8qsmp5imi5r,ege@ege.com,,$2a$10$lBKy47s/OeR5KWI55pdpIuzkQcqOPpltWPsG9K.GhzNoxgX7HLcaO,testege,,WALL_USER,,,,2026-03-08T23:36:32.774Z,2026-03-08T23:53:02.792Z,,
+cmmie8uno0001w8qsblphimb1,test9eylul@9eylul.com,,$2a$10$LxgHmlBlGZgIJ1gXdYaQ0unfNGuiHTJ8NgB6xXEboOoAW/28JrnPy,test9eylül,,USER,,,,2026-03-08T23:39:00.277Z,2026-03-08T23:39:00.277Z,,
+cmmnbt7rx0005w8rv9k8a594q,sibel@panodasehir.com,,$2a$10$2rRW6KkjGs1q8kAfa0eSIOK.AdkVJpXBkzAm6ZuspKizKq.uda0Wm,Sibel,,USER,,,,2026-03-12T10:29:42.430Z,2026-03-12T10:29:42.430Z,,

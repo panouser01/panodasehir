@@ -30,8 +30,21 @@ export function NavbarPostItButton({ userGroupIds, userRole, defaultCategoryId }
                         return result
                     }
 
+                    // Filter active and non-expired categories recursively
+                    const filterActive = (cats: any[]): any[] => {
+                        const now = new Date();
+                        return cats.filter((c: any) => {
+                          const isExpired = c.expirationDate && new Date(c.expirationDate) < now;
+                          return c.isActive !== false && !isExpired;
+                        }).map((c: any) => ({
+                          ...c,
+                          children: c.children ? filterActive(c.children) : []
+                        }));
+                    };
+
+                    const activeCategories = filterActive(data.categories || [])
                     // Filter out root categories
-                    const rootCategories = (data.categories || []).filter((c: any) => c.parentId === null)
+                    const rootCategories = activeCategories.filter((c: any) => c.parentId === null)
                     setCategories(flattenCategories(rootCategories))
                 }
             } catch (e) {

@@ -1,0 +1,93 @@
+[TAILING] Tailing last 50 lines for [panodasehir] process (change the value with --lines option)
+/root/.pm2/logs/panodasehir-out.log last 50 lines:
+0|panodase | �ltür & Sanat","width":"third","noBorder":true,"categoryId":"cmmuh4vr50001w8wtt7bqv9mc","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/e61f41d9-777c-4b74-857a-4d8564a418b5-kategorizemin3.png","ribbonTextColor":"#9cb0ec"},{"id":"oxeze3r3f","type":"category_posts","title":"Spor","width":"third","noBorder":true,"categoryId":"cmmuhf6v8000yw8wtx3fosjpa","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/78c7756f-b264-4005-a56b-1ddb5aad4c50-kategorizemin3.png"},{"id":"vvg22kl82","type":"category_posts","title":"Duyurular","width":"third","noBorder":true,"categoryId":"cmmuhsl87000gw8qz5eduhe0o","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/d4c1745b-d992-4594-a323-881db519ae4d-kategorizemin3.png"},{"id":"on57ldgra","type":"category_posts","title":"Alışveriş","width":"third","noBorder":true,"categoryId":"cmmuhv8hq000sw8qz4vbxxv8h","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/798639cf-e476-4c2e-9805-05e6f1b1c266-zeminpin2.png"},{"id":"787cxvxup","type":"category_posts","title":"Güzellik / Moda","width":"third","noBorder":true,"categoryId":"cmmuinsxe001jw8qzmyw6sfy1","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/b5533ee1-8cf9-48e1-ac09-47b7f13be1b4-kategorizemin3.png"},{"id":"ljwtski5j","type":"category_posts","title":"Sağlık Yaşam","width":"third","noBorder":true,"categoryId":"cmmujopsz0024w8qzr29j2dxw","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/12b6263b-d765-4fae-a13a-e8ae9bb49988-kategorizemin3.png"},{"id":"jig7fyh8o","type":"category_posts","title":"SON DAKİKA","width":"third","noBorder":true,"categoryId":"cmmujx17x002pw8qzfrxchmn1","ribbonColor":"#f51800","isTransparent":true,"backgroundImage":"/uploads/36f4c49b-641a-4b83-8340-4e41455c2743-kategorizemin2.webp"}],"postitAppearance":{"font":"font-sans","textSize":"text-base","shapeType":"transparent","textColor":"#ffffff","ottModalFont":"font-serif","animationStyle":"flat","backgroundImage":"/uploads/10f2768a-78e6-4e8c-8842-3d8de052941f-alan1.webp","ottModalTextSize":"text-lg","ottCellBorderEnabled":false,"ottCellBorderColor":"#fcfcfc","ottCellBorderRadius":"4px"},"isOttActive":true,"ottItemsPerRow":5,"ottCardRatio":"9/13","ottAutoScrollSpeed":0,"ottShowTopMenu":true,"ottShowHeroSlider":true,"ottTopMenuShape":"circle","ottShowCategoryTitles":true,"ottCardStyle":"polaroid","ottCategoryTitleSize":"2xl","ottCategoryTitleColor":"#fbe9e9","ottCategoryTitleAlignment":"left","ottCategoryTitleFont":"calibri","ottSeparatorStyle":"solid","ottSeparatorColor":"#e7000b,#000000","ottTopMenuLabelBgColor":"","ottTopMenuLabelHasBorder":false,"ottTopMenuIconBgColor":"#250909","ottCardBgType":"transparent","ottCardBgColor":"#f91010","ottCardBgImage":"","ottModalBgType":"color","ottModalBgColor":"#f9f6f5","ottModalBgColorAlpha":70,"ottModalBgImage":"","ottModalTextColor":"#050000","ottTopMenuMarqueeActive":true,"ottTopMenuMarqueeSpeed":40,"isEditorModeActive":false,"isStyleModeActive":false,"styleModeSettings":"{}","isActive":true,"expirationDate":null}
+0|panodase | [API] Looking for roles with session: admin@panodasehir.com
+0|panodase | [API] Found 5 roles.
+0|panodase | CATEGORY PATCH DEBUG - ID: cmmhvhwof0001w8q547vndb0c
+0|panodase | CATEGORY PATCH DEBUG - Incoming postitAppearance: {
+0|panodase |   font: 'font-sans',
+0|panodase |   textSize: 'text-base',
+0|panodase |   shapeType: 'transparent',
+0|panodase |   textColor: '#ffffff',
+0|panodase |   ottModalFont: 'font-serif',
+0|panodase |   animationStyle: 'flat',
+0|panodase |   backgroundImage: '/uploads/10f2768a-78e6-4e8c-8842-3d8de052941f-alan1.webp',
+0|panodase |   ottModalTextSize: 'text-lg',
+0|panodase |   ottCellBorderEnabled: false,
+0|panodase |   ottCellBorderColor: '#fcfcfc',
+0|panodase |   ottCellBorderRadius: '4px'
+0|panodase | }
+0|panodase | CATEGORY PATCH DEBUG - Final updateData: {"name":"Ana Duvar","description":"Tüm Kategoriler","cityId":null,"districtId":null,"contactName":null,"contactPhone":null,"contactEmail":null,"icon":"📌","parentId":null,"wallManagers":{"set":[{"id":"cmmhv4lur0000w8z0r17p4hcz"},{"id":"cmmi9essi0005w8i5990ovtwd"},{"id":"cmn7ywrer0000m1qp93rks3kk"},{"id":"cmn8l1bc60002m11gvkvqgcwn"}]},"wallViewers":{"set":[]},"userGroupId":"cmnf3z0k2000bm1lqaivwqpm5","heroBackgroundImage":null,"heroBackgroundStyle":"cover","isHeroTransparent":false,"heroSubtitle":null,"heroTitleFont":"sans-serif","hideHeroText":false,"heroTitleColor":"#ffffff","heroTitleSize":"5xl","heroSubtitleFont":"sans-serif","heroSubtitleColor":"#ffffff","heroSubtitleSize":"xl","hideWallTitle":true,"hideWallRibbon":true,"hideHeroPushpin":false,"heroGradientFrom":"#facc15","heroGradientVia":"#f472b6","heroGradientTo":"#a855f7","heroAlignment":"left","ribbonColor":"none","ribbonTextColor":"#ffffff","ribbonTextFont":"sans-serif","customRibbonText":"","ribbonImage":"","ribbonAlignment":"center","backgroundColor":"","backgroundImage":"","borderColor":"","borderTopColor":"","borderBottomColor":"","isGradient":false,"gradientFrom":"#facc15","gradientVia":"#f472b6","gradientTo":"#a855f7","isWallTransparent":true,"noBorder":true,"noInnerBorder":true,"innerBackgroundColor":"#E8DCC4","isInnerTransparent":true,"navMenuBgColor":"#ffffff","navMenuFont":"sans-serif","navMenuTextColor":"#000000","navMenuFontSize":14,"navMenuMainBold":true,"siteBackgroundColor":"#eedabe","siteBackgroundImage":"","siteBackgroundStyle":"cover","siteGradientFrom":"#161b27","siteGradientVia":"#060d18","siteGradientTo":"#140000","siteIsGradient":true,"homeCategoryIds":["cmmuhsl87000gw8qz5eduhe0o","cmmujx17x002pw8qzfrxchmn1","cmmuh4vr50001w8wtt7bqv9mc","cmo0j9pfd0001m1jptxqiht10","cmnojhq030007m1lwfu5stf29","cmmuhv8hq000sw8qz4vbxxv8h","cmngfh2tp0001m1a7k9ofpbd9","cmmhv4m76000dw8z0uyxrcpjh","cmmuinsxe001jw8qzmyw6sfy1","cmmujvf1j002mw8qz2dpc1voy","cmmujopsz0024w8qzr29j2dxw","cmmuhf6v8000yw8wtx3fosjpa","cmmi9hgrq0009w8i59gfpxacc","cmmuheiqm000vw8wtf66x6xqd","cmmn3ril30001w8hw4kvzt44v","cmnf2l8ka0001m1lqjibqn0m9","cmmuhyd0k0014w8qz9rgwl9zn"],"postitLimit":0,"logoUrl":"/uploads/c630b176-400f-42b7-a7c5-4081960dcb23-logopano2.webp","logoPosition":"page-top-left","logoSize":"medium","useParentLogo":false,"useCustomLayout":false,"customLayout":[{"id":"something","type":"category_posts","title":"Eğitim","width":"third","noBorder":true,"categoryId":"cmmhv4m76000dw8z0uyxrcpjh","ribbonText":"Üniversiteler","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundColor":"#f4d18a","backgroundImage":"/uploads/b5090b4a-009c-407a-b8b9-70af183f7b83-zeminpin2.png"},{"id":"fx7sb87qt","type":"category_posts","title":"Kültür & Sanat","width":"third","noBorder":true,"categoryId":"cmmuh4vr50001w8wtt7bqv9mc","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/e61f41d9-777c-4b74-857a-4d8564a418b5-kategorizemin3.png","ribbonTextColor":"#9cb0ec"},{"id":"oxeze3r3f","type":"category_posts","title":"Spor","width":"third","noBorder":true,"categoryId":"cmmuhf6v8000yw8wtx3fosjpa","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/78c7756f-b264-4005-a56b-1ddb5aad4c50-kategorizemin3.png"},{"id":"vvg22kl82","type":"category_posts","title":"Duyurular","width":"third","noBorder":true,"categoryId":"cmmuhsl87000gw8qz5eduhe0o","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/d4c1745b-d992-4594-a323-881db519ae4d-kategorizemin3.png"},{"id":"on57ldgra","type":"category_posts","title":"Alışveriş","width":"third","noBorder":true,"categoryId":"cmmuhv8hq000sw8qz4vbxxv8h","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/798639cf-e476-4c2e-9805-05e6f1b1c266-zeminpin2.png"},{"id":"787cxvxup","type":"category_posts","title":"Güzellik / Moda","width":"third","noBorder":true,"categoryId":"cmmuinsxe001jw8qzmyw6sfy1","titleImage":"","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/b5533ee1-8cf9-48e1-ac09-47b7f13be1b4-kategorizemin3.png"},{"id":"ljwtski5j","type":"category_posts","title":"Sağlık Yaşam","width":"third","noBorder":true,"categoryId":"cmmujopsz0024w8qzr29j2dxw","ribbonColor":"#502bb1","isTransparent":true,"backgroundImage":"/uploads/12b6263b-d765-4fae-a13a-e8ae9bb49988-kategorizemin3.png"},{"id":"jig7fyh8o","type":"category_posts","title":"SON DAKİKA","width":"third","noBorder":true,"categoryId":"cmmujx17x002pw8qzfrxchmn1","ribbonColor":"#f51800","isTransparent":true,"backgroundImage":"/uploads/36f4c49b-641a-4b83-8340-4e41455c2743-kategorizemin2.webp"}],"postitAppearance":{"font":"font-sans","textSize":"text-base","shapeType":"transparent","textColor":"#ffffff","ottModalFont":"font-serif","animationStyle":"flat","backgroundImage":"/uploads/10f2768a-78e6-4e8c-8842-3d8de052941f-alan1.webp","ottModalTextSize":"text-lg","ottCellBorderEnabled":false,"ottCellBorderColor":"#fcfcfc","ottCellBorderRadius":"4px"},"isOttActive":true,"ottItemsPerRow":5,"ottCardRatio":"9/13","ottAutoScrollSpeed":0,"ottShowTopMenu":true,"ottShowHeroSlider":true,"ottTopMenuShape":"circle","ottShowCategoryTitles":true,"ottCardStyle":"polaroid","ottCategoryTitleSize":"2xl","ottCategoryTitleColor":"#fbe9e9","ottCategoryTitleAlignment":"left","ottCategoryTitleFont":"calibri","ottSeparatorStyle":"solid","ottSeparatorColor":"#e7000b,#000000","ottTopMenuLabelBgColor":"","ottTopMenuLabelHasBorder":false,"ottTopMenuIconBgColor":"#250909","ottCardBgType":"transparent","ottCardBgColor":"#f91010","ottCardBgImage":"","ottModalBgType":"color","ottModalBgColor":"#f9f6f5","ottModalBgColorAlpha":70,"ottModalBgImage":"","ottModalTextColor":"#050000","ottTopMenuMarqueeActive":true,"ottTopMenuMarqueeSpeed":40,"isEditorModeActive":false,"isStyleModeActive":false,"styleModeSettings":"{}","isActive":true,"expirationDate":null}
+0|panodase | [API] Looking for roles with session: admin@panodasehir.com
+0|panodase | [API] Found 5 roles.
+0|panodase | 
+0|panodase | > start
+0|panodase | > next start
+0|panodase | 
+0|panodase |   ▲ Next.js 14.2.28
+0|panodase |   - Local:        http://localhost:3000
+0|panodase | 
+0|panodase |  ✓ Starting...
+0|panodase |  ✓ Ready in 946ms
+0|panodase | 
+0|panodase | > start
+0|panodase | > next start
+0|panodase | 
+0|panodase |   ▲ Next.js 14.2.28
+0|panodase |   - Local:        http://localhost:3000
+0|panodase | 
+0|panodase |  ✓ Starting...
+0|panodase |  ✓ Ready in 779ms
+
+/root/.pm2/logs/panodasehir-error.log last 50 lines:
+0|panodase |     at async r7 (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+0|panodase |     at async doRender (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1427:30)
+0|panodase |     at async cacheEntry.responseCache.get.routeKind (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1588:28)
+0|panodase |     at async NextNodeServer.renderToResponseWithComponentsImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1496:28)
+0|panodase |     at async NextNodeServer.renderErrorToResponseImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2182:24)
+0|panodase |     at async pipe.req.req (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2056:30)
+0|panodase | Error: Failed to find Server Action "x". This request might be from an older or newer deployment. Original error: Cannot read properties of undefined (reading 'workers')
+0|panodase |     at rT (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:1766)
+0|panodase |     at /var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:303
+0|panodase |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|panodase |     at async rE (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:8146)
+0|panodase |     at async r7 (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+0|panodase |     at async doRender (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1427:30)
+0|panodase |     at async cacheEntry.responseCache.get.routeKind (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1588:28)
+0|panodase |     at async NextNodeServer.renderToResponseWithComponentsImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1496:28)
+0|panodase |     at async NextNodeServer.renderErrorToResponseImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2182:24)
+0|panodase |     at async pipe.req.req (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2056:30)
+0|panodase | Error: Failed to find Server Action "x". This request might be from an older or newer deployment. Original error: Cannot read properties of undefined (reading 'workers')
+0|panodase |     at rT (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:1766)
+0|panodase |     at /var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:303
+0|panodase |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|panodase |     at async rE (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:8146)
+0|panodase |     at async r7 (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+0|panodase |     at async doRender (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1427:30)
+0|panodase |     at async cacheEntry.responseCache.get.routeKind (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1588:28)
+0|panodase |     at async NextNodeServer.renderToResponseWithComponentsImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1496:28)
+0|panodase |     at async NextNodeServer.renderErrorToResponseImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2182:24)
+0|panodase |     at async pipe.req.req (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2056:30)
+0|panodase | Error: Failed to find Server Action "x". This request might be from an older or newer deployment. Original error: Cannot read properties of undefined (reading 'workers')
+0|panodase |     at rT (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:1766)
+0|panodase |     at /var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:303
+0|panodase |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|panodase |     at async rE (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:8146)
+0|panodase |     at async r7 (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+0|panodase |     at async doRender (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1427:30)
+0|panodase |     at async cacheEntry.responseCache.get.routeKind (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1588:28)
+0|panodase |     at async NextNodeServer.renderToResponseWithComponentsImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1496:28)
+0|panodase |     at async NextNodeServer.renderErrorToResponseImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2182:24)
+0|panodase |     at async pipe.req.req (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2056:30)
+0|panodase | Error: Failed to find Server Action "x". This request might be from an older or newer deployment. Original error: Cannot read properties of undefined (reading 'workers')
+0|panodase |     at rT (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:1766)
+0|panodase |     at /var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:303
+0|panodase |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|panodase |     at async rE (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:8146)
+0|panodase |     at async r7 (/var/www/panodasehir/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+0|panodase |     at async doRender (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1427:30)
+0|panodase |     at async cacheEntry.responseCache.get.routeKind (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1588:28)
+0|panodase |     at async NextNodeServer.renderToResponseWithComponentsImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:1496:28)
+0|panodase |     at async NextNodeServer.renderErrorToResponseImpl (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2182:24)
+0|panodase |     at async pipe.req.req (/var/www/panodasehir/node_modules/next/dist/server/base-server.js:2056:30)
+

@@ -1,0 +1,14 @@
+model ArticleComment {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String?
+  content   String   @db.Text
+  isQuestion Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([userId])
+}

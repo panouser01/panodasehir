@@ -37,6 +37,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Bu hesap Google ile oluşturulmuş. Lütfen Google ile giriş yapın.')
         }
 
+        if (!user.emailVerified && user.role !== 'ADMIN') {
+          throw new Error('Lütfen hesabınıza gönderilen onay bağlantısına tıklayarak e-postanızı doğrulayın.')
+        }
+
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
 
         if (!isPasswordValid) {
@@ -84,19 +88,24 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id
         token.role = (user as any).role ?? 'USER'
-        token.userGroupIds = (user as any).userGroupIds || []
       }
 
       // If we don't have user object (subsequent requests), fetch fresh data
-      if (!token.role || !token.userGroupIds) {
+      if (!token.role) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { role: true, userGroups: { select: { id: true } } }
+          select: { role: true }
         })
         if (dbUser) {
           token.role = dbUser.role
-          token.userGroupIds = dbUser.userGroups.map(ug => ug.id)
         }
+      }
+
+      // Important: Do NOT store large arrays like userGroupIds in the token.
+      // This causes the NextAuth cookie to exceed 4KB-8KB, leading to 
+      // HTTP 400 Bad Request errors from Nginx/Vercel when serving static chunks!
+      if (token.userGroupIds) {
+        delete token.userGroupIds
       }
 
       return token
@@ -105,7 +114,41 @@ export const authOptions: NextAuthOptions = {
       if (session?.user) {
         (session.user as any).id = token?.id as string
         (session.user as any).role = token?.role as string
-        (session.user as any).userGroupIds = (token?.userGroupIds as string[]) || []
+        
+        // Fetch userGroupIds directly from DB for each session access
+        // This avoids bloating the NextAuth JWT cookie and causing HTTP 400s
+        if (token?.id) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { 
+              nickname: true, 
+              permissions: true, 
+              userGroups: { select: { id: true } },
+              wallSubscriptions: {
+                select: {
+                  categoryId: true,
+                  category: { select: { id: true, name: true } }
+                }
+              },
+              following: {
+                select: {
+                  followingId: true,
+                  following: { select: { id: true, nickname: true, name: true, image: true } }
+                }
+              }
+            }
+          })
+          ;(session.user as any).userGroupIds = dbUser?.userGroups.map((ug: any) => ug.id) || []
+          ;(session.user as any).nickname = dbUser?.nickname || null
+          ;(session.user as any).permissions = dbUser?.permissions || []
+          ;(session.user as any).wallSubscriptions = dbUser?.wallSubscriptions || []
+          ;(session.user as any).following = dbUser?.following || []
+        } else {
+          ;(session.user as any).userGroupIds = []
+          ;(session.user as any).permissions = []
+          ;(session.user as any).wallSubscriptions = []
+          ;(session.user as any).following = []
+        }
       }
       return session
     },

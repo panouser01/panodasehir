@@ -1,3 +1,7 @@
-# Allow all web crawlers to access all content
 User-agent: *
 Allow: /
+Allow: /api/
+Allow: /uploads/
+
+# Sitemap
+Sitemap: https://panodasehir.com/sitemap.xml

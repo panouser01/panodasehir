@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { z } from 'zod'
+import { moderateContent } from '@/lib/moderation'
+import { stripHtml } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,30 +103,46 @@ export async function PATCH(
 
     const updateSchema = z.object({
       content: z.string().optional(),
+      detail: z.string().nullable().optional(),
       categoryId: z.string().optional(),
-      color: z.enum(['YELLOW', 'PINK', 'BLUE', 'GREEN', 'ORANGE', 'PURPLE']).optional(),
-      font: z.enum(['HANDWRITING', 'SERIF', 'SANS', 'MONO', 'CURSIVE']).optional(),
-      pushpin: z.enum(['RED', 'BLUE', 'GOLD', 'GREEN', 'PINK', 'SILVER']).optional(),
+      color: z.enum(['YELLOW', 'PINK', 'BLUE', 'GREEN', 'ORANGE', 'PURPLE', 'TRANSPARENT', 'WHITE', 'DARK', 'GLASS', 'BLACK']).optional(),
+      font: z.enum(['HANDWRITING', 'SERIF', 'SANS', 'MONO', 'CURSIVE', 'SYSTEM', 'COMIC', 'MODERN', 'PLAYFUL']).optional(),
+      pushpin: z.enum(['RED', 'BLUE', 'GOLD', 'GREEN', 'PINK', 'SILVER', 'BLACK', 'WHITE', 'TAPE', 'NONE']).optional(),
       link: z.string().nullable().optional(),
       isApproved: z.boolean().optional(),
       isPublished: z.boolean().optional(),
       expiresInDays: z.string().optional(),
       expiresAtDate: z.string().optional(),
       imageUrl: z.string().nullable().optional(),
-      imageUrls: z.array(z.string()).optional()
+      imageUrls: z.array(z.string()).optional(),
+      textSize: z.string().optional(),
+      textColor: z.string().optional()
     })
 
     const body = await request.json()
+    console.log('PATCH POSTIT BODY:', body)
     const parseResult = updateSchema.safeParse(body)
     
     if (!parseResult.success) {
+      console.error('PATCH POSTIT ZOD ERROR:', parseResult.error.errors)
       return NextResponse.json({ error: 'Geçersiz veri formatı', details: parseResult.error.errors }, { status: 400 })
     }
 
-    const { content, categoryId, color, font, pushpin, link, isApproved, isPublished, expiresInDays, expiresAtDate, imageUrl, imageUrls } = parseResult.data
+    const { content, detail, categoryId, color, font, pushpin, link, isApproved, isPublished, expiresInDays, expiresAtDate, imageUrl, imageUrls, textSize, textColor } = parseResult.data
+
+    if (detail && stripHtml(detail).length > 2000) {
+      return NextResponse.json({ error: 'Detay en fazla 2000 karakter olabilir' }, { status: 400 })
+    }
 
     const updateData: any = {}
-    if (content !== undefined) updateData.content = content
+    if (content !== undefined) {
+      const moderation = await moderateContent(content)
+      if (!moderation.isApproved) {
+        return NextResponse.json({ error: 'Uygunsuz içerik engellendi', reason: moderation.reason }, { status: 400 })
+      }
+      updateData.content = content
+    }
+    if (detail !== undefined) updateData.detail = detail || null
     if (categoryId !== undefined) updateData.categoryId = categoryId
     if (color !== undefined) updateData.color = color
     if (font !== undefined) updateData.font = font
@@ -132,6 +150,14 @@ export async function PATCH(
     if (link !== undefined) updateData.link = link
     if (isApproved !== undefined) updateData.isApproved = isApproved
     if (isPublished !== undefined) updateData.isPublished = isPublished
+    if (textSize !== undefined) updateData.textSize = textSize
+    if (textColor !== undefined) updateData.textColor = textColor
+
+    const finalApproved = isApproved !== undefined ? isApproved : existingPostit.isApproved;
+    const finalPublished = isPublished !== undefined ? isPublished : existingPostit.isPublished;
+    if (finalApproved && finalPublished) {
+      updateData.hasBeenPublished = true;
+    }
 
     // Handle image updates
     if (imageUrls !== undefined && Array.isArray(imageUrls)) {

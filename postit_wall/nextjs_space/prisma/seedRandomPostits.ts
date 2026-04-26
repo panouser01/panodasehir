@@ -1,10 +1,10 @@
-import { PrismaClient, PostItColor, PostItFont, PushpinStyle } from '@prisma/client'
+import { PrismaClient, PostIt_color, PostIt_font, PostIt_pushpin } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-const colors = Object.values(PostItColor)
-const fonts = Object.values(PostItFont)
-const pushpins = Object.values(PushpinStyle)
+const colors = Object.values(PostIt_color)
+const fonts = Object.values(PostIt_font)
+const pushpins = Object.values(PostIt_pushpin)
 
 function randomChoice<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)]

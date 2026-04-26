@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
-import { PrismaClient, PostItColor, PostItFont, PushpinStyle } from '@prisma/client';
+import { PrismaClient, PostIt_color, PostIt_font, PostIt_pushpin } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -55,9 +55,9 @@ async function main() {
                 where: { id },
                 update: {
                     content,
-                    color: color as PostItColor,
-                    font: font as PostItFont,
-                    pushpin: pushpin as PushpinStyle || 'RED',
+                    color: color as PostIt_color,
+                    font: font as PostIt_font,
+                    pushpin: pushpin as PostIt_pushpin || 'RED',
                     rotation: parseFloat(rotation),
                     imageUrl: clean(imageUrl),
                     link: clean(link),
@@ -71,9 +71,9 @@ async function main() {
                 create: {
                     id,
                     content,
-                    color: color as PostItColor,
-                    font: font as PostItFont,
-                    pushpin: pushpin as PushpinStyle || 'RED',
+                    color: color as PostIt_color,
+                    font: font as PostIt_font,
+                    pushpin: pushpin as PostIt_pushpin || 'RED',
                     rotation: parseFloat(rotation),
                     imageUrl: clean(imageUrl),
                     link: clean(link),
