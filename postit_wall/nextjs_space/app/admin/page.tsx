@@ -12885,6 +12885,9 @@ export default function AdminPage() {
                                        >
                                          <SelectTrigger><SelectValue placeholder="Büyük (2xl)" /></SelectTrigger>
                                          <SelectContent>
+                                           <SelectItem value="sm">Küçük (sm)</SelectItem>
+                                           <SelectItem value="md">Orta (md)</SelectItem>
+                                           <SelectItem value="lg">Büyük (lg)</SelectItem>
                                            <SelectItem value="xl">Büyük (xl)</SelectItem>
                                            <SelectItem value="2xl">Büyük (2xl)</SelectItem>
                                            <SelectItem value="3xl">Çok Büyük (3xl)</SelectItem>
