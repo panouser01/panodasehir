@@ -1857,6 +1857,25 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                         let catPostits = catLimit > 0 ? catPostitsRaw.slice(0, catLimit) : catPostitsRaw;
 
                         if (catOttCardStyle === 'categorical') {
+                            const collectedImages: any[] = [];
+                            for (const p of catPostitsRaw) {
+                                if (p.PostItImage && Array.isArray(p.PostItImage)) {
+                                    for (const img of p.PostItImage) {
+                                        if (img && img.url && !img.url.match(/\\.(mp4|webm|ogg)$/i)) {
+                                            collectedImages.push(img);
+                                        }
+                                        if (collectedImages.length >= 10) break;
+                                    }
+                                } else if (p.imageUrl && !p.imageUrl.match(/\\.(mp4|webm|ogg)$/i)) {
+                                    collectedImages.push({ url: p.imageUrl, type: 'image' });
+                                }
+                                if (collectedImages.length >= 10) break;
+                            }
+                            
+                            if (collectedImages.length === 0 && cat.logoUrl) {
+                                collectedImages.push({ url: cat.logoUrl, type: 'image' });
+                            }
+
                             catPostits = [{
                                 id: `categorical-${cat.id}`,
                                 content: cat.name,
@@ -1866,8 +1885,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                 updatedAt: new Date(),
                                 user: { name: cat.name, image: null },
                                 author: { name: cat.name, image: null },
-                                imageUrl: cat.logoUrl || null,
-                                PostItImage: cat.logoUrl ? [{ url: cat.logoUrl, type: 'image' }] : [],
+                                imageUrl: collectedImages.length > 0 ? collectedImages[0].url : (cat.logoUrl || null),
+                                PostItImage: collectedImages,
                                 tags: [],
                                 likes: [],
                                 views: [],
