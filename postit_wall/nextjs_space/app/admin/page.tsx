@@ -12274,6 +12274,7 @@ export default function AdminPage() {
                                      <SelectItem value="cover">Görsel Ön Planda (Hover ile Büyüyen Kapak Kartı)</SelectItem>
                                      <SelectItem value="classic">Klasik Post-it (Çizgili Not Kartı)</SelectItem>
                                      <SelectItem value="polaroid">Polaroid Kart (İçten Sınırlandırılmış Minimal Tasarım)</SelectItem>
+                                     <SelectItem value="categorical">Kategorik Görünüm (Alt Kategoriler ve Temsili Postitler)</SelectItem>
                                    </SelectContent>
                                  </Select>
                                </div>

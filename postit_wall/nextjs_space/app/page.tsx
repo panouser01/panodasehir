@@ -1849,13 +1849,36 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
                         const validIds = isAutoGrouped ? [cat.id] : getCategoryIds(cat);
                         const catPostitsRaw = injectNativeAds(organicPostits.filter((p: any) => validIds.includes(p.categoryId)));
-                        if (catPostitsRaw.length === 0) return null;
+                        
+                        const catOttCardStyle = cat.ottCardStyle || ottSettings.cardStyle;
+                        if (catOttCardStyle !== 'categorical' && catPostitsRaw.length === 0) return null;
 
                         const catLimit = cat.postitLimit || 0;
-                        const catPostits = catLimit > 0 ? catPostitsRaw.slice(0, catLimit) : catPostitsRaw;
+                        let catPostits = catLimit > 0 ? catPostitsRaw.slice(0, catLimit) : catPostitsRaw;
+
+                        if (catOttCardStyle === 'categorical') {
+                            catPostits = [{
+                                id: `categorical-${cat.id}`,
+                                content: cat.name,
+                                categoryId: cat.id,
+                                authorId: 'system',
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
+                                user: { name: cat.name, image: null },
+                                author: { name: cat.name, image: null },
+                                imageUrl: cat.logoUrl || null,
+                                PostItImage: cat.logoUrl ? [{ url: cat.logoUrl, type: 'image' }] : [],
+                                tags: [],
+                                likes: [],
+                                views: [],
+                                _count: { comments: 0, likes: 0, views: 0 },
+                                isVirtualNav: true,
+                                categoryTargetId: cat.id
+                            }];
+                        }
 
                         const subcatCount = validIds.length - 1;
-                        const postitCount = catPostitsRaw.length;
+                        const postitCount = catOttCardStyle === 'categorical' ? 1 : catPostitsRaw.length;
 
                         const currentRibbonColor = cat.ribbonColor || '#502bb1';
                         
@@ -1863,7 +1886,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                         const catOttItemsPerRow = cat.ottItemsPerRow || ottSettings.itemsPerRow;
                         const catOttCardRatio = cat.ottCardRatio || ottSettings.cardRatio;
                         const catOttAutoScrollSpeed = cat.ottAutoScrollSpeed !== undefined && cat.ottAutoScrollSpeed !== null ? cat.ottAutoScrollSpeed : ottSettings.autoScrollSpeed;
-                        const catOttCardStyle = cat.ottCardStyle || ottSettings.cardStyle;
                         const catOttCardBgType = cat.ottCardBgType || ottSettings.cardBgType;
                         const catOttCardBgColor = cat.ottCardBgColor || ottSettings.cardBgColor;
                         const catOttCardBgColorAlpha = cat.ottCardBgColorAlpha !== undefined && cat.ottCardBgColorAlpha !== null ? cat.ottCardBgColorAlpha : ottSettings.cardBgColorAlpha;
@@ -2027,7 +2049,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                       ottItemsPerRow={catOttItemsPerRow}
                                       ottCardRatio={catOttCardRatio}
                                       ottAutoScrollSpeed={catOttAutoScrollSpeed}
-                                      ottCardStyle={catOttCardStyle}
+                                      ottCardStyle={catOttCardStyle === 'categorical' ? 'cover' : catOttCardStyle}
                                       ottCardBgType={catOttCardBgType}
                                       ottCardBgColor={catOttCardBgColor}
                                       ottCardBgColorAlpha={catOttCardBgColorAlpha}
