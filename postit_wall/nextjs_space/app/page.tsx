@@ -1886,7 +1886,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                 user: { name: cat.name, image: null },
                                 author: { name: cat.name, image: null },
                                 imageUrl: collectedImages.length > 0 ? collectedImages[0].url : (cat.logoUrl || null),
-                                PostItImage: collectedImages,
+                                PostItImage: collectedImages.slice(1),
                                 tags: [],
                                 likes: [],
                                 views: [],

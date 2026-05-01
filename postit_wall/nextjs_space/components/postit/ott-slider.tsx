@@ -924,7 +924,7 @@ export function OttSlider({
       onMouseEnter={() => { isHoveredRef.current = true }}
       onMouseLeave={() => { isHoveredRef.current = false }}
     >
-      {ottCardStyle !== 'polaroid' && (
+      {ottCardStyle !== 'polaroid' && postits.length > 1 && (
         <button 
           onClick={scrollLeft}
           className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-black/80 text-white p-2 rounded-r-md backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-0"
@@ -966,7 +966,7 @@ export function OttSlider({
         ))}
       </div>
 
-      {ottCardStyle !== 'polaroid' && (
+      {ottCardStyle !== 'polaroid' && postits.length > 1 && (
         <button 
           onClick={scrollRight}
           className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-black/80 text-white p-2 rounded-l-md backdrop-blur opacity-0 group-hover:opacity-100 transition-opacity"
