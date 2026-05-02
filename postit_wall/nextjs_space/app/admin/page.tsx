@@ -4480,12 +4480,35 @@ export default function AdminPage() {
                           type="button"
                           variant="outline"
                           disabled={uploadingSiteImage}
-                          onClick={() => document.getElementById('site-bg-upload')?.click()}
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = async (e: any) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setUploadingSiteImage(true);
+                              const formData = new FormData();
+                              formData.append('file', file);
+                              try {
+                                const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
+                                const data = await res.json();
+                                if (data.fileUrl) {
+                                  setWallForm(prev => ({ ...prev, backgroundImage: data.fileUrl }));
+                                  toast.success('Resim yüklendi');
+                                }
+                              } catch (err) {
+                                toast.error('Yükleme başarısız');
+                              } finally {
+                                setUploadingSiteImage(false);
+                              }
+                            };
+                            input.click();
+                          }}
                           className="h-10 px-3 border-gray-200 hover:bg-gray-50"
                         >
                           {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                         </Button>
-                        <input id="site-bg-upload" type="file" accept="image/*" onChange={handleSiteImageUpload} className="hidden" />
                       </div>
                     </div>
                   </div>
@@ -4562,12 +4585,35 @@ export default function AdminPage() {
                         type="button"
                         variant="outline"
                         disabled={uploadingSiteBackgroundImage}
-                        onClick={() => document.getElementById('site-global-bg-upload')?.click()}
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*';
+                          input.onchange = async (e: any) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setUploadingSiteBackgroundImage(true);
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                              const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
+                              const data = await res.json();
+                              if (data.fileUrl) {
+                                setWallForm(prev => ({ ...prev, siteBackgroundImage: data.fileUrl }));
+                                toast.success('Resim yüklendi');
+                              }
+                            } catch (err) {
+                              toast.error('Yükleme başarısız');
+                            } finally {
+                              setUploadingSiteBackgroundImage(false);
+                            }
+                          };
+                          input.click();
+                        }}
                         className="h-10 px-3 border-gray-200 hover:bg-gray-50"
                       >
                         {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                       </Button>
-                      <input id="site-global-bg-upload" type="file" accept="image/*" onChange={handleSiteBackgroundImageUpload} className="hidden" />
                     </div>
                   </div>
                 </div>
@@ -4653,10 +4699,33 @@ export default function AdminPage() {
                     <Label className="text-xs font-semibold text-gray-500">Zemin Resmi (opsiyonel)</Label>
                     <div className="flex gap-2">
                       <Input value={wallForm.heroBackgroundImage || ''} onChange={(e) => setWallForm({ ...wallForm, heroBackgroundImage: e.target.value })} placeholder="URL veya dosya yükleyin" className="flex-1 h-9 text-xs" />
-                      <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('site-hero-upload')?.click()} className="h-9 h-9 px-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*';
+                          input.onchange = async (e: any) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setUploadingSiteHeroImage(true);
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            try {
+                              const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
+                              const data = await res.json();
+                              if (data.fileUrl) {
+                                setWallForm(prev => ({ ...prev, heroBackgroundImage: data.fileUrl }));
+                                toast.success('Resim yüklendi');
+                              }
+                            } catch (err) {
+                              toast.error('Yükleme başarısız');
+                            } finally {
+                              setUploadingSiteHeroImage(false);
+                            }
+                          };
+                          input.click();
+                        }} className="h-9 h-9 px-2">
                         {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                       </Button>
-                      <input id="site-hero-upload" type="file" accept="image/*" onChange={handleSiteHeroImageUpload} className="hidden" />
                     </div>
                   </div>
 
