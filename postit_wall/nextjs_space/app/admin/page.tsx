@@ -110,6 +110,45 @@ import EditorArticlesTab from '@/components/editor/EditorArticlesTab'
 
 type ActiveSection = 'dashboard' | 'users' | 'postits' | 'walls' | 'roles' | 'groups' | 'sliders' | 'locations' | 'locations_weather' | 'settings' | 'calendar' | 'about' | 'contact' | 'terms' | 'privacy' | 'cookies' | 'help' | 'kvkk' | 'popularCategories' | 'discover' | 'socialMedia' | 'ads' | 'postit_management' | 'editor_articles' | 'user_postits' | 'search_appearance' | 'merchant_registration'
 
+const FileUploadInput = ({ value, onChange, placeholder, disabled }: { value: string, onChange: (val: string) => void, placeholder: string, disabled?: boolean }) => {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Yükleme başarısız');
+      if (data.fileUrl) {
+        onChange(data.fileUrl);
+        toast.success('Resim yüklendi');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Yükleme başarısız');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Input value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled} className="flex-1 h-10 text-sm" />
+      <div className="flex-shrink-0">
+        <Button type="button" variant="outline" disabled={uploading || disabled} onClick={() => inputRef.current?.click()} className="h-10 px-3 border-gray-200 hover:bg-gray-50">
+          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+        </Button>
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+      </div>
+    </div>
+  );
+};
+
 export default function AdminPage() {
   const { data: session, status } = useSession() || {}
   const router = useRouter()
@@ -4474,38 +4513,11 @@ export default function AdminPage() {
                   <div className="space-y-2 mt-4 pt-4 border-t border-gray-100">
                     <Label className="text-sm font-medium">Arka Plan Dokusu Resmi URL</Label>
                     <div className="flex gap-2">
-                      <Input value={wallForm.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setWallForm(s => ({ ...s, backgroundImage: e.target.value }))} className="flex-1 h-10 text-sm" />
-                      <div className="flex-shrink-0">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = async (e: any) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              const formData = new FormData();
-                              formData.append('file', file);
-                              try {
-                                const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
-                                const data = await res.json();
-                                if (data.fileUrl) {
-                                  setWallForm(prev => ({ ...prev, backgroundImage: data.fileUrl }));
-                                  toast.success('Resim yüklendi');
-                                }
-                              } catch (err) {
-                                toast.error('Yükleme başarısız');
-                              }
-                            };
-                            input.click();
-                          }}
-                          className="h-10 px-3 border-gray-200 hover:bg-gray-50"
-                        >
-                          <Upload className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      <FileUploadInput 
+                        value={wallForm.backgroundImage || ''} 
+                        onChange={(val) => setWallForm(s => ({ ...s, backgroundImage: val }))} 
+                        placeholder="https://www.transparenttextures.com/patterns/cork-board.png" 
+                      />
                     </div>
                   </div>
 
@@ -4569,44 +4581,12 @@ export default function AdminPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700">Zemin Resmi (opsiyonel)</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={wallForm.siteBackgroundImage || ''}
-                      onChange={(e) => setWallForm({ ...wallForm, siteBackgroundImage: e.target.value })}
-                      placeholder="URL veya dosya yükleyin"
-                      className="flex-1 h-10 text-sm"
+                  <div className="flex flex-col gap-2">
+                    <FileUploadInput 
+                      value={wallForm.siteBackgroundImage || ''} 
+                      onChange={(val) => setWallForm(s => ({ ...s, siteBackgroundImage: val }))} 
+                      placeholder="URL veya dosya yükleyin" 
                     />
-                    <div className="flex-shrink-0">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = 'image/*';
-                          input.onchange = async (e: any) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            try {
-                              const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
-                              const data = await res.json();
-                              if (data.fileUrl) {
-                                setWallForm(prev => ({ ...prev, siteBackgroundImage: data.fileUrl }));
-                                toast.success('Resim yüklendi');
-                              }
-                            } catch (err) {
-                              toast.error('Yükleme başarısız');
-                            }
-                          };
-                          input.click();
-                        }}
-                        className="h-10 px-3 border-gray-200 hover:bg-gray-50"
-                      >
-                        <Upload className="w-4 h-4" />
-                      </Button>
-                    </div>
                   </div>
                 </div>
                 
@@ -4689,32 +4669,12 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold text-gray-500">Zemin Resmi (opsiyonel)</Label>
-                    <div className="flex gap-2">
-                      <Input value={wallForm.heroBackgroundImage || ''} onChange={(e) => setWallForm({ ...wallForm, heroBackgroundImage: e.target.value })} placeholder="URL veya dosya yükleyin" className="flex-1 h-9 text-xs" />
-                      <Button type="button" variant="outline" size="sm" onClick={() => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = 'image/*';
-                          input.onchange = async (e: any) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            try {
-                              const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
-                              const data = await res.json();
-                              if (data.fileUrl) {
-                                setWallForm(prev => ({ ...prev, heroBackgroundImage: data.fileUrl }));
-                                toast.success('Resim yüklendi');
-                              }
-                            } catch (err) {
-                              toast.error('Yükleme başarısız');
-                            }
-                          };
-                          input.click();
-                        }} className="h-9 h-9 px-2">
-                        <Upload className="w-4 h-4" />
-                      </Button>
+                    <div className="flex flex-col gap-2">
+                      <FileUploadInput 
+                        value={wallForm.heroBackgroundImage || ''} 
+                        onChange={(val) => setWallForm(s => ({ ...s, heroBackgroundImage: val }))} 
+                        placeholder="URL veya dosya yükleyin" 
+                      />
                     </div>
                   </div>
 
