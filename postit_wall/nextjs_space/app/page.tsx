@@ -1949,10 +1949,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                           <React.Fragment key={`${cat.id}-${level}`}>
                           <AccordionProvider
                             isAutoGrouped={isAutoGrouped}
-                            className={catOttIsActive ? "flex flex-col gap-1 z-30 relative" : "space-y-4 z-30 relative"}
+                            className={catOttIsActive ? `flex flex-col gap-1 z-30 relative ${isCategoricalGrid ? 'h-full' : ''}` : `space-y-4 z-30 relative ${isCategoricalGrid ? 'h-full' : ''}`}
                           >
                             {(!catOttIsActive || catOttShowCategoryTitles) && (
-                                <div className={`relative flex items-center w-full z-10 transition-transform hover:scale-[1.02] duration-300 ${catOttIsActive && catOttHeaderGlassy ? 'bg-white/10 backdrop-blur-md shadow-lg border border-white/20 rounded-xl py-2 px-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] mt-3 mb-2 mx-1' : (catOttIsActive ? (isTransparent ? 'mt-3 mb-1' : 'mt-4 mb-2') : 'mt-6 mb-8')}`}>
+                                <div className={`relative flex items-center w-full z-10 transition-transform hover:scale-[1.02] duration-300 ${isCategoricalGrid ? 'flex-1' : ''} ${catOttIsActive && catOttHeaderGlassy ? 'bg-white/10 backdrop-blur-md shadow-lg border border-white/20 rounded-xl py-2 px-4 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] mt-3 mb-2 mx-1' : (catOttIsActive ? (isTransparent ? 'mt-3 mb-1' : 'mt-4 mb-2') : 'mt-6 mb-8')}`}>
                                 {catOttIsActive && ottSettings.separatorStyle !== 'none' && (
                                   <div className={`flex-grow border-b-[3px] ml-4 opacity-80 ${activeAlignment === 'left' ? 'hidden' : 'block'}`} style={{ borderBottomStyle: ottSettings.separatorStyle as any, borderColor: (ottSettings.separatorColor || '#cbd5e1').split(',')[0], borderImage: (ottSettings.separatorColor || '').includes(',') ? `linear-gradient(to left, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[0]}, ${(ottSettings.separatorColor || '#cbd5e1').split(',')[1]}) 1` : undefined, WebkitMaskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to left, black 0%, transparent 100%)`, maskImage: (ottSettings.separatorColor || '').includes(',') ? undefined : `linear-gradient(to left, black 0%, transparent 100%)` }} />
                                 )}
@@ -2044,7 +2044,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                               {!catOttIsActive && !cat.noInnerBorder && !cat.isInnerTransparent && (
                                 <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
                               )}
-                              <div className="relative z-10 w-full h-full flex flex-col items-center">
+                              <div className={`relative z-10 w-full ${isCategoricalGrid ? '' : 'h-full'} flex flex-col items-center`}>
                                 {cat.isEditorModeActive ? (
                                   <ArticleGrid
                                     categoryId={cat.id}
