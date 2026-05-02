@@ -2129,7 +2129,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                           </React.Fragment>
                         );
                       }; // end renderCategoryTree
-                      return wallSettingsIds.map((catId: string, index: number) => renderCategoryTree(catId, 0, index));
+                      const renderedCategories = wallSettingsIds.map((catId: string, index: number) => renderCategoryTree(catId, 0, index));
+
+                      if (ottSettings.isActive && ottSettings.cardStyle === 'categorical') {
+                        const itemsPerRow = ottSettings.itemsPerRow || 4;
+                        const gridColsClass = 
+                           itemsPerRow === 1 ? 'md:grid-cols-1' :
+                           itemsPerRow === 2 ? 'md:grid-cols-2' :
+                           itemsPerRow === 3 ? 'md:grid-cols-3' :
+                           itemsPerRow === 4 ? 'md:grid-cols-4' :
+                           itemsPerRow === 5 ? 'md:grid-cols-5' :
+                           itemsPerRow === 6 ? 'md:grid-cols-6' : 'md:grid-cols-4';
+
+                        return (
+                          <div className={`w-full grid grid-cols-1 gap-x-4 gap-y-4 md:gap-x-8 md:gap-y-8 ${gridColsClass}`}>
+                            {renderedCategories}
+                          </div>
+                        );
+                      }
+
+                      return renderedCategories;
                     })()}
                     </div>
                   );

@@ -889,7 +889,9 @@ export function OttSlider({
     else if (ottItemsPerRow === 5) base = 'min-w-[65vw] sm:min-w-[30%] md:min-w-[19%]'
     else if (ottItemsPerRow === 6) base = 'min-w-[60vw] sm:min-w-[25%] md:min-w-[15.5%]'
 
-    if (postits.length === 1) {
+    if (postits.length === 1 && (postits[0] as any).isVirtualNav) {
+      return 'w-full min-w-full'
+    } else if (postits.length === 1) {
       return base.replace(/min-w-\[\d+vw\]/, 'w-full min-w-full sm:w-auto')
     }
     return base
