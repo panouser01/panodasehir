@@ -4476,15 +4476,16 @@ export default function AdminPage() {
                     <div className="flex gap-2">
                       <Input value={wallForm.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setWallForm(s => ({ ...s, backgroundImage: e.target.value }))} className="flex-1 h-10 text-sm" />
                       <div className="flex-shrink-0">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={uploadingSiteImage}
-                          onClick={() => document.getElementById('site-bg-upload-new')?.click()}
-                          className="h-10 px-3 border-gray-200 hover:bg-gray-50"
-                        >
-                          {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        </Button>
+                        <label htmlFor="site-bg-upload-new" className="cursor-pointer">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={uploadingSiteImage}
+                            className="h-10 px-3 border-gray-200 hover:bg-gray-50 pointer-events-none"
+                          >
+                            {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                          </Button>
+                        </label>
                         <input id="site-bg-upload-new" type="file" accept="image/*" className="hidden" onChange={async (e: any) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
@@ -4577,15 +4578,16 @@ export default function AdminPage() {
                       className="flex-1 h-10 text-sm"
                     />
                     <div className="flex-shrink-0">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={uploadingSiteBackgroundImage}
-                        onClick={() => document.getElementById('site-global-bg-upload-new')?.click()}
-                        className="h-10 px-3 border-gray-200 hover:bg-gray-50"
-                      >
-                        {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                      </Button>
+                      <label htmlFor="site-global-bg-upload-new" className="cursor-pointer">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={uploadingSiteBackgroundImage}
+                          className="h-10 px-3 border-gray-200 hover:bg-gray-50 pointer-events-none"
+                        >
+                          {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        </Button>
+                      </label>
                       <input id="site-global-bg-upload-new" type="file" accept="image/*" className="hidden" onChange={async (e: any) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
@@ -4691,9 +4693,11 @@ export default function AdminPage() {
                     <Label className="text-xs font-semibold text-gray-500">Zemin Resmi (opsiyonel)</Label>
                     <div className="flex gap-2">
                       <Input value={wallForm.heroBackgroundImage || ''} onChange={(e) => setWallForm({ ...wallForm, heroBackgroundImage: e.target.value })} placeholder="URL veya dosya yükleyin" className="flex-1 h-9 text-xs" />
-                      <Button type="button" variant="outline" size="sm" onClick={() => document.getElementById('site-hero-upload-new')?.click()} className="h-9 h-9 px-2">
-                        {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                      </Button>
+                      <label htmlFor="site-hero-upload-new" className="cursor-pointer">
+                        <Button type="button" variant="outline" size="sm" disabled={uploadingSiteHeroImage} className="h-9 h-9 px-2 pointer-events-none">
+                          {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        </Button>
+                      </label>
                       <input id="site-hero-upload-new" type="file" accept="image/*" className="hidden" onChange={async (e: any) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
