@@ -881,14 +881,18 @@ export function OttSlider({
 
   // Parse width mapping based on items per row for normal horizontal slider
   const getItemWidthClass = () => {
-    if (postits.length === 1) return 'w-full min-w-full'
-    if (ottItemsPerRow === 1) return 'min-w-[90vw] md:min-w-[100%]'
-    if (ottItemsPerRow === 2) return 'min-w-[80vw] sm:min-w-[45%] md:min-w-[48%]'
-    if (ottItemsPerRow === 3) return 'min-w-[75vw] sm:min-w-[40%] md:min-w-[32%]'
-    if (ottItemsPerRow === 4) return 'min-w-[70vw] sm:min-w-[40%] md:min-w-[24%]'
-    if (ottItemsPerRow === 5) return 'min-w-[65vw] sm:min-w-[30%] md:min-w-[19%]'
-    if (ottItemsPerRow === 6) return 'min-w-[60vw] sm:min-w-[25%] md:min-w-[15.5%]'
-    return 'min-w-[70vw] sm:min-w-[40%] md:min-w-[24%]' // default 4
+    let base = 'min-w-[70vw] sm:min-w-[40%] md:min-w-[24%]' // default 4
+    if (ottItemsPerRow === 1) base = 'min-w-[90vw] md:min-w-[100%]'
+    else if (ottItemsPerRow === 2) base = 'min-w-[80vw] sm:min-w-[45%] md:min-w-[48%]'
+    else if (ottItemsPerRow === 3) base = 'min-w-[75vw] sm:min-w-[40%] md:min-w-[32%]'
+    else if (ottItemsPerRow === 4) base = 'min-w-[70vw] sm:min-w-[40%] md:min-w-[24%]'
+    else if (ottItemsPerRow === 5) base = 'min-w-[65vw] sm:min-w-[30%] md:min-w-[19%]'
+    else if (ottItemsPerRow === 6) base = 'min-w-[60vw] sm:min-w-[25%] md:min-w-[15.5%]'
+
+    if (postits.length === 1) {
+      return base.replace(/min-w-\[\d+vw\]/, 'w-full min-w-full sm:w-auto')
+    }
+    return base
   }
 
   // Map items per row to grid cols for polaroid view
