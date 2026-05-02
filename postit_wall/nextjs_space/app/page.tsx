@@ -2038,7 +2038,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                               {!catOttIsActive && !cat.noInnerBorder && !cat.isInnerTransparent && (
                                 <div className="absolute inset-0 opacity-40 mix-blend-multiply pointer-events-none" style={{ backgroundImage: 'url("/patterns/cork.png")', backgroundSize: '150px' }} />
                               )}
-                              <div className="relative z-10 w-full p-2 h-full flex flex-col items-center">
+                              <div className="relative z-10 w-full h-full flex flex-col items-center">
                                 {cat.isEditorModeActive ? (
                                   <ArticleGrid
                                     categoryId={cat.id}

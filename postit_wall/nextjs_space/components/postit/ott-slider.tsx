@@ -941,8 +941,8 @@ export function OttSlider({
       <div 
         ref={scrollContainerRef}
         className={ottCardStyle === 'polaroid'
-          ? `grid w-full gap-4 md:gap-6 px-4 pb-12 mx-auto ${getGridColsClass()}`
-          : `flex overflow-x-auto hide-scrollbar gap-4 px-4 pb-4 snap-x snap-mandatory will-change-scroll scroll-smooth`
+          ? `grid w-full gap-4 md:gap-6 ${postits.length === 1 ? 'px-1' : 'px-4'} pb-12 mx-auto ${getGridColsClass()}`
+          : `flex overflow-x-auto hide-scrollbar gap-4 ${postits.length === 1 ? 'px-1' : 'px-4'} pb-4 snap-x snap-mandatory will-change-scroll scroll-smooth`
         }
         style={ottCardStyle !== 'polaroid' ? { scrollbarWidth: 'none', msOverflowStyle: 'none' } : undefined}
       >
