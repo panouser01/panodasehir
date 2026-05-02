@@ -1943,6 +1943,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                             if (level === 1) renderTitleSize = 'text-2xl md:text-4xl';
                             else if (level >= 2) renderTitleSize = 'text-xl md:text-3xl';
                         }
+                        const isCategoricalGrid = catOttIsActive && ottSettings.cardStyle === 'categorical';
                         
                         return (
                           <React.Fragment key={`${cat.id}-${level}`}>
@@ -1975,40 +1976,45 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                                 )}
 
                                 {/* Main Banner */}
-                                <div className="flex items-center gap-3 relative z-30">
-                                  <div className={currentRibbonColor !== 'none' ? "relative px-8 md:px-14 py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col sm:flex-row items-center gap-3 decoration-transparent" : `relative px-8 ${catOttIsActive ? 'py-1' : 'py-3'} flex flex-col sm:flex-row items-center gap-3 decoration-transparent hover:scale-[1.02] transition-transform`} style={currentRibbonColor !== 'none' ? { backgroundColor: currentRibbonColor, backgroundImage: cat.ribbonImage ? `url('${cat.ribbonImage}')` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
+                                <div className="flex items-center justify-center gap-3 relative z-30 w-full">
+                                  <div className={currentRibbonColor !== 'none' ? `relative ${isCategoricalGrid ? 'px-2' : 'px-8 md:px-14'} py-3 rounded-sm border-b-[6px] border-r-4 border-black/30 shadow-xl flex flex-col items-center gap-3 decoration-transparent w-full` : `relative ${isCategoricalGrid ? 'px-1 w-full' : 'px-8'} ${catOttIsActive ? 'py-1' : 'py-3'} flex flex-col items-center gap-2 decoration-transparent hover:scale-[1.02] transition-transform`} style={currentRibbonColor !== 'none' ? { backgroundColor: currentRibbonColor, backgroundImage: cat.ribbonImage ? `url('${cat.ribbonImage}')` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
                                     <a href={`/?category=${cat.id}&from=${categoryId || 'root'}`} className="absolute inset-0 z-0 cursor-pointer" aria-label={cat.name}></a>
-                                    <div className="flex flex-row items-center gap-2 relative z-10 pointer-events-none">
-                                      {/* Add PostIt Form Trigger for this Category */}
-                                      {catOttIsActive && checkCanAddPostit(cat) && (
-                                        <div className="pointer-events-auto flex items-center pr-1">
-                                          <PostItForm 
-                                            categories={categories}
-                                            defaultCategoryId={cat.id}
-                                            userGroupIds={(session?.user as any)?.userGroupIds}
-                                            userRole={(session?.user as any)?.role}
-                                            customTrigger={
-                                              <div className="bg-gradient-to-br from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 shadow-md border border-yellow-300 p-1 sm:p-1.5 rounded-lg cursor-pointer flex items-center justify-center hover:scale-110 transition-transform duration-300 mt-0.5" title={`${cat.name} Kategorisine Post-it Ekle`}>
-                                                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-950" strokeWidth={3} />
-                                              </div>
-                                            }
-                                          />
-                                        </div>
-                                      )}
-                                      <AccordionToggle />
-                                      <a href={`/?category=${cat.id}&from=${categoryId || 'root'}`} className="pointer-events-auto cursor-pointer flex-1">
-                                      <h2 className={`${renderTitleSize} tracking-normal mb-0`}
-                                        style={{
-                                          color: activeTitleColor,
-                                          textShadow: cat.ribbonTextColor === 'transparent' ? 'none' : (currentRibbonColor !== 'none' ? '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)' : 'none'),
-                                          fontFamily: activeTitleFont,
-                                          fontWeight: 900
-                                        }}>
-                                        {cat.name}
-                                      </h2>
-                                      </a>
-                                      <div className="flex items-center gap-1.5 opacity-90 mt-1 pointer-events-auto cursor-default">
-                                        <span className="text-base font-bold tracking-wide mt-1 ml-1" style={{ color: activeTitleColor }}>
+                                    
+                                    <div className={`flex ${isCategoricalGrid ? 'flex-col w-full text-center' : 'flex-row'} items-center justify-center gap-1 sm:gap-2 relative z-10 pointer-events-none w-full`}>
+                                      
+                                      <div className="flex flex-row items-center justify-center gap-2">
+                                        {/* Add PostIt Form Trigger for this Category */}
+                                        {catOttIsActive && checkCanAddPostit(cat) && (
+                                          <div className="pointer-events-auto flex items-center pr-1">
+                                            <PostItForm 
+                                              categories={categories}
+                                              defaultCategoryId={cat.id}
+                                              userGroupIds={(session?.user as any)?.userGroupIds}
+                                              userRole={(session?.user as any)?.role}
+                                              customTrigger={
+                                                <div className="bg-gradient-to-br from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 shadow-md border border-yellow-300 p-1 sm:p-1.5 rounded-lg cursor-pointer flex items-center justify-center hover:scale-110 transition-transform duration-300 mt-0.5" title={`${cat.name} Kategorisine Post-it Ekle`}>
+                                                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-950" strokeWidth={3} />
+                                                </div>
+                                              }
+                                            />
+                                          </div>
+                                        )}
+                                        <AccordionToggle />
+                                        <a href={`/?category=${cat.id}&from=${categoryId || 'root'}`} className="pointer-events-auto cursor-pointer flex-shrink">
+                                        <h2 className={`${renderTitleSize} tracking-normal mb-0 leading-tight`}
+                                          style={{
+                                            color: activeTitleColor,
+                                            textShadow: cat.ribbonTextColor === 'transparent' ? 'none' : (currentRibbonColor !== 'none' ? '0 1px 0 rgba(255,255,255,0.3), 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(255,255,255,0.1), 0 4px 0 rgba(0,0,0,0.1), 0 5px 0 rgba(0,0,0,0.15), 0 6px 1px rgba(0,0,0,.1), 0 0 5px rgba(0,0,0,.1), 0 1px 3px rgba(0,0,0,.3), 0 3px 5px rgba(0,0,0,.2), 0 5px 10px rgba(0,0,0,.25), 0 10px 10px rgba(0,0,0,.2), 0 20px 20px rgba(0,0,0,.15)' : 'none'),
+                                            fontFamily: activeTitleFont,
+                                            fontWeight: 900
+                                          }}>
+                                          {cat.name}
+                                        </h2>
+                                        </a>
+                                      </div>
+
+                                      <div className={`flex flex-wrap items-center justify-center gap-1.5 opacity-90 ${isCategoricalGrid ? 'mt-1' : 'mt-1 ml-2'} pointer-events-auto cursor-default`}>
+                                        <span className={`text-sm sm:text-base font-bold tracking-wide ${isCategoricalGrid ? '' : 'mt-1'}`} style={{ color: activeTitleColor }}>
                                           {postitCount} Not
                                         </span>
                                         <CategorySubscribeButton categoryId={cat.id} variant="badge" />
