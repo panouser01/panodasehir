@@ -500,7 +500,7 @@ function OttSliderCard({ postit, getItemWidthClass, ratioStyles, ottCardStyle, c
           style={{ 
             backgroundColor: (ottCardBgType === 'transparent' ? 'transparent' : ottCardBgType === 'color' ? (finalOttCardBgColor || 'transparent') : (ottCardBgType === 'gradient' || ottCardBgType === 'image') ? 'transparent' : (postit.isWeather ? 'transparent' : (postit.color === 'YELLOW' ? '#fdfd96' : postit.color === 'BLUE' ? '#a2cffe' : postit.color === 'PINK' ? '#ffb7b2' : postit.color === 'GREEN' ? '#b2e2b2' : '#fdfd96'))),
             backgroundImage: (postit.isWeather && weatherUI?.bgImage && (!ottCardBgType || ottCardBgType === 'postit')) ? `url('${weatherUI.bgImage}')` : ((ottCardBgType === 'gradient' && finalOttCardBgColor) ? `linear-gradient(to right, ${finalOttCardBgColor.split(',')[0]}, ${finalOttCardBgColor.split(',')[1] || finalOttCardBgColor.split(',')[0]}, ${finalOttCardBgColor.split(',')[2] || finalOttCardBgColor.split(',')[0]})` : ((ottCardBgType === 'image' && ottCardBgImage) ? `url('${ottCardBgImage}')` : (postit.isWeather ? undefined : ((currentImageUrl && !currentImageUrl.match(/\.(mp4|webm|ogg)$/i)) ? `url('${currentImageUrl}')` : undefined)))),
-            backgroundSize: (postit.isWeather && weatherUI?.bgImage && (!ottCardBgType || ottCardBgType === 'postit')) ? 'cover' : ((ottCardBgType === 'image' && postitAppearance?.ottCardBgImageSize) ? postitAppearance.ottCardBgImageSize : ((postit as any).isVirtualNav ? 'contain' : 'cover')),
+            backgroundSize: (postit.isWeather && weatherUI?.bgImage && (!ottCardBgType || ottCardBgType === 'postit')) ? 'cover' : ((ottCardBgType === 'image' && postitAppearance?.ottCardBgImageSize) ? postitAppearance.ottCardBgImageSize : 'cover'),
             backgroundPosition: (postit.isWeather && weatherUI?.bgImage && (!ottCardBgType || ottCardBgType === 'postit')) ? 'center' : ((ottCardBgType === 'image' && postitAppearance?.ottCardBgImagePosition) ? postitAppearance.ottCardBgImagePosition : ((postit as any).isVirtualNav ? 'top' : 'top')),
             backgroundRepeat: 'no-repeat',
             borderRadius: '12px',
@@ -881,6 +881,7 @@ export function OttSlider({
 
   // Parse width mapping based on items per row for normal horizontal slider
   const getItemWidthClass = () => {
+    if (postits.length === 1) return 'w-full min-w-full'
     if (ottItemsPerRow === 1) return 'min-w-[90vw] md:min-w-[100%]'
     if (ottItemsPerRow === 2) return 'min-w-[80vw] sm:min-w-[45%] md:min-w-[48%]'
     if (ottItemsPerRow === 3) return 'min-w-[75vw] sm:min-w-[40%] md:min-w-[32%]'

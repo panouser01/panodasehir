@@ -11911,7 +11911,7 @@ export default function AdminPage() {
                                      />
                                    </div>
                                    <div className="space-y-2">
-                                     <Label>Kart Oranı (Örn: 16/9, 2/3)</Label>
+                                     <Label>Kart Oranı (Örn: 16/9, 2/3, 3/4, 4/5)</Label>
                                      <Input 
                                        value={parsedSettings.ottCardRatio || ''} 
                                        onChange={(e) => handleSettingChange('ottCardRatio', e.target.value)}
@@ -12108,7 +12108,7 @@ export default function AdminPage() {
                              />
                            </div>
                            <div className="space-y-2">
-                             <Label>Kart Oranı (Örn: 16/9, 2/3)</Label>
+                             <Label>Kart Oranı (Örn: 16/9, 2/3, 3/4, 4/5)</Label>
                              <Input 
                                value={wallForm.ottCardRatio} 
                                onChange={(e) => setWallForm({ ...wallForm, ottCardRatio: e.target.value })}
