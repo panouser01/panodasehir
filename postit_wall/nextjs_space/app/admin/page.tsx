@@ -4476,17 +4476,19 @@ export default function AdminPage() {
                     <div className="flex gap-2">
                       <Input value={wallForm.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setWallForm(s => ({ ...s, backgroundImage: e.target.value }))} className="flex-1 h-10 text-sm" />
                       <div className="flex-shrink-0">
-                        <label htmlFor="site-bg-upload-new" className="cursor-pointer">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={uploadingSiteImage}
-                            className="h-10 px-3 border-gray-200 hover:bg-gray-50 pointer-events-none"
-                          >
-                            {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                          </Button>
-                        </label>
-                        <input id="site-bg-upload-new" type="file" accept="image/*" className="hidden" onChange={async (e: any) => {
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={uploadingSiteImage}
+                          onClick={(e) => {
+                            const input = e.currentTarget.parentElement?.querySelector('input[type="file"]') as HTMLInputElement;
+                            if (input) input.click();
+                          }}
+                          className="h-10 px-3 border-gray-200 hover:bg-gray-50"
+                        >
+                          {uploadingSiteImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        </Button>
+                        <input type="file" accept="image/*" className="hidden" onChange={async (e: any) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
                           setUploadingSiteImage(true);
@@ -4495,6 +4497,10 @@ export default function AdminPage() {
                           try {
                             const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
                             const data = await res.json();
+                            if (!res.ok) {
+                              toast.error(data.error || 'Yükleme başarısız');
+                              return;
+                            }
                             if (data.fileUrl) {
                               setWallForm(prev => ({ ...prev, backgroundImage: data.fileUrl }));
                               toast.success('Resim yüklendi');
@@ -4578,17 +4584,19 @@ export default function AdminPage() {
                       className="flex-1 h-10 text-sm"
                     />
                     <div className="flex-shrink-0">
-                      <label htmlFor="site-global-bg-upload-new" className="cursor-pointer">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={uploadingSiteBackgroundImage}
-                          className="h-10 px-3 border-gray-200 hover:bg-gray-50 pointer-events-none"
-                        >
-                          {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        </Button>
-                      </label>
-                      <input id="site-global-bg-upload-new" type="file" accept="image/*" className="hidden" onChange={async (e: any) => {
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={uploadingSiteBackgroundImage}
+                        onClick={(e) => {
+                          const input = e.currentTarget.parentElement?.querySelector('input[type="file"]') as HTMLInputElement;
+                          if (input) input.click();
+                        }}
+                        className="h-10 px-3 border-gray-200 hover:bg-gray-50"
+                      >
+                        {uploadingSiteBackgroundImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      </Button>
+                      <input type="file" accept="image/*" className="hidden" onChange={async (e: any) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         setUploadingSiteBackgroundImage(true);
@@ -4597,6 +4605,10 @@ export default function AdminPage() {
                         try {
                           const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
                           const data = await res.json();
+                          if (!res.ok) {
+                            toast.error(data.error || 'Yükleme başarısız');
+                            return;
+                          }
                           if (data.fileUrl) {
                             setWallForm(prev => ({ ...prev, siteBackgroundImage: data.fileUrl }));
                             toast.success('Resim yüklendi');
@@ -4693,12 +4705,13 @@ export default function AdminPage() {
                     <Label className="text-xs font-semibold text-gray-500">Zemin Resmi (opsiyonel)</Label>
                     <div className="flex gap-2">
                       <Input value={wallForm.heroBackgroundImage || ''} onChange={(e) => setWallForm({ ...wallForm, heroBackgroundImage: e.target.value })} placeholder="URL veya dosya yükleyin" className="flex-1 h-9 text-xs" />
-                      <label htmlFor="site-hero-upload-new" className="cursor-pointer">
-                        <Button type="button" variant="outline" size="sm" disabled={uploadingSiteHeroImage} className="h-9 h-9 px-2 pointer-events-none">
-                          {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        </Button>
-                      </label>
-                      <input id="site-hero-upload-new" type="file" accept="image/*" className="hidden" onChange={async (e: any) => {
+                      <Button type="button" variant="outline" size="sm" disabled={uploadingSiteHeroImage} onClick={(e) => {
+                          const input = e.currentTarget.parentElement?.querySelector('input[type="file"]') as HTMLInputElement;
+                          if (input) input.click();
+                        }} className="h-9 h-9 px-2">
+                        {uploadingSiteHeroImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      </Button>
+                      <input type="file" accept="image/*" className="hidden" onChange={async (e: any) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         setUploadingSiteHeroImage(true);
@@ -4707,6 +4720,10 @@ export default function AdminPage() {
                         try {
                           const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
                           const data = await res.json();
+                          if (!res.ok) {
+                            toast.error(data.error || 'Yükleme başarısız');
+                            return;
+                          }
                           if (data.fileUrl) {
                             setWallForm(prev => ({ ...prev, heroBackgroundImage: data.fileUrl }));
                             toast.success('Resim yüklendi');
