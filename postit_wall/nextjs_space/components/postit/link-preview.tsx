@@ -264,7 +264,7 @@ export function CustomLinkPreview({ url, compact = false, fill = false, hideIcon
               fill
               unoptimized={data.image.url.startsWith('data:')}
               alt="Instagram Thumbnail" 
-              className="absolute inset-0 object-contain opacity-90 group-hover:opacity-100 transition-opacity"
+              className="absolute inset-0 object-contain object-top opacity-90 group-hover:opacity-100 transition-opacity"
             />
             {!hideIcon && (
               <div className="w-12 h-12 bg-pink-600 rounded-xl flex items-center justify-center shadow-lg z-10 opacity-90 group-hover:opacity-100 transition-all group-hover:scale-110">
@@ -345,7 +345,7 @@ export function CustomLinkPreview({ url, compact = false, fill = false, hideIcon
     return (
        <div className="w-full h-full bg-black flex items-center justify-center overflow-hidden pointer-events-none">
           {imageUrl ? (
-            <Image src={imageUrl} width={600} height={400} unoptimized={imageUrl.startsWith('data:')} alt={title || 'Link Preview'} className="w-full h-full object-contain" />
+            <Image src={imageUrl} width={600} height={400} unoptimized={imageUrl.startsWith('data:')} alt={title || 'Link Preview'} className="w-full h-full object-contain object-top" />
           ) : (
             <ExternalLink className="w-8 h-8 text-gray-400" />
           )}
