@@ -228,7 +228,7 @@ export default function AdminPage() {
     styleModeSettings: '{}',
     expirationDate: ''
   })
-  const [postitForm, setPostitForm] = useState({ content: '', detail: '', categoryId: '', color: 'YELLOW', font: 'MODERN', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], textSize: 'text-base', textColor: '#000000' })
+  const [postitForm, setPostitForm] = useState({ content: '', detail: '', categoryId: '', color: 'YELLOW', font: 'MODERN', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [] as string[], fitImage: false, expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], textSize: 'text-base', textColor: '#000000' })
   const [uploadingPostitImage, setUploadingPostitImage] = useState(false)
   const [uploadingWallLogo, setUploadingWallLogo] = useState(false)
   const [uploadingWallRibbonImage, setUploadingWallRibbonImage] = useState(false)
@@ -446,7 +446,9 @@ export default function AdminPage() {
 
     if (status === 'authenticated' && !dataLoaded.current) {
       const role = (session?.user as any)?.role
-      if (role !== 'SUPER_ADMIN' && role !== 'WALL_MANAGER' && role !== 'WALL_USER') {
+      const userPermissions = (session?.user as any)?.permissions || []
+      
+      if (!role || (role === 'USER' && userPermissions.length === 0)) {
         toast.error('Bu sayfaya erişim yetkiniz yok')
         router.push('/')
         return
@@ -824,6 +826,8 @@ export default function AdminPage() {
       const isEditing = !!editingItem
       let savedWall: any = editingItem
       
+      console.log("PAYLOAD BEING SENT:", payload)
+
       const response = await fetch(
         isEditing ? `/api/categories/${editingItem.id}` : '/api/categories',
         {
@@ -1223,7 +1227,11 @@ export default function AdminPage() {
       const response = await fetch(`/api/postits/${editingItem.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(postitForm),
+        body: JSON.stringify({
+          ...postitForm,
+          imageUrl: postitForm.imageUrls[0] || '',
+          images: JSON.stringify(postitForm.imageUrls),
+        }),
       })
       if (!response.ok) {
         const errorData = await response.json()
@@ -1232,7 +1240,7 @@ export default function AdminPage() {
       toast.success('Not güncellendi')
       setShowPostitModal(false)
       setEditingItem(null)
-      setPostitForm({ content: '', detail: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [], expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], textSize: 'text-base', textColor: '#000000' })
+      setPostitForm({ content: '', detail: '', categoryId: '', color: 'YELLOW', font: 'HANDWRITING', pushpin: 'RED', link: '', isApproved: false, isPublished: true, imageUrl: '', imageUrls: [], fitImage: false, expiresInDays: 'custom', expiresAtDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], textSize: 'text-base', textColor: '#000000' })
       loadData()
     } catch (error: any) {
       toast.error(error.message || 'Not kaydedilemedi')
@@ -1248,7 +1256,7 @@ export default function AdminPage() {
       return
     }
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 25 * 1024 * 1024) {
       toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır')
       return
     }
@@ -2156,13 +2164,6 @@ export default function AdminPage() {
   const openEditPostit = (postit: any) => {
     setEditingItem(postit)
 
-    let initialImages: string[] = []
-    if (postit.PostItImage && postit.PostItImage.length > 0) {
-      initialImages = postit.PostItImage.map((img: any) => img.url)
-    } else if (postit.imageUrl) {
-      initialImages = [postit.imageUrl]
-    }
-
     setPostitForm({
       content: postit.content || '',
       detail: postit.detail || '',
@@ -2174,7 +2175,8 @@ export default function AdminPage() {
       isApproved: postit.isApproved || false,
       isPublished: postit.isPublished !== false, // Defaults to true if missing
       imageUrl: postit.imageUrl || '',
-      imageUrls: initialImages,
+      imageUrls: Array.isArray(postit.images) ? postit.images : (postit.images ? JSON.parse(postit.images) : (postit.imageUrl ? [postit.imageUrl] : [])),
+      fitImage: postit.fitImage || false,
       expiresInDays: 'custom',
       expiresAtDate: postit.expiresAt ? new Date(postit.expiresAt).toISOString().split('T')[0] : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       textSize: postit.textSize || 'text-base',
@@ -2325,7 +2327,7 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 25 * 1024 * 1024) {
       toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır')
       return
     }
@@ -2364,7 +2366,7 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > 25 * 1024 * 1024) {
       toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır')
       return
     }
@@ -2562,8 +2564,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2596,8 +2598,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2630,8 +2632,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2661,8 +2663,8 @@ export default function AdminPage() {
   const handleOttBgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
     setUploadingOttBgImage(true)
@@ -2685,8 +2687,8 @@ export default function AdminPage() {
   const handleOttModalBgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
     setUploadingOttModalBgImage(true)
@@ -2710,8 +2712,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2743,8 +2745,8 @@ export default function AdminPage() {
     if (!file) return
     e.target.value = ''
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2777,8 +2779,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2811,8 +2813,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2845,8 +2847,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2879,8 +2881,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2925,8 +2927,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -2969,8 +2971,8 @@ export default function AdminPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Dosya boyutu 10MB'dan küçük olmalıdır")
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dosya boyutu 25MB'dan küçük olmalıdır")
       return
     }
 
@@ -3121,6 +3123,13 @@ export default function AdminPage() {
   const hasPermission = (actionId: string) => {
     const roleStr = (session?.user as any)?.role;
     if (roleStr === 'SUPER_ADMIN') return true;
+
+    const userPerms = (session?.user as any)?.permissions;
+    if (userPerms && Array.isArray(userPerms)) {
+      if (userPerms.includes(actionId) || userPerms.includes(actionId.split('_')[0])) {
+        return true;
+      }
+    }
 
     if (roles && roles.length > 0) {
       const activeRoleDef = roles.find((r: any) => r.name === roleStr);
@@ -3622,38 +3631,13 @@ export default function AdminPage() {
                   <div className="space-y-2 mt-4 pt-4 border-t border-gray-100">
                     <Label className="text-sm font-medium">Arka Plan Dokusu Resmi URL</Label>
                     <div className="flex gap-2">
-                      <Input value={wallForm.backgroundImage} placeholder="https://www.transparenttextures.com/patterns/cork-board.png" onChange={e => setWallForm(s => ({ ...s, backgroundImage: e.target.value }))} className="flex-1 h-10 text-sm" />
-                      <div className="flex-shrink-0">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = async (e: any) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              const formData = new FormData();
-                              formData.append('file', file);
-                              try {
-                                const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
-                                const data = await res.json();
-                                if (data.fileUrl) {
-                                  setWallForm(prev => ({ ...prev, backgroundImage: data.fileUrl }));
-                                  toast.success('Resim yüklendi');
-                                }
-                              } catch (err) {
-                                toast.error('Yükleme başarısız');
-                              }
-                            };
-                            input.click();
-                          }}
-                          className="h-10 px-3 border-gray-200 hover:bg-gray-50"
-                        >
-                          <Upload className="w-4 h-4" />
-                        </Button>
-                      </div>
+                    <div className="flex flex-col gap-2">
+                      <FileUploadInput 
+                        value={wallForm.backgroundImage || ''} 
+                        onChange={(val) => setWallForm(s => ({ ...s, backgroundImage: val }))} 
+                        placeholder="URL veya dosya yükleyin" 
+                      />
+                    </div>
                     </div>
                   </div>
 
@@ -3718,43 +3702,11 @@ export default function AdminPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700">Zemin Resmi (opsiyonel)</Label>
                   <div className="flex gap-2">
-                    <Input
-                      value={wallForm.siteBackgroundImage || ''}
-                      onChange={(e) => setWallForm({ ...wallForm, siteBackgroundImage: e.target.value })}
-                      placeholder="URL veya dosya yükleyin"
-                      className="flex-1 h-10 text-sm"
+                    <FileUploadInput 
+                      value={wallForm.siteBackgroundImage || ''} 
+                      onChange={(val) => setWallForm(s => ({ ...s, siteBackgroundImage: val }))} 
+                      placeholder="URL veya dosya yükleyin" 
                     />
-                    <div className="flex-shrink-0">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = 'image/*';
-                          input.onchange = async (e: any) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            try {
-                              const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
-                              const data = await res.json();
-                              if (data.fileUrl) {
-                                setWallForm(prev => ({ ...prev, siteBackgroundImage: data.fileUrl }));
-                                toast.success('Resim yüklendi');
-                              }
-                            } catch (err) {
-                              toast.error('Yükleme başarısız');
-                            }
-                          };
-                          input.click();
-                        }}
-                        className="h-10 px-3 border-gray-200 hover:bg-gray-50"
-                      >
-                        <Upload className="w-4 h-4" />
-                      </Button>
-                    </div>
                   </div>
                   </div>
 
@@ -3859,37 +3811,12 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <Label className="text-xs font-semibold text-gray-500">Zemin Resmi (opsiyonel)</Label>
-                    <div className="flex gap-2">
-                      <Input value={wallForm.heroBackgroundImage || ''} onChange={(e) => setWallForm({ ...wallForm, heroBackgroundImage: e.target.value })} placeholder="URL veya dosya yükleyin" className="flex-1 h-9 text-xs" />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = 'image/*';
-                          input.onchange = async (e: any) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            try {
-                              const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
-                              const data = await res.json();
-                              if (data.fileUrl) {
-                                setWallForm(prev => ({ ...prev, heroBackgroundImage: data.fileUrl }));
-                                toast.success('Resim yüklendi');
-                              }
-                            } catch (err) {
-                              toast.error('Yükleme başarısız');
-                            }
-                          };
-                          input.click();
-                        }}
-                        className="h-9 px-2 border-gray-200 hover:bg-gray-50"
-                      >
-                        <Upload className="w-4 h-4" />
-                      </Button>
+                    <div className="flex flex-col gap-2">
+                      <FileUploadInput 
+                        value={wallForm.heroBackgroundImage || ''} 
+                        onChange={(val) => setWallForm(s => ({ ...s, heroBackgroundImage: val }))} 
+                        placeholder="URL veya dosya yükleyin" 
+                      />
                     </div>
                   </div>
 
@@ -4272,45 +4199,12 @@ export default function AdminPage() {
                        ].map((item) => (
                           <div key={item.field} className="space-y-1 bg-gray-50 p-2 rounded-md border border-gray-100">
                             <Label className="text-xs font-semibold text-gray-700">{item.label}</Label>
-                            <div className="flex gap-2">
-                              <Input
-                                value={wallForm.postitAppearance?.[item.field] || ''}
-                                onChange={(e) => setWallForm({ ...wallForm, postitAppearance: { ...(wallForm.postitAppearance || {}), [item.field]: e.target.value } })}
-                                placeholder="URL (örn: png, jpg)"
-                                className="flex-1 h-8 text-xs bg-white"
+                            <div className="flex flex-col gap-2 w-full">
+                              <FileUploadInput 
+                                value={wallForm.postitAppearance?.[item.field] || ''} 
+                                onChange={(val) => setWallForm({ ...wallForm, postitAppearance: { ...(wallForm.postitAppearance || {}), [item.field]: val } })} 
+                                placeholder="URL veya dosya yükleyin" 
                               />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => {
-                                  const input = document.createElement('input');
-                                  input.type = 'file';
-                                  input.accept = 'image/*';
-                                  input.onchange = async (e: any) => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    const formData = new FormData();
-                                    formData.append('file', file);
-                                    try {
-                                      const res = await fetch('/api/upload/local', { method: 'POST', body: formData });
-                                      const data = await res.json();
-                                      if (data.fileUrl) {
-                                        setWallForm(prev => ({
-                                          ...prev,
-                                          postitAppearance: { ...(prev.postitAppearance || {}), [item.field]: data.fileUrl }
-                                        }));
-                                        toast.success('Resim yüklendi');
-                                      }
-                                    } catch (err) {
-                                      toast.error('Yükleme başarısız');
-                                    }
-                                  };
-                                  input.click();
-                                }}
-                                className="h-8 px-2 border-gray-200 hover:bg-gray-100 bg-white"
-                              >
-                                <Upload className="w-3 h-3" />
-                              </Button>
                             </div>
                           </div>
                        ))}
@@ -4590,22 +4484,16 @@ export default function AdminPage() {
                   </div>
                 </div>
                 
-                <div className="flex flex-col gap-2 mt-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <div className="space-y-2 mt-2">
                   <Label className="text-sm font-semibold text-gray-700">Resim Görünümü</Label>
-                  <div className="flex flex-wrap gap-4 items-center">
-                    <Label className="flex items-center gap-2 cursor-pointer text-sm">
-                      <input type="radio" name="siteGlobalBackgroundStyle" value="cover" checked={wallForm.siteBackgroundStyle === 'cover'} onChange={(e) => setWallForm({ ...wallForm, siteBackgroundStyle: e.target.value })} />
-                      <span>1. Resmi zeminde uzat</span>
-                    </Label>
-                    <Label className="flex items-center gap-2 cursor-pointer text-sm">
-                      <input type="radio" name="siteGlobalBackgroundStyle" value="stretch" checked={wallForm.siteBackgroundStyle === 'stretch'} onChange={(e) => setWallForm({ ...wallForm, siteBackgroundStyle: e.target.value })} />
-                      <span>2. Resmin yüksekliğini uzat</span>
-                    </Label>
-                    <Label className="flex items-center gap-2 cursor-pointer text-sm">
-                      <input type="radio" name="siteGlobalBackgroundStyle" value="repeat" checked={!wallForm.siteBackgroundStyle || wallForm.siteBackgroundStyle === 'repeat'} onChange={(e) => setWallForm({ ...wallForm, siteBackgroundStyle: e.target.value })} />
-                      <span>3. Resmi tekrarla</span>
-                    </Label>
-                  </div>
+                  <Select value={wallForm.siteBackgroundStyle || 'repeat'} onValueChange={(v) => setWallForm(s => ({ ...s, siteBackgroundStyle: v }))}>
+                    <SelectTrigger className="h-10 text-sm bg-white"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cover">Ekrana Yay (Ölçekle Keserek Doldur - Önerilen)</SelectItem>
+                      <SelectItem value="stretch">Genişlet Sündür (Tam Ekrana Sığdır)</SelectItem>
+                      <SelectItem value="repeat">Tekrarla (Deseni Çoğaltarak Kapla)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="bg-emerald-50/50 p-4 rounded-lg border border-emerald-100">
@@ -8246,7 +8134,7 @@ export default function AdminPage() {
                                <input id="shape-custom-upload" type="file" accept="image/*" onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (!file) return;
-                                  if (file.size > 10 * 1024 * 1024) { toast.error("Dosya boyutu 10MB'dan küçük olmalıdır"); return; }
+                                  if (file.size > 25 * 1024 * 1024) { toast.error("Dosya boyutu 25MB'dan küçük olmalıdır"); return; }
                                   setUploadingShapeCustomImage(true);
                                   try {
                                       const formData = new FormData();
@@ -13229,19 +13117,19 @@ export default function AdminPage() {
       </Dialog >
 
       <Dialog open={showPostitModal} onOpenChange={setShowPostitModal}>
-        <DialogContent className="max-w-6xl w-[95vw] sm:w-full max-h-[90vh] overflow-hidden p-0 border border-white/20 bg-white/60 backdrop-blur-xl rounded-[24px] shadow-2xl">
-          <div className="bg-white/95 h-[90vh] sm:h-[85vh] overflow-y-auto sm:overflow-hidden block sm:flex sm:flex-row min-h-0 w-full">
+        <DialogContent className="max-w-6xl w-[95vw] sm:w-full max-h-[90vh] overflow-hidden p-0 border border-amber-500/20 bg-slate-950/80 backdrop-blur-2xl rounded-[24px] shadow-[0_0_50px_-12px_rgba(251,191,36,0.3)]">
+          <div className="bg-gradient-to-br from-[#111111] via-[#1a1a1a] to-[#0a0a0a] text-slate-200 h-[90vh] sm:h-[85vh] overflow-y-auto sm:overflow-hidden block sm:flex sm:flex-row min-h-0 w-full">
 
             {/* LEFT COLUMN - CONTENT & SETTINGS */}
-            <div className="flex-1 p-6 sm:p-10 sm:overflow-y-auto bg-white sm:min-h-0 min-h-0 relative">
+            <div className="flex-1 p-6 sm:p-10 sm:overflow-y-auto bg-transparent sm:min-h-0 min-h-0 relative">
               <div className="mb-8">
-                <DialogTitle className="text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-3">
-                  <div className="bg-yellow-400 p-2 rounded-xl shadow-inner border border-yellow-300">
-                    <Pencil className="w-5 h-5 text-yellow-900" strokeWidth={3} />
+                <DialogTitle className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-600 flex items-center gap-3">
+                  <div className="bg-gradient-to-br from-amber-400 to-amber-600 p-2 rounded-xl shadow-lg shadow-amber-500/20 border border-amber-300/50">
+                    <Pencil className="w-5 h-5 text-slate-900" strokeWidth={3} />
                   </div>
                   Not Düzenle
                 </DialogTitle>
-                <DialogDescription className="text-slate-500 mt-2 text-[15px]">
+                <DialogDescription className="text-slate-400 mt-2 text-[15px]">
                   Mevcut duyuruyu güncelleyin veya onay durumunu değiştirin.
                 </DialogDescription>
               </div>
@@ -13249,12 +13137,12 @@ export default function AdminPage() {
               <div className="space-y-7">
                 {/* Category */}
                 <div className="space-y-2">
-                  <Label htmlFor="category" className="text-[13px] uppercase tracking-wider font-bold text-slate-500 ml-1">Kategori (Duvar) *</Label>
+                  <Label htmlFor="category" className="text-[13px] uppercase tracking-wider font-bold text-amber-200/70 ml-1">Kategori (Duvar) *</Label>
                   <Select
                     value={postitForm.categoryId}
                     onValueChange={(value) => setPostitForm({ ...postitForm, categoryId: value })}
                   >
-                    <SelectTrigger className="h-12 bg-slate-50/50 hover:bg-slate-100/50 border-slate-200 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] focus:ring-2 focus:ring-slate-900 rounded-2xl transition-all">
+                    <SelectTrigger className="h-12 bg-white/5 hover:bg-white/10 border-white/10 text-white shadow-inner focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 rounded-2xl transition-all">
                       <SelectValue placeholder="Kategori seçin" />
                     </SelectTrigger>
                     <SelectContent>
@@ -13293,13 +13181,13 @@ export default function AdminPage() {
 
                 {/* Content */}
                 <div className="space-y-2">
-                  <Label htmlFor="content" className="text-[13px] uppercase tracking-wider font-bold text-slate-500 ml-1">Özet (İçerik) *</Label>
+                  <Label htmlFor="content" className="text-[13px] uppercase tracking-wider font-bold text-amber-200/70 ml-1">Özet (İçerik) *</Label>
                   <Textarea
                     id="content"
                     value={postitForm.content}
                     onChange={(e) => setPostitForm({ ...postitForm, content: e.target.value })}
                     placeholder="İnsanların görmesini istediğiniz fikri buraya dökün..."
-                    className="bg-slate-50/50 hover:bg-slate-100/50 border-slate-200 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] focus:ring-2 focus:ring-slate-900 resize-none rounded-[20px] transition-all p-4 text-base leading-relaxed"
+                    className="bg-white/5 hover:bg-white/10 border-white/10 text-white shadow-inner focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 resize-none rounded-[20px] transition-all p-4 text-base leading-relaxed"
                     rows={4}
                     maxLength={750}
                     required
@@ -13313,8 +13201,9 @@ export default function AdminPage() {
 
                 {/* Detail */}
                 <div className="space-y-2">
-                  <Label htmlFor="detail" className="text-[13px] uppercase tracking-wider font-bold text-slate-500 ml-1">Detay (Genişletilmiş İçerik)</Label>
+                  <Label htmlFor="detail" className="text-[13px] uppercase tracking-wider font-bold text-amber-200/70 ml-1">Detay (Genişletilmiş İçerik)</Label>
                   <TipTapSmallEditor
+                    darkTheme={true}
                     content={postitForm.detail}
                     onChange={(html) => setPostitForm({ ...postitForm, detail: html })}
                     placeholder="Detaylı bilgi eklemek isterseniz buraya yazın..."
@@ -13323,9 +13212,9 @@ export default function AdminPage() {
                 </div>
 
                 {/* Expiration */}
-                <div className="grid grid-cols-2 gap-4 bg-slate-50/60 p-5 rounded-[20px] border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]">
+                <div className="grid grid-cols-2 gap-4 bg-white/5 p-5 rounded-[20px] border border-white/10 shadow-inner">
                   <div className="space-y-2">
-                    <Label htmlFor="expires" className="text-[12px] uppercase tracking-wider font-bold text-slate-500">Gösterim Süresi *</Label>
+                    <Label htmlFor="expires" className="text-[12px] uppercase tracking-wider font-bold text-amber-200/70">Gösterim Süresi *</Label>
                     <Select
                       value={postitForm.expiresInDays}
                       onValueChange={(value) => {
@@ -13340,7 +13229,7 @@ export default function AdminPage() {
                         setPostitForm(newForm)
                       }}
                     >
-                      <SelectTrigger className="h-11 bg-white border-slate-200 shadow-sm rounded-xl hover:bg-slate-50 transition-colors focus:ring-2 focus:ring-slate-900">
+                      <SelectTrigger className="h-11 bg-white/5 border-white/10 text-white shadow-inner rounded-xl hover:bg-white/10 transition-colors focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50">
                         <SelectValue placeholder="Süre seçin" />
                       </SelectTrigger>
                       <SelectContent>
@@ -13354,7 +13243,7 @@ export default function AdminPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-[12px] uppercase tracking-wider font-bold text-slate-500">Bitiş Tarihi</Label>
+                    <Label className="text-[12px] uppercase tracking-wider font-bold text-amber-200/70">Bitiş Tarihi</Label>
                     <Input
                       type="date"
                       min={new Date().toISOString().split('T')[0]}
@@ -13362,86 +13251,99 @@ export default function AdminPage() {
                       onChange={(e) => setPostitForm({ ...postitForm, expiresAtDate: e.target.value })}
                       required
                       readOnly={postitForm.expiresInDays !== 'custom'}
-                      className={`h-11 rounded-xl shadow-sm border-slate-200 transition-colors focus:ring-2 focus:ring-slate-900 ${postitForm.expiresInDays !== 'custom' ? 'bg-slate-100 cursor-not-allowed text-slate-400 border-slate-100' : 'bg-white hover:bg-slate-50'}`}
+                      className={`h-11 rounded-xl shadow-sm transition-colors focus:ring-2 focus:ring-amber-500/40 ${postitForm.expiresInDays !== 'custom' ? 'bg-white/5 cursor-not-allowed text-white/40 border-white/5' : 'bg-white/10 text-white hover:bg-white/20 border-white/10'}`}
                     />
                   </div>
                 </div>
 
                 {/* Link */}
                 <div className="space-y-2">
-                  <Label htmlFor="link" className="text-[13px] uppercase tracking-wider font-bold text-slate-500 ml-1">Harici Bağlantı (Opsiyonel)</Label>
+                  <Label htmlFor="link" className="text-[13px] uppercase tracking-wider font-bold text-amber-200/70 ml-1">Harici Bağlantı (Opsiyonel)</Label>
                   <Input
                     id="link"
                     type="url"
                     value={postitForm.link}
                     onChange={(e) => setPostitForm({ ...postitForm, link: e.target.value })}
-                    className="h-11 bg-slate-50/50 hover:bg-slate-100/50 border-slate-200 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] focus:ring-2 focus:ring-slate-900 rounded-[14px] transition-all px-4"
+                    className="h-11 bg-white/5 hover:bg-white/10 border-white/10 text-white shadow-inner focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 rounded-[14px] transition-all px-4"
                     placeholder="https://örnek.com"
                   />
                 </div>
 
                 {/* Publish & Approve settings for Admins */}
-                <div className="grid grid-cols-2 gap-4 bg-slate-50/60 p-5 rounded-[20px] border border-slate-100 shadow-sm">
+                <div className="grid grid-cols-2 gap-4 bg-white/5 p-5 rounded-[20px] border border-white/10 shadow-inner">
                   <div className="flex items-center space-x-3">
                     <Checkbox
                       id="isApproved"
-                      className="border-slate-300 w-5 h-5 rounded data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
+                      className="border-slate-300 w-5 h-5 rounded data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:text-white"
                       checked={postitForm.isApproved}
                       onCheckedChange={(checked) => setPostitForm({ ...postitForm, isApproved: checked === true })}
                     />
-                    <label htmlFor="isApproved" className="text-[13px] uppercase tracking-wider font-bold text-slate-700 cursor-pointer">
+                    <label htmlFor="isApproved" className="text-[13px] uppercase tracking-wider font-bold text-slate-300 cursor-pointer">
                       Onaylı
                     </label>
                   </div>
                   <div className="flex items-center space-x-3">
                     <Checkbox
                       id="isPublished"
-                      className="border-slate-300 w-5 h-5 rounded data-[state=checked]:bg-slate-900 data-[state=checked]:text-white"
+                      className="border-slate-300 w-5 h-5 rounded data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:text-white"
                       checked={postitForm.isPublished}
                       onCheckedChange={(checked) => setPostitForm({ ...postitForm, isPublished: checked === true })}
                     />
-                    <label htmlFor="isPublished" className="text-[13px] uppercase tracking-wider font-bold text-slate-700 cursor-pointer">
+                    <label htmlFor="isPublished" className="text-[13px] uppercase tracking-wider font-bold text-slate-300 cursor-pointer">
                       Yayında
                     </label>
                   </div>
                 </div>
 
                 {/* Images */}
-                <div className="space-y-3 bg-slate-50/40 p-5 rounded-[24px] border border-slate-100/50 shadow-inner">
+                <div className="space-y-3 bg-white/5 p-5 rounded-[24px] border border-white/10 shadow-inner">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="image" className="text-[13px] uppercase tracking-wider font-bold text-slate-600 flex items-center gap-2">
+                    <Label htmlFor="image" className="text-[13px] uppercase tracking-wider font-bold text-amber-200/70 flex items-center gap-2">
                       <ImageIcon className="w-4 h-4 text-slate-400" />
                       Medya (Resim/Video)
                     </Label>
-                    <span className="text-xs bg-white border border-slate-200 text-slate-600 px-3 py-1 rounded-full shadow-sm font-semibold">{postitForm.imageUrls.length}/10</span>
+                    <span className="text-xs bg-black/40 border border-white/10 text-amber-200/70 px-3 py-1 rounded-full shadow-sm font-semibold">{postitForm.imageUrls.length}/10</span>
                   </div>
 
                   {postitForm.imageUrls.length > 0 && (
-                    <div className="grid grid-cols-5 gap-2 mt-2 mb-2">
-                      {postitForm.imageUrls.map((url, index) => (
-                        <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 shadow-sm transform transition duration-300 hover:scale-105">
-                          {url.match(/\.(mp4|webm|ogg)$/i) ? (
-                            <div className="relative w-full h-full group/video">
-                              <video src={`${url}#t=0.001`} className="w-full h-full object-cover" preload="metadata" muted playsInline />
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
-                                <Play className="w-6 h-6 text-white/90 fill-white/90" />
+                    <>
+                      <div className="grid grid-cols-5 gap-2 mt-2 mb-2">
+                        {postitForm.imageUrls.map((url, index) => (
+                          <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200 shadow-sm transform transition duration-300 hover:scale-105">
+                            {url.match(/\.(mp4|webm|ogg)$/i) ? (
+                              <div className="relative w-full h-full group/video">
+                                <video src={`${url}#t=0.001`} className="w-full h-full object-cover" preload="metadata" muted playsInline />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+                                  <Play className="w-6 h-6 text-white/90 fill-white/90" />
+                                </div>
                               </div>
-                            </div>
-                          ) : (
-                            <img src={url} alt={`Medya ${index + 1}`} className="w-full h-full object-cover" />
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePostitImage(index)}
-                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <div className="bg-red-500 text-white rounded-full p-1 shadow-lg border border-red-600">
-                              <X className="w-3 h-3" />
-                            </div>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                            ) : (
+                              <img src={url} alt={`Medya ${index + 1}`} className="w-full h-full object-cover" />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePostitImage(index)}
+                              className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <div className="bg-red-500 text-white rounded-full p-1 shadow-lg border border-red-600">
+                                <X className="w-3 h-3" />
+                              </div>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center space-x-2 mt-4 bg-white p-3 rounded-xl border border-white/20 shadow-sm">
+                        <Checkbox
+                          id="fitImageAdmin"
+                          className="border-slate-300 w-5 h-5 rounded data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:text-white"
+                          checked={postitForm.fitImage}
+                          onCheckedChange={(checked) => setPostitForm({ ...postitForm, fitImage: checked === true })}
+                        />
+                        <label htmlFor="fitImageAdmin" className="text-sm font-semibold text-slate-300 cursor-pointer">
+                          Resmi postite sığdır (Kırpma yapma)
+                        </label>
+                      </div>
+                    </>
                   )}
 
                   {postitForm.imageUrls.length < 10 && (
@@ -13450,7 +13352,7 @@ export default function AdminPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="w-full h-16 border-dashed border-2 flex flex-col gap-1 items-center justify-center text-slate-500 bg-white hover:text-slate-800 hover:bg-slate-50 hover:border-slate-400 rounded-[14px] transition-colors border-slate-200 shadow-sm"
+                        className="w-full h-16 border-dashed border-2 flex flex-col gap-1 items-center justify-center text-slate-500 bg-white hover:text-slate-800 hover:bg-slate-50 hover:border-slate-400 rounded-[14px] transition-colors border-white/20 shadow-sm"
                         onClick={() => document.getElementById('admin-edit-image-upload')?.click()}
                         disabled={uploadingPostitImage}
                       >
@@ -13476,14 +13378,14 @@ export default function AdminPage() {
             </div>
 
             {/* RIGHT COLUMN - PREVIEW & APPEARANCE */}
-            <div className="w-full sm:w-[420px] sm:shrink-0 bg-slate-50 border-t sm:border-t-0 sm:border-l border-slate-200 p-4 sm:p-8 sm:overflow-y-auto flex flex-col justify-between gap-6 sm:gap-0 sm:min-h-0 min-h-0 shrink-0">
+            <div className="w-full sm:w-[420px] sm:shrink-0 bg-black/40 border-t sm:border-t-0 sm:border-l border-white/10 p-4 sm:p-8 sm:overflow-y-auto flex flex-col justify-between gap-6 sm:gap-0 sm:min-h-0 min-h-0 shrink-0">
               <div className="space-y-10">
                 {/* Preview Block */}
                 <div>
-                  <Label className="text-[12px] font-extrabold text-slate-800 tracking-[0.2em] uppercase mb-4 block flex items-center gap-2">
+                  <Label className="text-[12px] font-extrabold text-amber-200 tracking-[0.2em] uppercase mb-4 block flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div> Canlı Önizleme
                   </Label>
-                  <div className="px-6 py-10 rounded-[32px] bg-slate-200/60 shadow-inner flex items-center justify-center border border-slate-200/70 pattern-grid-lg text-slate-300 relative overflow-hidden">
+                  <div className="px-6 py-10 rounded-[32px] bg-white/5 shadow-inner flex items-center justify-center border border-white/10 pattern-grid-lg text-slate-300 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent mix-blend-overlay"></div>
                     <div className={`
                       w-44 h-44 relative shadow-2xl transform rotate-2 hover:rotate-0 transition-all duration-300
@@ -13526,7 +13428,7 @@ export default function AdminPage() {
 
                 {/* Color */}
                 <div>
-                  <Label className="text-[11px] font-extrabold text-slate-500 tracking-widest mb-3 block">1. ZEMİN FORMÜLÜ (KAĞIT)</Label>
+                  <Label className="text-[11px] font-extrabold text-amber-200/70 tracking-widest mb-3 block">1. ZEMİN FORMÜLÜ (KAĞIT)</Label>
                   <div className="flex flex-wrap gap-2">
                     {colors.map((color) => (
                       <button
@@ -13535,7 +13437,7 @@ export default function AdminPage() {
                         onClick={() => setPostitForm({ ...postitForm, color: color.value })}
                         className={`
                           ${color.class} w-10 h-10 rounded-[14px] border-2 transition-all transform hover:scale-[1.15] shadow-sm
-                          ${postitForm.color === color.value ? 'border-slate-800 ring-2 ring-slate-800 ring-offset-2 scale-110 shadow-md' : 'border-slate-200'}
+                          ${postitForm.color === color.value ? 'border-amber-400 ring-2 ring-amber-400 ring-offset-2 scale-110 shadow-md' : 'border-white/20'}
                         `}
                         title={color.label}
                       >
@@ -13549,7 +13451,7 @@ export default function AdminPage() {
 
                 {/* Font */}
                 <div>
-                  <Label className="text-[11px] font-extrabold text-slate-500 tracking-widest mb-3 block">2. YAZI TİPOGRAFİSİ</Label>
+                  <Label className="text-[11px] font-extrabold text-amber-200/70 tracking-widest mb-3 block">2. YAZI TİPOGRAFİSİ</Label>
                   
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {fonts.map((font) => (
@@ -13559,7 +13461,7 @@ export default function AdminPage() {
                         onClick={() => setPostitForm({ ...postitForm, font: font.value })}
                         className={`
                           px-3.5 py-2 rounded-xl border flex items-center justify-center transition-all bg-white whitespace-nowrap shadow-sm
-                          ${postitForm.font === font.value ? 'border-slate-800 ring-2 ring-slate-800 text-slate-900 font-bold shadow-md transform scale-[1.03]' : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}
+                          ${postitForm.font === font.value ? 'border-amber-400 ring-2 ring-amber-400 text-slate-900 font-bold shadow-md transform scale-[1.03]' : 'border-white/20 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}
                           ${font.class} text-[13px]
                         `}
                       >
@@ -13568,7 +13470,7 @@ export default function AdminPage() {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-3 bg-white p-2.5 rounded-[18px] border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-3 bg-white p-2.5 rounded-[18px] border border-white/20 shadow-sm">
                     <div className="flex-1">
                       <Select
                         value={postitForm.textSize}
@@ -13591,7 +13493,7 @@ export default function AdminPage() {
                     
                     <div className="flex items-center justify-center gap-2 pr-3 pl-2 border-l border-slate-100">
                       <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Renk:</span>
-                      <label className="relative w-8 h-8 rounded-full border-2 border-slate-200 shadow-inner hover:scale-110 transition-transform shrink-0 cursor-pointer overflow-hidden">
+                      <label className="relative w-8 h-8 rounded-full border-2 border-white/20 shadow-inner hover:scale-110 transition-transform shrink-0 cursor-pointer overflow-hidden">
                         <div className="absolute inset-0 m-auto w-full h-full rounded-full" style={{ backgroundColor: postitForm.textColor }}></div>
                         <input 
                           type="color" 
@@ -13607,7 +13509,7 @@ export default function AdminPage() {
 
                 {/* Pin */}
                 <div>
-                  <Label className="text-[11px] font-extrabold text-slate-500 tracking-widest mb-3 block">3. AKSESUAR (İĞNE / BANT)</Label>
+                  <Label className="text-[11px] font-extrabold text-amber-200/70 tracking-widest mb-3 block">3. AKSESUAR (İĞNE / BANT)</Label>
                   <div className="flex flex-wrap gap-2.5">
                     {pushpinOptions.map((pin) => (
                       <button
@@ -13616,7 +13518,7 @@ export default function AdminPage() {
                         onClick={() => setPostitForm({ ...postitForm, pushpin: pin.value })}
                         className={`
                           w-[46px] h-[46px] rounded-[14px] bg-white border flex items-center justify-center transition-all group hover:bg-slate-50 hover:shadow-md
-                          ${postitForm.pushpin === pin.value ? 'border-slate-900 ring-2 ring-slate-900 shadow-sm scale-110' : 'border-slate-200 shadow-sm'}
+                          ${postitForm.pushpin === pin.value ? 'border-slate-900 ring-2 ring-slate-900 shadow-sm scale-110' : 'border-white/20 shadow-sm'}
                         `}
                         title={pin.label}
                       >
@@ -13645,7 +13547,7 @@ export default function AdminPage() {
               </div>
 
               {/* Actions */}
-              <div className="mt-8 sticky bottom-0 -mx-4 sm:-mx-8 -mb-4 sm:-mb-8 px-4 sm:px-8 py-6 border-t border-slate-200 flex items-center justify-end gap-3 bg-slate-50/95 backdrop-blur-md z-10">
+              <div className="mt-8 sticky bottom-0 -mx-4 sm:-mx-8 -mb-4 sm:-mb-8 px-4 sm:px-8 py-6 border-t border-white/20 flex items-center justify-end gap-3 bg-slate-50/95 backdrop-blur-md z-10">
                 <Button
                   type="button"
                   variant="ghost"

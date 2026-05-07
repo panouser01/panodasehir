@@ -179,8 +179,16 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
                 <div className={`text-[10px] md:text-[11px] font-medium uppercase tracking-widest leading-none ml-1 opacity-80 ${isModern ? 'text-blue-400/80' : 'text-gray-500'}`}>
                   {currentCategory ? currentCategory.name : 'Ana Pano'}
                 </div>
-                <div className={`${publicSans.className} text-3xl md:text-2xl lg:text-3xl bg-red-600 text-white px-3 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-tight mt-1 tracking-tight`}>
-                  Panoda Şehir
+                <div className={`${publicSans.className} text-3xl md:text-2xl lg:text-3xl bg-red-600 text-white px-3 py-0.5 rounded-md shadow-sm whitespace-nowrap leading-tight mt-1 tracking-tight flex items-center gap-2`}>
+                  {(() => {
+                    const homeWall = categories.find((c: any) => c.name === 'Ana Duvar')
+                    const resolvedLogoUrl = currentCategory ? currentCategory.logoUrl : (homeWall ? homeWall.logoUrl : effectiveSettings?.logoUrl)
+                    if (resolvedLogoUrl) {
+                      return <img src={resolvedLogoUrl} alt="Logo" className="h-[0.85em] w-auto object-contain" />
+                    }
+                    return null
+                  })()}
+                  <span>Panoda Şehir</span>
                 </div>
               </div>
             </Link>
@@ -231,7 +239,7 @@ export function Navbar({ initialCategories, initialSettings }: { initialCategori
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {(userRole === 'SUPER_ADMIN' || userRole === 'WALL_MANAGER' || userRole === 'WALL_USER') && (
+                  {((userRole && userRole !== 'USER') || ((session?.user as any)?.permissions && (session?.user as any).permissions.length > 0)) && (
                     <DropdownMenuItem onClick={() => router.push('/admin')}>
                       <Settings className="mr-2 h-4 w-4" />
                       <span>{userRole === 'SUPER_ADMIN' ? 'Admin Panel' : 'Yönetici Panel'}</span>
